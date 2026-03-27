@@ -1,13 +1,12 @@
 :root {
   color-scheme: dark;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(92, 125, 255, 0.24), transparent 30%),
-    radial-gradient(circle at top right, rgba(255, 138, 91, 0.18), transparent 24%),
-    linear-gradient(180deg, #0c1020 0%, #090b14 100%);
-  color: #f3f6ff;
+    radial-gradient(circle at top left, rgba(125, 201, 255, 0.2), transparent 28%),
+    radial-gradient(circle at top right, rgba(197, 140, 255, 0.16), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(141, 210, 109, 0.12), transparent 20%),
+    linear-gradient(180deg, #080b14 0%, #0b1020 100%);
+  color: #f2f5ff;
 }
 
 * {
@@ -25,119 +24,280 @@ body {
   min-height: 100vh;
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
 .app-shell {
-  width: min(1120px, calc(100vw - 32px));
+  width: min(1400px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 48px 0 64px;
+  padding: 28px 0 36px;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: 1.5fr 0.9fr;
-  gap: 24px;
+  grid-template-columns: 1.6fr 0.9fr;
+  gap: 18px;
   align-items: stretch;
 }
 
 .hero-copy,
 .hero-panel,
-.engine-card {
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(7, 10, 20, 0.62);
+.sidebar,
+.playground-stage,
+.module-card,
+.debug-overlay,
+.module-viewport,
+.empty-stage {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 10, 20, 0.68);
   backdrop-filter: blur(16px);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.28);
 }
 
-.hero-copy {
-  border-radius: 28px;
-  padding: 36px;
+.hero-copy,
+.hero-panel {
+  border-radius: 24px;
+  padding: 28px;
 }
 
 .eyebrow,
 .panel-label,
-.engine-focus {
-  margin: 0 0 12px;
-  color: #9ea8d7;
+.stage-kicker,
+.debug-label {
+  margin: 0 0 10px;
+  color: #9aa6d1;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 0.74rem;
 }
 
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
 h1 {
-  margin: 0;
-  font-size: clamp(2.5rem, 5vw, 5rem);
-  line-height: 0.98;
-  max-width: 12ch;
+  margin-bottom: 12px;
+  font-size: clamp(2.4rem, 4vw, 4.8rem);
+  line-height: 0.96;
+  max-width: 13ch;
 }
 
-.lede {
-  margin: 18px 0 0;
-  max-width: 60ch;
-  color: #c7cbe0;
-  font-size: 1.05rem;
-  line-height: 1.75;
-}
-
-.hero-panel {
-  border-radius: 28px;
-  padding: 28px;
+.lede,
+.hero-panel li,
+.module-card p,
+.stage-header p,
+.runtime-placeholder p {
+  color: #cbd2ea;
+  line-height: 1.7;
 }
 
 .hero-panel ul {
   margin: 0;
   padding-left: 18px;
-  color: #d8dcf1;
-  line-height: 1.9;
 }
 
-.catalog {
+.workspace {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 18px;
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
-.engine-card {
+.sidebar,
+.playground-stage {
   border-radius: 24px;
-  padding: 24px;
+}
+
+.sidebar {
+  padding: 16px;
+}
+
+.module-group + .module-group {
+  margin-top: 18px;
+}
+
+.module-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.module-group-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.module-group-header span {
+  color: #97a3cb;
+  font-size: 0.82rem;
+}
+
+.module-list {
+  display: grid;
+  gap: 10px;
+}
+
+.module-card {
+  width: 100%;
+  border-radius: 18px;
+  padding: 14px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.module-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.module-card.is-active {
+  border-color: rgba(141, 210, 109, 0.35);
+  background: rgba(141, 210, 109, 0.08);
+}
+
+.module-card-top,
+.module-card-bottom,
+.stage-header,
+.stage-meta,
+.debug-overlay {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.module-card-top span,
+.module-card-bottom span,
+.stage-meta span {
+  color: #8d9ac4;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.module-card p {
+  margin: 10px 0;
+  font-size: 0.94rem;
+}
+
+.module-card-bottom {
+  margin-top: 6px;
+}
+
+.playground-stage {
   position: relative;
+  min-height: 76vh;
+  padding: 18px;
   overflow: hidden;
 }
 
-.engine-card::before {
+.stage-header {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.stage-header h2 {
+  margin-bottom: 8px;
+  font-size: 1.8rem;
+}
+
+.stage-header p {
+  margin-bottom: 0;
+}
+
+.stage-meta {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.module-viewport {
+  position: relative;
+  min-height: 58vh;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.runtime-placeholder,
+.empty-stage {
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 12px;
+  padding: 24px;
+}
+
+.runtime-placeholder {
+  min-height: 58vh;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(8, 12, 25, 0.88), rgba(6, 9, 18, 0.96));
+}
+
+.runtime-placeholder::before {
   content: '';
-  position: absolute;
-  inset: 0 auto auto 0;
   width: 100%;
   height: 4px;
   background: linear-gradient(90deg, var(--accent), transparent);
+  border-radius: 999px;
 }
 
-.engine-card h2 {
+.runtime-placeholder-badge {
   margin: 0;
-  font-size: 1.6rem;
+  color: #a8b4dd;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
 }
 
-.package-name {
-  margin: 8px 0 16px;
-  color: #8fa0cb;
+.runtime-placeholder-hint {
+  color: #8d9ac4;
   font-size: 0.92rem;
 }
 
-.engine-card p:last-child {
-  margin-bottom: 0;
-  color: #d7dbec;
-  line-height: 1.7;
+.debug-overlay {
+  margin-top: 14px;
+  border-radius: 16px;
+  padding: 14px 16px;
+  flex-wrap: wrap;
 }
 
-@media (max-width: 860px) {
+.debug-overlay strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.phaser-host {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-stage {
+  border-radius: 20px;
+}
+
+@media (max-width: 1060px) {
   .hero,
-  .catalog {
+  .workspace {
     grid-template-columns: 1fr;
   }
 
-  .app-shell {
-    width: min(1120px, calc(100vw - 24px));
-    padding-top: 24px;
+  .playground-stage {
+    min-height: 62vh;
   }
 }
 

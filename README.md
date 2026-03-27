@@ -26,12 +26,25 @@ npm run dev
 - 分支只用于短期开发过程
 - 不强行统一引擎 API，只统一平台生命周期和公共能力
 
-## 平台分层
+## 目录约定
 
-- `app/`：React 平台壳层，负责列表、路由、参数面板、日志和调试入口
-- `platform/`：runtime 适配层和公共能力层，统一 mount、unmount、resize、pause、resume、destroy
-- `playgrounds/`：具体实验单元，每个文件夹对应一个独立 playground
-- `templates/`：新实验的基模，优先从模板拉起，而不是从零搭建
+```txt
+src/
+  app/         React 平台壳层
+  platform/    runtime 适配层和公共能力
+  playgrounds/ 具体实验单元
+  templates/   可复用基模
+```
+
+## 现在已经搭好的内容
+
+- Playground 注册机制
+- Playground 列表页
+- Runtime adapter 基础接口
+- Phaser 实际运行模板
+- Pixi / Three / Babylon 的占位型 adapter 和模板入口
+- 最小 debug overlay
+- 文件夹级别入口组织
 
 ## 每个 Playground 的规则
 
@@ -40,16 +53,6 @@ npm run dev
 - 2D 游戏玩法优先 Phaser
 - 2D 渲染和特效优先 PixiJS
 - 3D 场景优先 Three.js 或 Babylon.js，按实验目标选择其一
-
-## 目录建议
-
-```txt
-src/
-  app/
-  platform/
-  playgrounds/
-  templates/
-```
 
 ## 当前最小落地目标
 
@@ -73,3 +76,8 @@ src/
 - React
 - TypeScript
 
+## 扩展方式
+
+- 新增 playground 时，先在 `src/playgrounds/` 下建文件夹，再把模块注册到 `src/playgrounds/index.ts`
+- 新增模板时，优先从 `src/templates/` 复制再改，不要直接在主壳层里堆玩法代码
+- 新 runtime 的公共能力优先放进 `src/platform/runtime/`
