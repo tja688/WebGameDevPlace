@@ -25,8 +25,16 @@ npm run dev
 Useful commands:
 
 ```bash
+npm run dev:home
+npm run dev:project -- gunfightman-practice
 npm run typecheck
 npm run build
+```
+
+Windows one-click launcher:
+
+```bash
+start-web-game-dev-place.bat
 ```
 
 ## Stack
@@ -57,6 +65,15 @@ The play screen is game-first:
 - the runtime owns the viewport
 - the platform shell stays out of sight during play
 - `Esc` opens a minimal pause panel with `Resume` and `Home`
+
+## Launch Paths
+
+- `npm run dev` starts Vite without forcing a route
+- `npm run dev:home` starts the dev server and opens the launcher home route
+- `npm run dev:project -- <project-id>` starts the dev server and opens the target project directly at `#/play/<project-id>`
+- `start-web-game-dev-place.bat` is the one-click Windows launcher for the home route
+
+Use direct project launch for gameplay checks and automation when the target project is already known.
 
 ## Architecture Rules
 
@@ -122,6 +139,7 @@ Agents must:
 - follow project-first organization
 - use project-local skills instead of embedding long procedures in one file
 - keep docs aligned with actual implementation
+- use direct project launch for gameplay validation when a specific project is under test
 
 ## Current Scope
 

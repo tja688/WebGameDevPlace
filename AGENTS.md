@@ -61,6 +61,14 @@ Rules:
 - `Esc` opens the default pause panel
 - Default pause panel is minimal: `Resume` and `Home`
 - Do not add global debug dashboards or save-management shells unless explicitly requested
+- For automated gameplay verification or launch flows targeting a known project, use the direct project route instead of opening the home screen first
+- Preferred command: `npm run dev:project -- <project-id>`
+
+## Launch Commands
+
+- `npm run dev:home` opens the launcher home route
+- `npm run dev:project -- <project-id>` opens a specific project play route
+- `start-web-game-dev-place.bat` is the Windows one-click launcher for the home route
 
 ## UI Constraints
 

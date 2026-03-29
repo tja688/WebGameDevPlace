@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:home": "node scripts/dev-entry.mjs",
+    "dev:project": "node scripts/dev-entry.mjs --project",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false"
