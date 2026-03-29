@@ -1,5 +1,4 @@
 import { meta } from './meta';
-import { createPlaygroundModule } from '../../platform/runtime/moduleFactory';
+import { createProjectModule } from '../../platform/runtime/moduleFactory';
 
-export const puzzleMatch = createPlaygroundModule(meta, 'phaser');
-
+export const puzzleMatch = createProjectModule(meta, 'phaser');

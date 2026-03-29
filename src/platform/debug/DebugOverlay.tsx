@@ -1,7 +1,7 @@
-import type { PlaygroundModule } from '../runtime/types';
+import type { ProjectModule } from '../runtime/types';
 
 interface DebugOverlayProps {
-  module: PlaygroundModule;
+  module: ProjectModule;
 }
 
 export function DebugOverlay({ module }: DebugOverlayProps) {
@@ -26,4 +26,3 @@ export function DebugOverlay({ module }: DebugOverlayProps) {
     </footer>
   );
 }
-

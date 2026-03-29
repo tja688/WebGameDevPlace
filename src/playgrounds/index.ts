@@ -3,5 +3,4 @@ import { physicsLab } from './physics-lab';
 import { puzzleMatch } from './puzzle-match';
 import { threeRoom } from './three-room';
 
-export const playgroundModules = [puzzleMatch, physicsLab, threeRoom, babylonRoom];
-
+export const projectModules = [puzzleMatch, physicsLab, threeRoom, babylonRoom];

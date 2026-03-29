@@ -1,11 +1,11 @@
-import type { PlaygroundMeta, PlaygroundModule } from './types';
+import type { ProjectMeta, ProjectModule } from './types';
 import { createPlaceholderAdapter } from './adapters/dom';
 import { createPhaserAdapter } from './adapters/phaser';
 import { createPixiAdapter } from './adapters/pixi';
 import { createThreeAdapter } from './adapters/three';
 import { createBabylonAdapter } from './adapters/babylon';
 
-export function createPlaygroundModule(meta: PlaygroundMeta, flavor: 'phaser' | 'pixi' | 'three' | 'babylon' | 'placeholder'): PlaygroundModule {
+export function createProjectModule(meta: ProjectMeta, flavor: 'phaser' | 'pixi' | 'three' | 'babylon' | 'placeholder'): ProjectModule {
   const createAdapter =
     flavor === 'phaser'
       ? () => createPhaserAdapter({ title: meta.title, accent: meta.accent })
@@ -28,4 +28,3 @@ export function createPlaygroundModule(meta: PlaygroundMeta, flavor: 'phaser' | 
     createAdapter,
   };
 }
-

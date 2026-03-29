@@ -1,83 +1,130 @@
 # Web Game Dev Place
 
-一个本地开发优先的 Web 游戏实验平台。它不是单个游戏，而是一个用于快速验证玩法、演出、交互和技术方案的 playground / play test 底座。
+Web Game Dev Place is a local-first workbench for browser game experiments. It is not a single game and it is not a public template gallery. The repo exists to host **project-sized gameplay experiments** behind one shared platform shell.
 
-## 快速开始
+## What This Repo Is
+
+- A project launcher for current game experiments
+- A shared runtime platform for Phaser, PixiJS, Three.js, and Babylon.js projects
+- A place to validate play loops, interaction systems, presentation ideas, and technical spikes
+
+## What This Repo Is Not
+
+- Not a runtime-first showcase
+- Not a template browser
+- Not a long-lived branch-per-project workflow
+- Not a general dashboard wrapped around the play surface
+
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-## 技术栈
+Useful commands:
 
-- React 负责平台壳层、路由、工具面板和调试 UI
-- Vite 负责本地开发与构建
-- Phaser 3 适合 2D 游戏玩法原型
-- PixiJS 适合 2D 渲染、特效和展示型 demo
-- Three.js 适合 3D 场景、相机、模型和空间交互
-- Babylon.js 适合完整 3D 引擎型原型和更重的 3D 交互场景
+```bash
+npm run typecheck
+npm run build
+```
 
-## 核心约定
+## Stack
 
-- 平台层支持多个 runtime
-- 单个 playground 只允许一个主 runtime
-- 不用长期分支区分玩法，main 保持干净、可运行、可维护
-- 分支只用于短期开发过程
-- 不强行统一引擎 API，只统一平台生命周期和公共能力
+- React 19 for the platform shell
+- Vite for local dev and production build
+- TypeScript for shared contracts
+- Phaser 3 for 2D gameplay-first projects
+- PixiJS for 2D rendering and effects-oriented projects
+- Three.js for explicit 3D scene experiments
+- Babylon.js for heavier 3D engine-style experiments
 
-## 目录约定
+## Product Structure
+
+The app has only two platform states:
+
+- `#/` for the start screen
+- `#/play/<project-id>` for direct play entry
+
+The start screen is project-first:
+
+- recent development
+- project search
+- project card library
+
+The play screen is game-first:
+
+- the runtime owns the viewport
+- the platform shell stays out of sight during play
+- `Esc` opens a minimal pause panel with `Resume` and `Home`
+
+## Architecture Rules
+
+- One project owns one primary runtime
+- Runtime is metadata, not the organizing principle of the UI
+- The platform normalizes lifecycle, not engine APIs
+- The play surface must remain game-dominant
+- Templates are not exposed as first-class repo content anymore
+
+## Directory Shape
 
 ```txt
 src/
-  app/         React 平台壳层
-  platform/    runtime 适配层和公共能力
-  playgrounds/ 具体实验单元
-  templates/   可复用基模
+  app/         platform shell and routing
+  platform/    runtime lifecycle and adapters
+  playgrounds/ current project entries
 ```
 
-## 现在已经搭好的内容
+The `playgrounds/` directory is now the visible project inventory. Old public template flows are intentionally removed.
 
-- Playground 注册机制
-- Playground 列表页
-- Runtime adapter 基础接口
-- Phaser 实际运行模板
-- Pixi / Three / Babylon 的占位型 adapter 和模板入口
-- 最小 debug overlay
-- 文件夹级别入口组织
+## Adding a New Project
 
-## 每个 Playground 的规则
+Do not invent a new ad hoc workflow.
 
-- 每个 playground 有唯一 id、标题、描述、主 runtime、入口和资源目录
-- 每个 playground 内部保持收敛，不随意混用 Phaser、Pixi、Three 或 Babylon
-- 2D 游戏玩法优先 Phaser
-- 2D 渲染和特效优先 PixiJS
-- 3D 场景优先 Three.js 或 Babylon.js，按实验目标选择其一
+Use the local skill at `.codex/skills/new-web-game-dev/` and follow its contract:
 
-## 当前最小落地目标
+1. Create the project doc root under `WebGameDev Docs/<project-folder>/`
+2. Create `dev plan/`
+3. Create `reference document/`
+4. Seed the initial dev-plan note and reference note
+5. Add the project into `src/playgrounds/`
+6. Register it in the project registry
 
-- React 壳层跑通
-- playground 列表页
-- runtime adapter 基础接口
-- Phaser adapter 先接通
-- 至少 1 到 2 个 playground 示例
-- 最小版 debug overlay
-- playground 注册机制
+## Documentation Contract
 
-## 仓库状态
+All project docs live under:
 
-当前仓库已经预装：
+`C:\Users\jinji\Documents\GitHub\WebGameDevPlace\WebGameDev Docs`
 
-- PixiJS
-- Phaser 3
-- Three.js
-- Babylon.js
-- Vite
-- React
-- TypeScript
+Each new project gets:
 
-## 扩展方式
+```txt
+WebGameDev Docs/
+  <project-folder>/
+    dev plan/
+    reference document/
+```
 
-- 新增 playground 时，先在 `src/playgrounds/` 下建文件夹，再把模块注册到 `src/playgrounds/index.ts`
-- 新增模板时，优先从 `src/templates/` 复制再改，不要直接在主壳层里堆玩法代码
-- 新 runtime 的公共能力优先放进 `src/platform/runtime/`
+Rules:
+
+- `dev plan/` stores dated task notes named `YYYY-MM-DD - <development-goal>.md`
+- `reference document/` stores unique source-of-truth module docs
+- Module docs are updated in place instead of duplicated
+- Every updated reference doc ends with `Updated: YYYY-MM-DD`
+
+## AI Workflow
+
+`AGENTS.md` is the AI-facing contract for this repo.
+
+Agents must:
+
+- read `README.md` first
+- follow project-first organization
+- use project-local skills instead of embedding long procedures in one file
+- keep docs aligned with actual implementation
+
+## Current Scope
+
+- Existing sample projects stay as project samples
+- This repo currently focuses on platform-layer usability and structure
+- GitHub Pages playtest publishing is defined as a skill workflow, not full repo automation yet

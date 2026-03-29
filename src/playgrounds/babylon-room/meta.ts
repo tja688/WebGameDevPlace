@@ -1,10 +1,9 @@
-import type { PlaygroundMeta } from '../../platform/runtime/types';
+import type { ProjectMeta } from '../../platform/runtime/types';
 
-export const meta: PlaygroundMeta = {
+export const meta: ProjectMeta = {
   id: 'babylon-room',
   title: 'Babylon Room',
   description: 'A Babylon.js base for heavier 3D interaction, lighting and scene workflows.',
-  kind: 'playground',
   primaryRuntime: 'babylon',
   status: 'draft',
   tags: ['3d', 'babylon', 'scene'],
@@ -12,4 +11,3 @@ export const meta: PlaygroundMeta = {
   entryPath: 'src/playgrounds/babylon-room',
   accent: '#c58cff',
 };
-

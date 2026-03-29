@@ -29,7 +29,7 @@ export function createPlaceholderAdapter(options: PlaceholderOptions): RuntimeAd
       const hint = document.createElement('p');
       hint.className = 'runtime-placeholder-hint';
       hint.textContent = context.debug
-        ? 'This is a scaffolded runtime slot. Replace it with the real adapter when the template is promoted.'
+        ? 'This runtime slot is still a scaffold. Replace it with the real project adapter when implementation starts.'
         : 'Scaffold runtime slot';
 
       host.append(badge, title, body, hint);

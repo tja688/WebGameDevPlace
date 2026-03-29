@@ -34,7 +34,7 @@ export function createPhaserAdapter(options: { accent: string; title: string }):
             fontStyle: '700',
           });
 
-          this.add.text(32, 64, 'Phaser 3 base template', {
+          this.add.text(32, 64, 'Phaser runtime sample', {
             color: '#9aa6d1',
             fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif',
             fontSize: '14px',
@@ -43,7 +43,7 @@ export function createPhaserAdapter(options: { accent: string; title: string }):
           this.hero = this.add.rectangle(width / 2, height / 2 + 20, 140, 140, color, 1);
           this.orb = this.add.circle(width / 2, height / 2 + 20, 78, 0xffffff, 0.12);
 
-          this.add.text(32, height - 78, 'Use this as the first 2D gameplay base.', {
+          this.add.text(32, height - 78, 'Use this runtime slot for 2D gameplay iteration.', {
             color: '#cdd4ec',
             fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif',
             fontSize: '14px',

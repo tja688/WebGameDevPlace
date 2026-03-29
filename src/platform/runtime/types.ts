@@ -1,16 +1,13 @@
 export type RuntimeKind = 'phaser' | 'pixi' | 'three' | 'babylon';
 
-export type ModuleKind = 'playground' | 'template';
+export type ProjectStatus = 'draft' | 'active' | 'stable';
 
-export type ModuleStatus = 'draft' | 'active' | 'stable' | 'template';
-
-export interface PlaygroundMeta {
+export interface ProjectMeta {
   id: string;
   title: string;
   description: string;
-  kind: ModuleKind;
   primaryRuntime: RuntimeKind;
-  status: ModuleStatus;
+  status: ProjectStatus;
   tags: string[];
   supportsMobile: boolean;
   entryPath: string;
@@ -19,7 +16,7 @@ export interface PlaygroundMeta {
 
 export interface RuntimeMountContext {
   container: HTMLDivElement;
-  module: PlaygroundMeta;
+  module: ProjectMeta;
   debug: boolean;
   report: (message: string) => void;
 }
@@ -36,7 +33,7 @@ export interface RuntimeAdapter {
   mount(context: RuntimeMountContext): RuntimeHandle | Promise<RuntimeHandle>;
 }
 
-export interface PlaygroundModule {
-  meta: PlaygroundMeta;
+export interface ProjectModule {
+  meta: ProjectMeta;
   createAdapter: () => RuntimeAdapter;
 }

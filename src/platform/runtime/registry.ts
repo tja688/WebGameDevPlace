@@ -1,21 +1,8 @@
-import { playgroundModules } from '../../playgrounds';
-import { templateModules } from '../../templates';
-import type { PlaygroundModule } from './types';
+import { projectModules } from '../../playgrounds';
+import type { ProjectModule } from './types';
 
-export const registry: PlaygroundModule[] = [...playgroundModules, ...templateModules];
+export const projectRegistry: ProjectModule[] = [...projectModules];
 
-export const playgroundGroups = [
-  {
-    title: 'Playgrounds',
-    items: playgroundModules,
-  },
-  {
-    title: 'Templates',
-    items: templateModules,
-  },
-];
-
-export function getModuleById(id: string) {
-  return registry.find((module) => module.meta.id === id);
+export function getProjectById(id: string) {
+  return projectRegistry.find((module) => module.meta.id === id);
 }
-

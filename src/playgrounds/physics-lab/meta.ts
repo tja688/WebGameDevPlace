@@ -1,10 +1,9 @@
-import type { PlaygroundMeta } from '../../platform/runtime/types';
+import type { ProjectMeta } from '../../platform/runtime/types';
 
-export const meta: PlaygroundMeta = {
+export const meta: ProjectMeta = {
   id: 'physics-lab',
   title: 'Physics Lab',
   description: 'A second Phaser playground slot for mechanics, collision and feedback experiments.',
-  kind: 'playground',
   primaryRuntime: 'phaser',
   status: 'draft',
   tags: ['2d', 'physics', 'feedback'],
@@ -12,4 +11,3 @@ export const meta: PlaygroundMeta = {
   entryPath: 'src/playgrounds/physics-lab',
   accent: '#ff8a5b',
 };
-
