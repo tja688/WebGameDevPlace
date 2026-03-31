@@ -17,6 +17,8 @@
 
 - The original external app shell was removed during migration
 - Combat now runs inside the platform play route as a full-screen runtime
-- HUD and menus are embedded overlays, not an outer dashboard frame
+- Active play keeps the canvas visually clear; only shop and result states raise DOM modals
+- Routine combat readout and control hints are exposed through the `Esc` pause panel snapshot instead of a permanent top or bottom HUD shell
+- React HUD state is fed from the scene bridge, but those UI updates must stay decoupled from Phaser boot and destroy lifecycle
 
-Updated: 2026-03-29
+Updated: 2026-03-31

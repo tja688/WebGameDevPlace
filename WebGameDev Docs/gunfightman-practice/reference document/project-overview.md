@@ -8,7 +8,8 @@
 ## Current Shape
 
 - Phaser drives the combat scene and simulation
-- A lightweight DOM overlay handles HUD readout, shop selection, and result restart
+- DOM UI is disclosure-based: only situational modals stay on top of the game during play, while routine status moves into the `Esc` pause surface
 - The project runs inside the shared Web Game Dev Place launcher and play route system
+- Runtime mounting is one-shot per play-session entry; HUD and menu updates must not recreate the Phaser game instance
 
-Updated: 2026-03-29
+Updated: 2026-03-31

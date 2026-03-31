@@ -21,11 +21,33 @@ export interface RuntimeMountContext {
   report: (message: string) => void;
 }
 
+export interface RuntimePauseStat {
+  label: string;
+  value: string;
+}
+
+export interface RuntimePauseMeter {
+  label: string;
+  value: number;
+}
+
+export interface RuntimePauseSnapshot {
+  accent?: string;
+  kicker?: string;
+  title?: string;
+  subtitle?: string;
+  statusLine?: string;
+  stats?: RuntimePauseStat[];
+  meters?: RuntimePauseMeter[];
+  tips?: string[];
+}
+
 export interface RuntimeHandle {
   resize: () => void;
   pause: () => void;
   resume: () => void;
   destroy: () => void;
+  getPauseSnapshot?: () => RuntimePauseSnapshot | null;
 }
 
 export interface RuntimeAdapter {

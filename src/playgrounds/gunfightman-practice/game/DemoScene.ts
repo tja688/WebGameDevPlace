@@ -1553,6 +1553,53 @@ export class DemoScene extends Phaser.Scene {
     this.uiBridge.onMenuChange(state);
   }
 
+  getPauseSnapshot() {
+    const comboTier = getComboTier(this.combo);
+    const statusLine =
+      this.statusFlash ||
+      (this.shopMenuOpen
+        ? '在补给船面板里选择强化，或者直接跳过继续航行。'
+        : this.shopDocked
+          ? '已经贴近补给船，按 E 就能开店。'
+          : this.runResult === 'escaped'
+            ? 'Boss 已击破，这一趟已经跑通。'
+            : this.runResult === 'sunk'
+              ? '这趟沉了，重开时尽量把后坐力当位移。'
+              : this.reloadTimer > 0
+                ? '正在换弹，先保住走位。'
+                : this.currentPhase?.objective ?? INITIAL_HUD_STATE.statusLine);
+
+    const meters = [
+      {
+        label: 'Run Progress',
+        value: pickPhaseProgress(PHASES, this.phaseIndex, this.currentPhaseElapsed),
+      },
+    ];
+
+    if (this.bossState) {
+      meters.push({
+        label: 'Boss Hull',
+        value: this.bossState.maxHp ? this.bossState.hp / this.bossState.maxHp : 0,
+      });
+    }
+
+    return {
+      kicker: 'Pause Menu',
+      title: this.currentPhase?.label ?? 'GunFightMan Practice',
+      subtitle: this.currentPhase?.objective ?? '射击即位移，命中才能把连击滚起来。',
+      statusLine,
+      stats: [
+        { label: 'Hull', value: `${this.playerState.hp}/${this.playerState.maxHp}` },
+        { label: 'Ammo', value: `${this.playerState.ammo}/${this.playerState.maxAmmo}` },
+        { label: 'Wallet', value: `${this.playerState.wallet}` },
+        { label: 'Combo', value: comboTier.label },
+        { label: 'Kills', value: `${this.kills}` },
+      ],
+      meters,
+      tips: ['Mouse aim', 'Left click or Space fire', 'R reload', 'E dock shop', 'Esc resume'],
+    };
+  }
+
   emitHud(force = false) {
     const now = this.time.now;
 

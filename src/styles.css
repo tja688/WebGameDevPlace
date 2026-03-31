@@ -388,6 +388,103 @@ p {
   margin-bottom: 20px;
 }
 
+.pause-panel-rich {
+  width: min(560px, calc(100% - 24px));
+  border-color: color-mix(in srgb, var(--pause-accent) 34%, rgba(235, 222, 198, 0.12));
+  background:
+    linear-gradient(180deg, rgba(8, 13, 19, 0.96), rgba(9, 16, 24, 0.92)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--pause-accent) 18%, transparent), transparent 42%);
+}
+
+.pause-status-line,
+.pause-hint {
+  color: var(--ink-soft);
+}
+
+.pause-status-line {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pause-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.pause-stat-card {
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pause-stat-card span,
+.pause-meter-meta span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pause-stat-card strong,
+.pause-meter-meta strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-strong);
+  font-size: 1.1rem;
+}
+
+.pause-meter-stack {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.pause-meter {
+  display: grid;
+  gap: 8px;
+}
+
+.pause-meter-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pause-meter-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pause-meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--pause-accent), rgba(255, 255, 255, 0.92));
+}
+
+.pause-tip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.pause-tip-row span {
+  padding: 8px 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pause-accent) 18%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--pause-accent) 10%, rgba(255, 255, 255, 0.03));
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
 .pause-action {
   min-width: 120px;
   border-radius: 999px;
@@ -460,41 +557,10 @@ p {
 .gunfightman-overlay {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: clamp(14px, 2vw, 24px);
-}
-
-.gunfightman-topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.gunfightman-brief,
-.gunfightman-status,
-.gunfightman-modal,
-.gunfightman-bottombar {
-  border: 1px solid rgba(164, 221, 229, 0.18);
-  background:
-    linear-gradient(180deg, rgba(6, 20, 29, 0.84), rgba(4, 14, 21, 0.78)),
-    linear-gradient(120deg, rgba(120, 220, 230, 0.08), transparent 48%);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(16px);
-}
-
-.gunfightman-brief,
-.gunfightman-status,
-.gunfightman-modal {
-  border-radius: 22px;
-}
-
-.gunfightman-brief,
-.gunfightman-status {
-  padding: 18px;
+  place-items: center;
+  padding: clamp(14px, 2vw, 24px);
+  pointer-events: none;
 }
 
 .gunfightman-kicker {
@@ -505,19 +571,12 @@ p {
   font-size: 0.7rem;
 }
 
-.gunfightman-brief h2,
 .gunfightman-modal h3 {
   margin: 0 0 10px;
   font-family: var(--font-display);
   letter-spacing: -0.04em;
 }
 
-.gunfightman-brief h2 {
-  font-size: clamp(1.8rem, 3vw, 3rem);
-}
-
-.gunfightman-brief p,
-.gunfightman-status-line,
 .gunfightman-modal p,
 .gunfightman-shop-option p {
   margin: 0;
@@ -525,19 +584,6 @@ p {
   line-height: 1.6;
 }
 
-.gunfightman-status {
-  display: grid;
-  gap: 14px;
-}
-
-.gunfightman-stat-row {
-  display: grid;
-  gap: 12px;
-}
-
-.gunfightman-hearts,
-.gunfightman-pill-grid,
-.gunfightman-bottombar,
 .gunfightman-modal-head,
 .gunfightman-shop-grid {
   display: flex;
@@ -545,72 +591,17 @@ p {
   flex-wrap: wrap;
 }
 
-.gunfightman-heart {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: rgba(255, 139, 116, 0.2);
-  border: 1px solid rgba(255, 139, 116, 0.18);
-}
-
-.gunfightman-heart.is-filled {
-  background: linear-gradient(180deg, #ff9c88, #ff6f64);
-}
-
-.gunfightman-pill-grid span,
-.gunfightman-bottombar span {
-  padding: 9px 11px;
-  border-radius: 999px;
-  border: 1px solid rgba(244, 215, 152, 0.2);
-  background: rgba(244, 215, 152, 0.1);
-  color: #f4d798;
-  font-size: 0.76rem;
-}
-
-.gunfightman-progress {
-  display: grid;
-  gap: 8px;
-}
-
-.gunfightman-progress-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: #a7c8ce;
-  font-size: 0.78rem;
-}
-
-.gunfightman-progress-meta strong {
-  color: #d8fbff;
-}
-
-.gunfightman-progress-track {
-  height: 10px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(164, 221, 229, 0.12);
-}
-
-.gunfightman-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #78dce6, #f4d798);
-}
-
-.gunfightman-bottombar {
-  align-self: center;
-  justify-content: center;
-  padding: 10px 14px;
-  border-radius: 999px;
-}
-
 .gunfightman-modal {
   pointer-events: auto;
-  position: absolute;
-  inset: auto 24px 24px;
-  max-width: min(860px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 20px;
+  width: min(860px, calc(100% - 48px));
+  border-radius: 24px;
+  border: 1px solid rgba(164, 221, 229, 0.18);
+  background:
+    linear-gradient(180deg, rgba(6, 20, 29, 0.94), rgba(4, 14, 21, 0.9)),
+    linear-gradient(120deg, rgba(120, 220, 230, 0.08), transparent 48%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px);
+  padding: 22px;
 }
 
 .gunfightman-modal-head {
@@ -702,28 +693,12 @@ p {
 }
 
 .gunfightman-result {
-  inset: auto;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
   width: min(420px, calc(100% - 48px));
 }
 
 @media (max-width: 900px) {
-  .gunfightman-topbar {
-    grid-template-columns: 1fr;
-  }
-
-  .gunfightman-bottombar {
-    justify-content: flex-start;
-    align-self: stretch;
-    border-radius: 20px;
-  }
-
   .gunfightman-modal {
-    left: 16px;
-    right: 16px;
-    max-width: none;
+    width: calc(100% - 32px);
   }
 
   .gunfightman-shop-grid {

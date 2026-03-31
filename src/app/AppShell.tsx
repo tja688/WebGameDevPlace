@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { getProjectById, projectRegistry } from '../platform/runtime/registry';
 import { ProjectViewport } from './ProjectViewport';
 import type { ProjectModule, RuntimeHandle } from '../platform/runtime/types';
@@ -73,6 +73,10 @@ export function AppShell() {
 
   const currentProject =
     route.mode === 'play' ? getProjectById(route.projectId) ?? null : null;
+  const pauseSnapshot =
+    pauseOpen && currentProject
+      ? runtimeHandleRef.current?.getPauseSnapshot?.() ?? null
+      : null;
 
   const filteredProjects = useMemo(() => {
     const value = query.trim().toLowerCase();
@@ -184,6 +188,16 @@ export function AppShell() {
     setRoute({ mode: 'home' });
   };
 
+  const pausePanelStyle = {
+    '--pause-accent': pauseSnapshot?.accent ?? currentProject?.meta.accent ?? '#d48d48',
+  } as CSSProperties;
+  const pauseTitle = pauseSnapshot?.title ?? currentProject?.meta.title ?? 'Paused';
+  const pauseSubtitle = pauseSnapshot?.subtitle ?? currentProject?.meta.description ?? '';
+  const pauseStatusLine =
+    pauseSnapshot?.statusLine && pauseSnapshot.statusLine !== pauseSubtitle
+      ? pauseSnapshot.statusLine
+      : null;
+
   return route.mode === 'play' && currentProject ? (
     <main className="play-shell">
       <ProjectViewport
@@ -196,10 +210,55 @@ export function AppShell() {
 
       {pauseOpen ? (
         <div className="pause-overlay" role="dialog" aria-modal="true" aria-label="Paused">
-          <div className="pause-panel">
-            <p className="pause-kicker">Paused</p>
-            <h1>{currentProject.meta.title}</h1>
-            <p>{currentProject.meta.primaryRuntime} runtime</p>
+          <div className="pause-panel pause-panel-rich" style={pausePanelStyle}>
+            <p className="pause-kicker">{pauseSnapshot?.kicker ?? 'Pause Menu'}</p>
+            <h1>{pauseTitle}</h1>
+            <p>{pauseSubtitle}</p>
+
+            {pauseStatusLine ? (
+              <p className="pause-status-line">{pauseStatusLine}</p>
+            ) : null}
+
+            {pauseSnapshot?.stats?.length ? (
+              <div className="pause-stat-grid">
+                {pauseSnapshot.stats.map((stat) => (
+                  <div key={stat.label} className="pause-stat-card">
+                    <span>{stat.label}</span>
+                    <strong>{stat.value}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {pauseSnapshot?.meters?.length ? (
+              <div className="pause-meter-stack">
+                {pauseSnapshot.meters.map((meter) => (
+                  <div key={meter.label} className="pause-meter">
+                    <div className="pause-meter-meta">
+                      <span>{meter.label}</span>
+                      <strong>{Math.round(meter.value * 100)}%</strong>
+                    </div>
+                    <div className="pause-meter-track">
+                      <div
+                        className="pause-meter-fill"
+                        style={{ width: `${Math.max(4, Math.round(meter.value * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {pauseSnapshot?.tips?.length ? (
+              <div className="pause-tip-row" aria-label="Controls and hints">
+                {pauseSnapshot.tips.map((tip) => (
+                  <span key={tip}>{tip}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="pause-hint">Press Esc again to return to play.</p>
+            )}
+
             <div className="pause-actions">
               <button type="button" className="pause-action is-primary" onClick={() => setPauseOpen(false)}>
                 Resume

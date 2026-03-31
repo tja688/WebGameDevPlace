@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { RuntimePauseSnapshot } from '../../../platform/runtime/types';
 import { DemoScene, INITIAL_HUD_STATE, INITIAL_MENU_STATE } from './DemoScene';
 
 export { INITIAL_HUD_STATE, INITIAL_MENU_STATE };
@@ -58,6 +59,7 @@ export interface GunfightmanGameHandle {
   pause: () => void;
   resume: () => void;
   resize: () => void;
+  getPauseSnapshot: () => RuntimePauseSnapshot;
 }
 
 export function createGame(parent: HTMLDivElement, uiBridge: UiBridge): GunfightmanGameHandle {
@@ -99,13 +101,20 @@ export function createGame(parent: HTMLDivElement, uiBridge: UiBridge): Gunfight
       scene.selectShopChoice(choiceId);
     },
     pause() {
-      game.scene.pause('DemoScene');
+      if (game.scene.isActive('DemoScene')) {
+        game.scene.pause('DemoScene');
+      }
     },
     resume() {
-      game.scene.resume('DemoScene');
+      if (game.scene.isPaused('DemoScene')) {
+        game.scene.resume('DemoScene');
+      }
     },
     resize() {
       game.scale.refresh();
+    },
+    getPauseSnapshot() {
+      return scene.getPauseSnapshot();
     },
   };
 
