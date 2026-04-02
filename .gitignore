@@ -1,0 +1,55 @@
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor folders
+.idea/
+.history/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Dependency directories
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+coverage/
+lib/
+release/
+debug/
+
+# Tool caches
+.cache/
+.parcel-cache/
+.turbo/
+.vite/
+.next/
+.nuxt/
+.svelte-kit/
+.eslintcache
+*.tsbuildinfo
+
+# Common web/game runtime temp files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# Generated source maps
+*.map
+
