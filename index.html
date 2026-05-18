@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡牌地下城 - 战斗原型</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="start-screen">
+            <div class="start-content">
+                <h1>⚔️ 卡牌地下城</h1>
+                <p class="subtitle">战斗原型 v0.1</p>
+                <div class="rules">
+                    <h3>📜 基础规则</h3>
+                    <ul>
+                        <li>每回合抽5张牌，将卡牌放到<strong>倍率牌桌</strong>上造成伤害</li>
+                        <li>伤害公式：<strong>卡牌点数 × 格子倍率</strong></li>
+                        <li><strong>兵大哥</strong>初始中间格为 <strong>2X</strong> 倍率（遗物加成）</li>
+                        <li>本回合伤害达到怪物血量即可击杀，否则扣心</li>
+                        <li>共有 <strong>3颗心</strong>，扣完即失败</li>
+                    </ul>
+                    <h3>🃏 卡牌词条</h3>
+                    <ul>
+                        <li><span style="color:#FF6B6B">伟力</span>：场上无更大点数牌时翻倍</li>
+                        <li><span style="color:#1ABC9C">驻场</span>：持续影响临近卡牌（如佯攻+2）</li>
+                        <li><span style="color:#FFD93D">堆叠</span>：可继续往上放牌</li>
+                    </ul>
+                    <h3>🎮 操作</h3>
+                    <ul>
+                        <li>拖拽手牌到倍率格子</li>
+                        <li>按 <strong>E</strong> 或点击按钮结束回合</li>
+                        <li>按 <strong>D</strong> 打开调试面板，<strong>A</strong> 自动出牌</li>
+                    </ul>
+                </div>
+                <button id="btn-start" class="primary">开始战斗</button>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-overlay">
+            <div id="debug-panel" class="hidden">
+                <h3>🛠️ 调试/自动测试</h3>
+                <div class="debug-section">
+                    <label>自动操作:</label>
+                    <button id="btn-auto-play">自动打出最优解</button>
+                    <button id="btn-auto-end">自动结束回合</button>
+                </div>
+                <div class="debug-section">
+                    <label>手牌作弊:</label>
+                    <button id="btn-cheat-hand">指定手牌</button>
+                    <button id="btn-refill-deck">补满牌库</button>
+                </div>
+                <div class="debug-section">
+                    <label>数值调整:</label>
+                    <button id="btn-kill-monster">秒杀怪物</button>
+                    <button id="btn-heal-player">回满生命</button>
+                    <button id="btn-reset-battle">重置战斗</button>
+                </div>
+                <div class="debug-section">
+                    <label>倍率调整:</label>
+                    <input type="number" id="slot0-mul" value="1" min="1" max="10">
+                    <input type="number" id="slot1-mul" value="2" min="1" max="10">
+                    <input type="number" id="slot2-mul" value="1" min="1" max="10">
+                    <button id="btn-set-mul">设置倍率</button>
+                </div>
+                <div class="debug-section">
+                    <label>日志:</label>
+                    <div id="debug-log"></div>
+                </div>
+            </div>
+            <button id="btn-toggle-debug" title="调试面板">🛠️</button>
+        </div>
+        <div id="tooltip" class="hidden"></div>
+        <div id="modal-overlay" class="hidden">
+            <div id="modal-content">
+                <h2 id="modal-title"></h2>
+                <p id="modal-text"></p>
+                <div id="modal-buttons"></div>
+            </div>
+        </div>
+    </div>
+    <script src="js/data.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/autotest.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
