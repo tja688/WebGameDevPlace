@@ -68,6 +68,9 @@ const Input = {
             case 'card_pick':
                 this.handleCardPickClick(pos);
                 break;
+            case 'card_select':
+                this.handleCardSelectClick(pos);
+                break;
             case 'shop':
                 this.handleShopClick(pos);
                 break;
@@ -114,6 +117,9 @@ const Input = {
                 break;
             case 'card_pick':
                 this.handleCardPickHover(pos, state);
+                break;
+            case 'card_select':
+                this.handleCardSelectHover(pos, state);
                 break;
             case 'shop':
                 this.handleShopHover(pos, state);
@@ -172,6 +178,7 @@ const Input = {
         state.data.hoverClass = null;
         state.data.hoverNode = null;
         state.data.hoverOption = null;
+        state.data.hoverSkip = false;
         state.data.hoverTreasure = false;
         state.data.hoverShopItem = null;
         state.data.hoverShopService = null;
@@ -246,17 +253,108 @@ const Input = {
 
     handleMapClick(pos) {
         if (!this.state.data.nodeRects) return;
+        if (this.state.data.processing) return;
         for (const rect of this.state.data.nodeRects) {
             if (this.hitTest(pos, rect) && rect.current && !rect.locked) {
+                this.state.data.processing = true;
                 if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                 const runData = this.state.data.runData;
                 // 进入战斗
                 const battleState = initBattleFromRun(runData);
-                // 将战斗状态合并到主 state
                 Object.assign(this.state, battleState);
                 this.state.screen = 'battle';
                 this.state.data = {};
                 return;
+            }
+        }
+    },
+
+    // ========== 通用卡牌选择界面 ==========
+    handleCardSelectHover(pos, state) {
+        if (state.data.optionRects) {
+            for (const rect of state.data.optionRects) {
+                if (this.hitTest(pos, rect)) {
+                    state.data.hoverOption = rect.index;
+                    this.canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+        }
+        if (state.data.backBtnRect && this.hitTest(pos, state.data.backBtnRect)) {
+            state.data.hoverBack = true;
+            this.canvas.style.cursor = 'pointer';
+            return;
+        }
+        this.canvas.style.cursor = 'default';
+    },
+
+    handleCardSelectClick(pos) {
+        const data = this.state.data;
+        const runData = data.runData;
+        if (data.processing) return;
+
+        if (data.optionRects) {
+            for (const rect of data.optionRects) {
+                if (this.hitTest(pos, rect)) {
+                    const card = rect.card;
+                    data.processing = true;
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+
+                    if (data.selectMode === 'shop_remove') {
+                        runData.souls -= 1;
+                        const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
+                        if (idx !== -1) {
+                            runData.deck.splice(idx, 1);
+                            showPlaceholderToast(`已移除 ${card.name}`);
+                        }
+                        // 返回商店
+                        data.processing = false;
+                        switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
+                        return;
+                    }
+
+                    if (data.selectMode === 'shop_upgrade') {
+                        const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
+                        runData.souls -= upgradeCost;
+                        if (runData.firstUpgradeDiscount) {
+                            runData.firstUpgradeDiscount = false;
+                        }
+                        card.permanentBonus += 2;
+                        runData.shopUpgradeCost = Math.min(3, runData.shopUpgradeCost + 1);
+                        showPlaceholderToast(`${card.name} 数值+2！`);
+                        // 返回商店
+                        data.processing = false;
+                        switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
+                        return;
+                    }
+
+                    if (data.selectMode === 'event_buff') {
+                        card.permanentBonus += 2;
+                        showPlaceholderToast(`${card.name} 数值+2！`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            runData.stageIndex++;
+                            switchScreen(this.state, 'map', { runData });
+                        }, 600);
+                        return;
+                    }
+
+                    data.processing = false;
+                    return;
+                }
+            }
+        }
+
+        // 返回/取消
+        if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            if (data.returnScreen === 'shop') {
+                switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
+            } else if (data.returnScreen === 'map') {
+                runData.stageIndex++;
+                switchScreen(this.state, 'map', { runData });
+            } else {
+                switchScreen(this.state, data.returnScreen || 'map', data.returnData || { runData });
             }
         }
     },
@@ -272,16 +370,49 @@ const Input = {
                 }
             }
         }
+        if (state.data.skipRect && this.hitTest(pos, state.data.skipRect)) {
+            state.data.hoverSkip = true;
+            this.canvas.style.cursor = 'pointer';
+            return;
+        }
         this.canvas.style.cursor = 'default';
     },
 
     handleCardPickClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
+
+        // 跳过按钮
+        if (data.skipRect && this.hitTest(pos, data.skipRect)) {
+            data.processing = true;
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            // 继续战后流程（不加卡）
+            setTimeout(() => {
+                const result = resolveBattleEnd(this.state);
+                data.processing = false;
+                if (result.postBattleType === 'act_clear') {
+                    switchScreen(this.state, 'act_transition', {
+                        runData,
+                        reward: result.postBattleData.reward,
+                        desc: result.postBattleData.desc
+                    });
+                } else {
+                    switchScreen(this.state, 'post_battle', {
+                        runData,
+                        type: result.postBattleType,
+                        soulsGained: result.soulsGained,
+                        postBattleData: result.postBattleData
+                    });
+                }
+            }, 300);
+            return;
+        }
 
         if (data.optionRects) {
             for (const rect of data.optionRects) {
                 if (this.hitTest(pos, rect)) {
+                    data.processing = true;
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     // 将选中的牌加入牌组
                     const newCard = createCardInstance(rect.defId);
@@ -290,6 +421,7 @@ const Input = {
 
                     // 继续战后流程
                     setTimeout(() => {
+                        data.processing = false;
                         const result = resolveBattleEnd(this.state);
                         if (result.postBattleType === 'act_clear') {
                             switchScreen(this.state, 'act_transition', {
@@ -334,6 +466,7 @@ const Input = {
     handlePostBattleClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
 
         // 处理事件选项
         if (data.optionRects) {
@@ -342,11 +475,11 @@ const Input = {
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
 
                     if (rect.type === 'event') {
-                        // 进入事件占位
                         switchScreen(this.state, 'event', {
                             runData,
                             eventName: rect.data.name,
-                            eventDesc: rect.data.desc
+                            eventDesc: rect.data.desc,
+                            effect: rect.data.effect
                         });
                         return;
                     } else if (rect.type === 'shop') {
@@ -364,7 +497,6 @@ const Input = {
         // 处理宝箱
         if (data.treasureRect && this.hitTest(pos, data.treasureRect)) {
             if (typeof GameAudio !== 'undefined') GameAudio.playWin();
-            // 直接获得遗物，进入地图
             runData.relics.push(data.postBattleData.relic);
             runData.stageIndex++;
             switchScreen(this.state, 'map', { runData });
@@ -402,6 +534,7 @@ const Input = {
     handleShopClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
 
         // 商品购买
         if (data.shopItemRects) {
@@ -410,8 +543,10 @@ const Input = {
                     if (runData.souls >= rect.price) {
                         runData.souls -= rect.price;
                         rect.item.bought = true;
+                        const newCard = createCardInstance(rect.item.defId);
+                        runData.deck.push(newCard);
+                        showPlaceholderToast(`获得卡牌：${newCard.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                        showPlaceholderToast('购买成功！');
                     } else {
                         showPlaceholderToast('魂不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
@@ -425,14 +560,45 @@ const Input = {
         if (data.shopServiceRects) {
             for (const rect of data.shopServiceRects) {
                 if (this.hitTest(pos, rect)) {
-                    if (runData.souls >= 1) {
-                        runData.souls -= 1;
+                    if (runData.souls >= rect.cost) {
                         if (rect.key === 'refresh') {
+                            runData.souls -= rect.cost;
                             refreshShopStock(runData);
                             data.stock = runData.shopStock;
+                            runData.shopRefreshCost += 1;
+                            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                            showPlaceholderToast('商店已刷新');
+                        } else if (rect.key === 'remove_card') {
+                            if (runData.deck.length === 0) {
+                                showPlaceholderToast('牌组为空！');
+                                return;
+                            }
+                            switchScreen(this.state, 'card_select', {
+                                runData,
+                                title: '🗑️ 删牌服务',
+                                desc: '选择牌组内一张卡牌移除（消耗1魂）',
+                                cards: runData.deck,
+                                backText: '取消',
+                                selectMode: 'shop_remove',
+                                returnScreen: 'shop',
+                                returnData: data
+                            });
+                        } else if (rect.key === 'upgrade_card') {
+                            if (runData.deck.length === 0) {
+                                showPlaceholderToast('牌组为空！');
+                                return;
+                            }
+                            switchScreen(this.state, 'card_select', {
+                                runData,
+                                title: '⬆️ 数值强化',
+                                desc: '选择牌组内一张卡牌，数值永久+2',
+                                cards: runData.deck,
+                                backText: '取消',
+                                selectMode: 'shop_upgrade',
+                                returnScreen: 'shop',
+                                returnData: data
+                            });
                         }
-                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                        showPlaceholderToast(rect.key === 'remove_card' ? '删牌服务' : '商店已刷新');
                     } else {
                         showPlaceholderToast('魂不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
@@ -472,21 +638,65 @@ const Input = {
     handleBlacksmithClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
 
         if (data.blacksmithRects) {
             for (const rect of data.blacksmithRects) {
                 if (this.hitTest(pos, rect)) {
-                    if (rect.canAfford) {
-                        runData.souls -= rect.item.cost;
-                        if (rect.item.type === 'upgrade_slot') {
-                            const costIdx = rect.item.costIndex !== undefined ? rect.item.costIndex : rect.item.slotIndex;
-                            runData.blacksmithSlotCosts[costIdx] = (runData.blacksmithSlotCosts[costIdx] || 2) + 1;
-                        }
-                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                        showPlaceholderToast('强化成功！（效果占位）');
-                    } else {
+                    if (!rect.canAfford) {
                         showPlaceholderToast('魂不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
+                        return;
+                    }
+                    if (rect.item.type === 'buy_relic') {
+                        const item = rect.item.data;
+                        if (item.bought) {
+                            showPlaceholderToast('已购买！');
+                            return;
+                        }
+                        runData.souls -= rect.item.cost;
+                        item.bought = true;
+                        runData.relics.push({ name: item.name, desc: item.desc });
+                        showPlaceholderToast(`获得遗物：${item.name}`);
+                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    } else if (rect.item.type === 'upgrade_slot') {
+                        runData.souls -= rect.item.cost;
+                        const costIdx = rect.item.costIndex !== undefined ? rect.item.costIndex : rect.item.slotIndex;
+                        runData.blacksmithSlotCosts[costIdx] = (runData.blacksmithSlotCosts[costIdx] || 2) + 1;
+                        // 实际增加倍率升级次数
+                        const slotIndex = rect.item.slotIndex;
+                        runData.slotUpgrades[slotIndex] = (runData.slotUpgrades[slotIndex] || 0) + 1;
+                        showPlaceholderToast(`第${slotIndex + 1}格倍率+1！`);
+                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    } else if (rect.item.type === 'enchant') {
+                        if (runData.deck.length === 0) {
+                            showPlaceholderToast('牌组为空！');
+                            return;
+                        }
+                        runData.souls -= rect.item.cost;
+                        const stock = data.stock || getOrCreateBlacksmithStock(runData);
+                        const keyword = stock.enchantKeyword;
+                        const target = runData.deck[Math.floor(Math.random() * runData.deck.length)];
+                        if (keyword && !target.keywords.includes(keyword)) {
+                            target.keywords.push(keyword);
+                            const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
+                            showPlaceholderToast(`${target.name} 获得【${kwName}】！`);
+                        } else {
+                            showPlaceholderToast('附魔完成！（已有相同词条）');
+                        }
+                        runData.blacksmithEnchantCost += 1;
+                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    } else if (rect.item.type === 'refresh') {
+                        if (runData.firstBlacksmithRefreshFree) {
+                            runData.firstBlacksmithRefreshFree = false;
+                        } else {
+                            runData.souls -= rect.item.cost;
+                        }
+                        refreshBlacksmithStock(runData);
+                        data.stock = runData.blacksmithStock;
+                        runData.blacksmithRefreshCost += 1;
+                        showPlaceholderToast('铁匠铺已刷新！');
+                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     }
                     return;
                 }
@@ -495,6 +705,7 @@ const Input = {
 
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
             runData.stageIndex++;
+            runData.blacksmithStock = null;
             switchScreen(this.state, 'map', { runData });
         }
     },
@@ -516,17 +727,33 @@ const Input = {
     handleEventClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
 
         if (data.eventOptionRects) {
             for (const rect of data.eventOptionRects) {
                 if (this.hitTest(pos, rect)) {
-                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                    showPlaceholderToast('事件效果');
-                    // 延迟后返回地图
-                    setTimeout(() => {
+                    if (rect.text === '离开') {
+                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                         runData.stageIndex++;
                         switchScreen(this.state, 'map', { runData });
-                    }, 1200);
+                        return;
+                    }
+                    if (runData.deck.length === 0) {
+                        showPlaceholderToast('牌组为空！');
+                        return;
+                    }
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    // 进入选卡界面：给任意卡牌数值+2
+                    switchScreen(this.state, 'card_select', {
+                        runData,
+                        title: data.eventName || '神秘力量',
+                        desc: '选择牌组内一张卡牌，使其数值永久+2',
+                        cards: runData.deck,
+                        backText: '离开',
+                        selectMode: 'event_buff',
+                        returnScreen: 'map',
+                        returnData: data
+                    });
                     return;
                 }
             }
@@ -555,6 +782,7 @@ const Input = {
     handleTreasureClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
 
         if (!data.opened && data.treasureBoxRect && this.hitTest(pos, data.treasureBoxRect)) {
             if (typeof GameAudio !== 'undefined') GameAudio.playWin();
@@ -563,6 +791,7 @@ const Input = {
         }
 
         if (data.opened && data.treasureAcceptRect && this.hitTest(pos, data.treasureAcceptRect)) {
+            data.processing = true;
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
             runData.relics.push(data.relic);
             runData.stageIndex++;
@@ -583,10 +812,11 @@ const Input = {
     handleActTransitionClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
+        if (data.processing) return;
 
         if (data.transitionBtnRect && this.hitTest(pos, data.transitionBtnRect)) {
+            data.processing = true;
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-            // 拓展牌桌：增加可用格数
             runData.unlockedSlots = Math.min(SLOT_COUNT, runData.unlockedSlots + 1);
             runData.stageIndex++;
             runData.act = 2;
@@ -653,6 +883,10 @@ const Input = {
 
     checkBattleEnd() {
         if (this.state.phase === 'ended') {
+            if (this.state.data && this.state.data.battleEndProcessing) return;
+            if (!this.state.data) this.state.data = {};
+            this.state.data.battleEndProcessing = true;
+
             const isWin = this.state.result === 'win';
             if (typeof GameAudio !== 'undefined') {
                 setTimeout(() => isWin ? GameAudio.playWin() : GameAudio.playLose(), 300);

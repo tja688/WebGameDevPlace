@@ -131,11 +131,17 @@ function createRunData(classId) {
         classId: classId,
         completedStages: [],
         shopStock: null,
+        blacksmithStock: null,
+        slotUpgrades: {}, // 格子倍率升级次数 {slotIndex: count}
         blacksmithSlotCosts: [2, 3, 4], // 每个可用格子的强化费用，按顺序对应可用格
+        shopUpgradeCost: 1, // 卡牌数值强化费用（1/2/3递增）
+        shopRefreshCost: 1, // 商店刷新费用（递增）
+        blacksmithEnchantCost: 4, // 词条附魔费用（4/5/6递增）
+        blacksmithRefreshCost: 1, // 铁匠刷新费用（递增）
         pendingPostBattle: null,
         pendingSoulsGained: 0,
-        firstUpgradeDiscount: true,
-        firstBlacksmithRefreshFree: true
+        firstUpgradeDiscount: true, // 首次强化-1魂
+        firstBlacksmithRefreshFree: true // 首次刷新免费
     };
 }
 
@@ -187,10 +193,13 @@ function initBattleFromRun(runData) {
         if (isAvailable && cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
             mul += cls.relic.effect.bonus;
         }
+        // 应用铁匠铺倍率升级
+        const upgradeCount = runData.slotUpgrades[i] || 0;
+        mul += upgradeCount;
         slots.push({
             index: i,
             multiplier: mul,
-            baseMultiplier: mul,
+            baseMultiplier: mul - upgradeCount,
             cards: [],
             locked: false,
             isStacking: false,
@@ -727,14 +736,17 @@ function endTurn(state) {
         return;
     }
 
-    // 扣心
-    let heartLoss = 1 + state.monster.virusPenalty;
+    // 扣心（精英和BOSS不触发病毒惩罚）
+    const isEliteOrBoss = state.monster.type === 'elite' || state.monster.type === 'boss';
+    let heartLoss = 1 + (isEliteOrBoss ? 0 : state.monster.virusPenalty);
     state.player.hearts -= heartLoss;
     state.heartsLost += heartLoss;
     if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
     logCombat(state, `失去 ${heartLoss} 颗心！剩余 ${state.player.hearts} 颗`);
 
-    state.monster.virusPenalty += 1;
+    if (!isEliteOrBoss) {
+        state.monster.virusPenalty += 1;
+    }
 
     if (state.player.hearts <= 0) {
         state.phase = 'ended';
@@ -852,20 +864,23 @@ function resolveBattleEnd(battleState) {
     const config = STAGE_CONFIG[battleState.stageKey];
 
     if (battleState.result === 'win') {
-        // 计算魂收益
-        const soulGain = Math.max(0, config.baseSouls - battleState.heartsLost);
-        runData.souls += soulGain;
-        runData.heartsLostInStage = battleState.heartsLost;
-        runData.completedStages.push(battleState.stageKey);
+        let soulGain = 0;
+        // 只有第一次调用才计算魂收益（避免card_pick后的二次结算重复加魂）
+        if (!runData.pendingPostBattle) {
+            soulGain = Math.max(0, config.baseSouls - battleState.heartsLost);
+            runData.souls += soulGain;
+            runData.heartsLostInStage = battleState.heartsLost;
+            runData.completedStages.push(battleState.stageKey);
 
-        // 同步卡组
-        const allCards = [
-            ...battleState.deck,
-            ...battleState.hand,
-            ...battleState.discard,
-            ...battleState.slots.flatMap(s => s.cards)
-        ];
-        runData.deck = allCards;
+            // 同步卡组
+            const allCards = [
+                ...battleState.deck,
+                ...battleState.hand,
+                ...battleState.discard,
+                ...battleState.slots.flatMap(s => s.cards)
+            ];
+            runData.deck = allCards;
+        }
 
         // 如果是普通怪，先给三选一牌，再进入战后奖励
         if (config.type === 'normal' && !runData.pendingPostBattle) {
@@ -905,11 +920,18 @@ function generatePostBattleData(type, runData) {
     switch (type) {
         case 'two_events':
             return {
-                options: [pickRandomEvent(), pickRandomEvent()]
+                options: [
+                    { name: '神秘力量', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' },
+                    { name: '古老祝福', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' }
+                ]
             };
         case 'three_events':
             return {
-                options: [pickRandomEvent(), pickRandomEvent(), pickRandomEvent()]
+                options: [
+                    { name: '神秘力量', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' },
+                    { name: '古老祝福', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' },
+                    { name: '精灵馈赠', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' }
+                ]
             };
         case 'treasure':
             return {
@@ -918,8 +940,8 @@ function generatePostBattleData(type, runData) {
         case 'shop_choice':
             return {
                 options: [
-                    { type: 'shop', name: '牌店', icon: '🏪', desc: '购买卡牌和遗物' },
-                    { type: 'blacksmith', name: '铁匠铺', icon: '🔨', desc: '强化卡牌和倍率格' },
+                    { type: 'shop', name: '牌店', icon: '🏪', desc: '购买卡牌、删牌和强化' },
+                    { type: 'blacksmith', name: '铁匠铺', icon: '🔨', desc: '购买遗物、升级倍率和附魔' },
                     { type: 'event', name: '随机事件', icon: '❓', desc: '遇到意想不到的事' }
                 ]
             };
@@ -934,11 +956,10 @@ function generatePostBattleData(type, runData) {
 }
 
 function pickRandomEvent() {
-    const evt = pickRandom(EVENT_NAMES);
-    return { ...evt };
+    return { name: '神秘力量', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' };
 }
 
-// ========== 商店/铁匠/事件占位逻辑 ==========
+// ========== 商店/铁匠库存管理 ==========
 function getOrCreateShopStock(runData) {
     if (!runData.shopStock) {
         runData.shopStock = createShopStock();
@@ -948,6 +969,17 @@ function getOrCreateShopStock(runData) {
 
 function refreshShopStock(runData) {
     runData.shopStock = createShopStock();
+}
+
+function getOrCreateBlacksmithStock(runData) {
+    if (!runData.blacksmithStock) {
+        runData.blacksmithStock = createBlacksmithStock();
+    }
+    return runData.blacksmithStock;
+}
+
+function refreshBlacksmithStock(runData) {
+    runData.blacksmithStock = createBlacksmithStock();
 }
 
 // ========== 占位提示统一函数 ==========

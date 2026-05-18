@@ -40,6 +40,7 @@ const Renderer = {
             case 'battle': this.drawBattle(ctx, state); break;
             case 'post_battle': this.drawPostBattle(ctx, state); break;
             case 'card_pick': this.drawCardPick(ctx, state); break;
+            case 'card_select': this.drawCardSelect(ctx, state); break;
             case 'shop': this.drawShop(ctx, state); break;
             case 'blacksmith': this.drawBlacksmith(ctx, state); break;
             case 'event': this.drawEvent(ctx, state); break;
@@ -514,11 +515,11 @@ const Renderer = {
         ctx.fillStyle = '#ffd700';
         ctx.font = 'bold 32px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText('选择一张卡牌加入牌组', cx, 100);
+        ctx.fillText('选择一张卡牌加入牌组', cx, 80);
 
         ctx.fillStyle = '#aaa';
         ctx.font = '18px Microsoft YaHei';
-        ctx.fillText('普通怪战利品', cx, 140);
+        ctx.fillText('普通怪战利品', cx, 115);
 
         state.data.optionRects = [];
         const options = data.options || [];
@@ -527,7 +528,7 @@ const Renderer = {
         const gap = 40;
         const totalW = options.length * cardW + (options.length - 1) * gap;
         const startX = cx - totalW / 2;
-        const startY = 200;
+        const startY = 160;
 
         for (let i = 0; i < options.length; i++) {
             const defId = options[i];
@@ -591,9 +592,126 @@ const Renderer = {
 
             state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, defId });
         }
+
+        // 跳过按钮
+        const skipW = 160;
+        const skipH = 45;
+        const skipX = cx - skipW / 2;
+        const skipY = startY + cardH + 30;
+        const skipHover = state.data.hoverSkip;
+        ctx.fillStyle = skipHover ? 'rgba(60,50,50,0.95)' : 'rgba(40,35,35,0.9)';
+        ctx.strokeStyle = skipHover ? '#aa6666' : '#554444';
+        ctx.lineWidth = skipHover ? 3 : 2;
+        this.roundRect(ctx, skipX, skipY, skipW, skipH, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = skipHover ? '#ffcccc' : '#aaa';
+        ctx.font = 'bold 16px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText('跳过', cx, skipY + 29);
+        state.data.skipRect = { x: skipX, y: skipY, w: skipW, h: skipH };
     },
 
-    // ========== 商店占位 ==========
+    // ========== 通用卡牌选择界面 ==========
+    drawCardSelect(ctx, state) {
+        this.drawBackground(ctx);
+        const data = state.data;
+        const cx = this.width / 2;
+
+        // 标题
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 28px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(data.title || '选择一张卡牌', cx, 80);
+
+        ctx.fillStyle = '#aaa';
+        ctx.font = '16px Microsoft YaHei';
+        ctx.fillText(data.desc || '', cx, 110);
+
+        state.data.optionRects = [];
+        const cards = data.cards || [];
+        const cardW = 160;
+        const cardH = 240;
+        const gap = 24;
+        const perRow = Math.min(cards.length, 5);
+        const totalW = perRow * cardW + (perRow - 1) * gap;
+        let startX = cx - totalW / 2;
+        let startY = 150;
+
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const col = i % perRow;
+            const row = Math.floor(i / perRow);
+            const x = startX + col * (cardW + gap);
+            const y = startY + row * (cardH + 30);
+            const isHover = state.data.hoverOption === i;
+
+            ctx.globalAlpha = isHover ? 0.95 : 0.85;
+            const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+            grad.addColorStop(0, card.color);
+            grad.addColorStop(1, darkenColor(card.color, -40));
+            ctx.fillStyle = grad;
+            this.roundRect(ctx, x, y, cardW, cardH, 10);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            ctx.strokeStyle = isHover ? '#fff' : card.accentColor;
+            ctx.lineWidth = isHover ? 3 : 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Microsoft YaHei';
+            ctx.textAlign = 'center';
+            ctx.fillText(card.name, x + cardW / 2, y + 26);
+
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 22px Microsoft YaHei';
+            ctx.fillText(getCardBaseValue(card), x + cardW / 2, y + 58);
+
+            let tagY = y + 82;
+            for (const kw of card.keywords) {
+                const kwData = KEYWORDS[kw];
+                if (!kwData) continue;
+                const tagW = ctx.measureText(kwData.name).width + 10;
+                const tagX = x + (cardW - tagW) / 2;
+                ctx.fillStyle = kwData.color + '33';
+                ctx.strokeStyle = kwData.color;
+                ctx.lineWidth = 1;
+                ctx.fillRect(tagX, tagY, tagW, 16);
+                ctx.strokeRect(tagX, tagY, tagW, 16);
+                ctx.fillStyle = kwData.color;
+                ctx.font = '10px Microsoft YaHei';
+                ctx.fillText(kwData.name, x + cardW / 2, tagY + 12);
+                tagY += 20;
+            }
+
+            ctx.fillStyle = isHover ? '#ffcc88' : '#666';
+            ctx.font = '12px Microsoft YaHei';
+            ctx.fillText('点击选择', x + cardW / 2, y + cardH - 15);
+
+            state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, card });
+        }
+
+        // 返回/取消按钮
+        const backW = 140;
+        const backH = 40;
+        const backX = cx - backW / 2;
+        const backY = this.height - 90;
+        const backHover = state.data.hoverBack;
+        ctx.fillStyle = backHover ? 'rgba(60,50,50,0.95)' : 'rgba(40,35,35,0.9)';
+        ctx.strokeStyle = backHover ? '#aa6666' : '#554444';
+        ctx.lineWidth = backHover ? 3 : 2;
+        this.roundRect(ctx, backX, backY, backW, backH, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = backHover ? '#ffcccc' : '#aaa';
+        ctx.font = 'bold 14px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(data.backText || '取消', cx, backY + 26);
+        state.data.backBtnRect = { x: backX, y: backY, w: backW, h: backH };
+    },
+
+    // ========== 牌店 ==========
     drawShop(ctx, state) {
         this.drawBackground(ctx);
         const data = state.data;
@@ -633,7 +751,7 @@ const Renderer = {
             const y = 130;
             const isHover = state.data.hoverShopItem === `card_${i}`;
             const isBought = item.bought;
-            const price = item.discount ? Math.max(1, item.price - 1) : item.price;
+            const price = item.price;
 
             // 卡片背景
             ctx.globalAlpha = isBought ? 0.4 : (isHover ? 0.95 : 0.85);
@@ -684,12 +802,6 @@ const Renderer = {
                 ctx.fillStyle = priceColor;
                 ctx.font = 'bold 18px Microsoft YaHei';
                 ctx.fillText(`💀 ${price}`, x + cardW / 2, y + cardH - 40);
-
-                if (item.discount) {
-                    ctx.fillStyle = '#ff6b6b';
-                    ctx.font = 'bold 12px Microsoft YaHei';
-                    ctx.fillText('🔥 折扣', x + cardW / 2, y + cardH - 20);
-                }
             } else {
                 ctx.fillStyle = '#555';
                 ctx.font = 'bold 16px Microsoft YaHei';
@@ -700,63 +812,18 @@ const Renderer = {
             state.data.shopItemRects.push({ x, y, w: cardW, h: cardH, key: `card_${i}`, item, price, type: 'card' });
         }
 
-        // 遗物商品
-        ctx.fillStyle = '#aaa';
-        ctx.font = 'bold 18px Microsoft YaHei';
-        ctx.textAlign = 'left';
-        ctx.fillText('遗物', 60, 430);
-
-        const relicW = 180;
-        const relicH = 120;
-        for (let i = 0; i < stock.relics.length; i++) {
-            const item = stock.relics[i];
-            const x = cardStartX + i * (relicW + cardGap);
-            const y = 450;
-            const isHover = state.data.hoverShopItem === `relic_${i}`;
-            const isBought = item.bought;
-            const price = item.discount ? Math.max(1, item.price - 1) : item.price;
-
-            ctx.fillStyle = isBought ? 'rgba(30,30,40,0.4)' : (isHover ? 'rgba(60,50,30,0.95)' : 'rgba(50,40,25,0.9)');
-            ctx.strokeStyle = isBought ? '#333' : (isHover ? '#ffd700' : '#b8860b');
-            ctx.lineWidth = isHover ? 3 : 2;
-            this.roundRect(ctx, x, y, relicW, relicH, 10);
-            ctx.fill();
-            ctx.stroke();
-
-            if (!isBought) {
-                ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 16px Microsoft YaHei';
-                ctx.textAlign = 'center';
-                ctx.fillText(item.name, x + relicW / 2, y + 35);
-
-                ctx.fillStyle = '#888';
-                ctx.font = '12px Microsoft YaHei';
-                this.wrapText(ctx, item.desc, x + relicW / 2, y + 55, relicW - 20, 18);
-
-                const priceColor = runData.souls >= price ? '#2ecc71' : '#e74c3c';
-                ctx.fillStyle = priceColor;
-                ctx.font = 'bold 14px Microsoft YaHei';
-                ctx.fillText(`💀 ${price}`, x + relicW / 2, y + relicH - 15);
-            } else {
-                ctx.fillStyle = '#555';
-                ctx.font = 'bold 14px Microsoft YaHei';
-                ctx.textAlign = 'center';
-                ctx.fillText('已购买', x + relicW / 2, y + relicH / 2 + 5);
-            }
-
-            state.data.shopItemRects.push({ x, y, w: relicW, h: relicH, key: `relic_${i}`, item, price, type: 'relic' });
-        }
-
         // 服务按钮
-        const btnY = 600;
+        const btnY = 430;
         const btnH = 45;
+        const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
         const services = [
-            { key: 'remove_card', text: '🗑️ 删牌服务 (1魂)', x: 60 },
-            { key: 'refresh', text: '🔄 刷新商店 (1魂)', x: 280 },
+            { key: 'remove_card', text: `🗑️ 删牌服务 (1魂)`, x: 60, cost: 1 },
+            { key: 'upgrade_card', text: `⬆️ 数值强化 +2 (${upgradeCost}魂)`, x: 280, cost: upgradeCost },
+            { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}魂)`, x: 500, cost: runData.shopRefreshCost },
         ];
         state.data.shopServiceRects = [];
         for (const svc of services) {
-            const btnW = 180;
+            const btnW = 190;
             const isHover = state.data.hoverShopService === svc.key;
             ctx.fillStyle = isHover ? 'rgba(50,50,70,0.95)' : 'rgba(40,40,60,0.9)';
             ctx.strokeStyle = isHover ? '#888' : '#555';
@@ -765,23 +832,33 @@ const Renderer = {
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = runData.souls >= 1 ? '#ccc' : '#555';
+            ctx.fillStyle = runData.souls >= svc.cost ? '#ccc' : '#555';
             ctx.font = '14px Microsoft YaHei';
             ctx.textAlign = 'center';
             ctx.fillText(svc.text, svc.x + btnW / 2, btnY + 28);
 
-            state.data.shopServiceRects.push({ x: svc.x, y: btnY, w: btnW, h: btnH, key: svc.key });
+            state.data.shopServiceRects.push({ x: svc.x, y: btnY, w: btnW, h: btnH, key: svc.key, cost: svc.cost });
+        }
+
+        // 新人福利提示
+        if (runData.firstUpgradeDiscount) {
+            ctx.fillStyle = '#ffaa44';
+            ctx.font = '12px Microsoft YaHei';
+            ctx.textAlign = 'left';
+            ctx.fillText('⭐ 新人福利：首次强化-1魂', 60, btnY + 65);
         }
 
         // 返回按钮
         this.drawBackButton(ctx, state, '返回地图');
     },
 
-    // ========== 铁匠占位 ==========
+    // ========== 铁匠铺 ==========
     drawBlacksmith(ctx, state) {
         this.drawBackground(ctx);
         const data = state.data;
         const runData = data.runData;
+        const stock = data.stock || getOrCreateBlacksmithStock(runData);
+        data.stock = stock;
         const cx = this.width / 2;
 
         // 顶部栏
@@ -806,23 +883,42 @@ const Renderer = {
         const startY = 100;
 
         const columns = [
-            { title: '🗡️ 强化卡牌', items: [] },
+            { title: '🎁 遗物', items: [] },
             { title: '⚡ 强化倍率格', items: [] },
-            { title: '🔄 刷新词条', items: [] }
+            { title: '✨ 服务', items: [] }
         ];
 
-        // 填充数据
-        for (const card of runData.deck) {
-            columns[0].items.push({ type: 'upgrade_card', name: card.name, cost: 1, data: card });
+        // 填充数据：遗物
+        for (let i = 0; i < stock.relics.length; i++) {
+            const item = stock.relics[i];
+            columns[0].items.push({ type: 'buy_relic', name: item.name, cost: item.price, data: item, index: i });
         }
+
+        // 填充数据：倍率格
         const availableIndices = getAvailableSlotIndices(runData.slotCount, runData.unlockedSlots);
         for (let idx = 0; idx < availableIndices.length; idx++) {
             const i = availableIndices[idx];
             const cost = runData.blacksmithSlotCosts[idx] || 2 + idx;
-            columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, costIndex: idx });
+            const upgradeCount = runData.slotUpgrades[i] || 0;
+            columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, costIndex: idx, subText: `当前+${upgradeCount}倍率` });
         }
-        columns[2].items.push({ type: 'refresh_keywords', name: '刷新词条', cost: 5 });
-        columns[2].items.push({ type: 'refresh_option', name: '刷新选项', cost: 1 });
+
+        // 填充数据：服务
+        const enchantCost = runData.blacksmithEnchantCost;
+        const refreshCost = runData.firstBlacksmithRefreshFree ? 0 : runData.blacksmithRefreshCost;
+        const kwData = stock.enchantKeyword ? KEYWORDS[stock.enchantKeyword] : null;
+        columns[2].items.push({
+            type: 'enchant',
+            name: kwData ? `附魔【${kwData.name}】` : '附魔词条',
+            cost: enchantCost,
+            subText: kwData ? `给随机卡牌添加【${kwData.name}】` : '随机词条附魔'
+        });
+        columns[2].items.push({
+            type: 'refresh',
+            name: '刷新遗物+词条',
+            cost: refreshCost,
+            subText: runData.firstBlacksmithRefreshFree ? '首次免费！' : '重新生成遗物和附魔词条'
+        });
 
         for (let c = 0; c < columns.length; c++) {
             const col = columns[c];
@@ -842,38 +938,41 @@ const Renderer = {
                 const itemH = 48;
                 const isHover = state.data.hoverBlacksmith === `${c}_${i}`;
                 const canAfford = runData.souls >= item.cost;
+                const isBought = item.type === 'buy_relic' && item.data && item.data.bought;
 
                 ctx.fillStyle = isHover ? 'rgba(50,45,35,0.95)' : 'rgba(40,35,25,0.9)';
-                ctx.strokeStyle = isHover ? '#b8860b' : '#554433';
+                ctx.strokeStyle = isBought ? '#333' : (isHover ? '#b8860b' : '#554433');
                 ctx.lineWidth = isHover ? 2 : 1;
                 this.roundRect(ctx, x, itemY, colW, itemH, 6);
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.fillStyle = canAfford ? '#ccc' : '#555';
-                ctx.font = '15px Microsoft YaHei';
-                ctx.textAlign = 'left';
-                ctx.fillText(item.name, x + 15, itemY + 22);
+                if (isBought) {
+                    ctx.fillStyle = '#555';
+                    ctx.font = '15px Microsoft YaHei';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('已购买', x + colW / 2, itemY + 28);
+                } else {
+                    ctx.fillStyle = canAfford ? '#ccc' : '#555';
+                    ctx.font = '15px Microsoft YaHei';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(item.name, x + 15, itemY + 22);
 
-                const costColor = canAfford ? '#2ecc71' : '#e74c3c';
-                ctx.fillStyle = costColor;
-                ctx.font = 'bold 14px Microsoft YaHei';
-                ctx.textAlign = 'right';
-                ctx.fillText(`${item.cost}魂`, x + colW - 15, itemY + 22);
+                    const costColor = canAfford ? '#2ecc71' : '#e74c3c';
+                    ctx.fillStyle = costColor;
+                    ctx.font = 'bold 14px Microsoft YaHei';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`${item.cost}魂`, x + colW - 15, itemY + 22);
 
-                ctx.fillStyle = '#666';
-                ctx.font = '11px Microsoft YaHei';
-                ctx.textAlign = 'left';
-                let subText = '';
-                if (item.type === 'upgrade_card') subText = '+2点数';
-                else if (item.type === 'upgrade_slot') subText = '+1倍率';
-                else if (item.type === 'refresh_keywords') subText = '重新随机词条';
-                else if (item.type === 'refresh_option') subText = '刷新一次选项';
-                ctx.fillText(subText, x + 15, itemY + 40);
+                    ctx.fillStyle = '#666';
+                    ctx.font = '11px Microsoft YaHei';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(item.subText || '', x + 15, itemY + 40);
+                }
 
                 state.data.blacksmithRects.push({
                     x, y: itemY, w: colW, h: itemH,
-                    key: `${c}_${i}`, item, canAfford
+                    key: `${c}_${i}`, item, canAfford: canAfford && !isBought
                 });
             }
         }

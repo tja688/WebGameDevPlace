@@ -31,6 +31,7 @@ const CARD_DEFS = {
         baseValue: 5,
         size: 1,
         keywords: ['mighty'],
+        rarity: 'white',
         description: '伟力：若场上无更大点数牌，该卡牌点数翻倍',
         color: '#8B0000',
         accentColor: '#FF4444',
@@ -42,6 +43,7 @@ const CARD_DEFS = {
         baseValue: 3,
         size: 1,
         keywords: ['field'],
+        rarity: 'white',
         description: '驻场：临近该卡牌的卡牌点数提升2',
         color: '#1B4F72',
         accentColor: '#5DADE2',
@@ -53,6 +55,7 @@ const CARD_DEFS = {
         baseValue: 0,
         size: 1,
         keywords: ['stack'],
+        rarity: 'white',
         description: '堆叠，将该卡牌所处倍率格提升一倍',
         color: '#7D6608',
         accentColor: '#F4D03F',
@@ -65,6 +68,7 @@ const CARD_DEFS = {
         baseValue: 4,
         size: 1,
         keywords: ['grow'],
+        rarity: 'blue',
         description: '生长：每次打出后永久+1点数',
         color: '#6B238E',
         accentColor: '#BB88DD',
@@ -76,6 +80,7 @@ const CARD_DEFS = {
         baseValue: 2,
         size: 1,
         keywords: ['dedicate'],
+        rarity: 'white',
         description: '奉献：若左侧有牌，将自身点数一半加至该牌',
         color: '#2C5F2D',
         accentColor: '#97BC62',
@@ -89,6 +94,7 @@ const CARD_DEFS = {
         size: 1,
         keywords: ['grow'],
         growAmount: 2,
+        rarity: 'white',
         description: '生长2：每次打出后永久+2点数',
         color: '#8B4513',
         accentColor: '#CD853F',
@@ -100,6 +106,7 @@ const CARD_DEFS = {
         baseValue: 4,
         size: 1,
         keywords: ['mighty'],
+        rarity: 'white',
         description: '伟力：若场上无更大点数牌，相邻卡牌永久+1',
         color: '#8B4513',
         accentColor: '#CD853F',
@@ -112,6 +119,7 @@ const CARD_DEFS = {
         size: 1,
         keywords: ['stack', 'grow'],
         growAmount: 1,
+        rarity: 'white',
         description: '堆叠，生长1。点数达到3时，将牌组内所有训练痕迹打出到同格',
         color: '#8B4513',
         accentColor: '#CD853F',
@@ -123,6 +131,7 @@ const CARD_DEFS = {
         baseValue: 3,
         size: 1,
         keywords: ['field'],
+        rarity: 'white',
         description: '驻场：相邻生长牌点数+4',
         color: '#8B4513',
         accentColor: '#CD853F',
@@ -134,6 +143,7 @@ const CARD_DEFS = {
         baseValue: 2,
         size: 1,
         keywords: ['agile', 'exit'],
+        rarity: 'white',
         description: '灵动，离场：相邻生长牌获得复用',
         color: '#8B4513',
         accentColor: '#CD853F',
@@ -145,6 +155,7 @@ const CARD_DEFS = {
         baseValue: 5,
         size: 1,
         keywords: ['stack', 'field'],
+        rarity: 'blue',
         description: '堆叠，驻场：同一格生长效果触发两次',
         color: '#1B4F72',
         accentColor: '#5DADE2',
@@ -156,6 +167,7 @@ const CARD_DEFS = {
         baseValue: 3,
         size: 1,
         keywords: ['agile', 'exit'],
+        rarity: 'blue',
         description: '灵动，离场：相邻生长牌获得留场',
         color: '#1B4F72',
         accentColor: '#5DADE2',
@@ -167,6 +179,7 @@ const CARD_DEFS = {
         baseValue: 5,
         size: 1,
         keywords: ['field'],
+        rarity: 'blue',
         description: '驻场：相邻格生长效果触发两次',
         color: '#1B4F72',
         accentColor: '#5DADE2',
@@ -178,6 +191,7 @@ const CARD_DEFS = {
         baseValue: 0,
         size: 1,
         keywords: ['field'],
+        rarity: 'gold',
         description: '驻场：相邻生长卡牌获得等同于牌组内训练牌数量的点数',
         color: '#7D6608',
         accentColor: '#F4D03F',
@@ -189,6 +203,7 @@ const CARD_DEFS = {
         baseValue: 0,
         size: 1,
         keywords: ['stack'],
+        rarity: 'gold',
         description: '堆叠，同格卡牌打出时生长+1',
         color: '#7D6608',
         accentColor: '#F4D03F',
@@ -201,6 +216,7 @@ const CARD_DEFS = {
         baseValue: 5,
         size: 1,
         keywords: ['reinforce'],
+        rarity: 'white',
         description: '救兵：结束回合时若牌桌有空位，自动打出到空位',
         color: '#8B4513',
         accentColor: '#CD853F',
@@ -212,6 +228,7 @@ const CARD_DEFS = {
         baseValue: 0,
         size: 1,
         keywords: ['stack', 'field'],
+        rarity: 'white',
         description: '堆叠，驻场：下一张打出在同格的卡牌点数+5',
         color: '#8B0000',
         accentColor: '#FF4444',
@@ -223,6 +240,7 @@ const CARD_DEFS = {
         baseValue: 0,
         size: 1,
         keywords: ['agile'],
+        rarity: 'blue',
         description: '灵动，抽两张牌，左侧卡牌数值-1',
         color: '#1B4F72',
         accentColor: '#5DADE2',
@@ -234,6 +252,7 @@ const CARD_DEFS = {
         baseValue: 0,
         size: 1,
         keywords: ['agile'],
+        rarity: 'blue',
         description: '灵动，从弃牌堆拿回一张卡牌',
         color: '#1B4F72',
         accentColor: '#5DADE2',
@@ -245,6 +264,7 @@ const CARD_DEFS = {
         baseValue: 5,
         size: 1,
         keywords: ['stack', 'field'],
+        rarity: 'gold',
         description: '堆叠，驻场：相邻倍率格提升1倍',
         color: '#7D6608',
         accentColor: '#F4D03F',
@@ -464,36 +484,44 @@ const EVENT_NAMES = [
     { name: '契约之环', desc: '地面上画着一个发光的圆环，中间漂浮着一张羊皮纸...' }
 ];
 
-// ========== 遗物定义池（占位） ==========
+// ========== 遗物定义池 ==========
 const RELIC_DEFS = [
-    { id: 'relic_1', name: '锈迹徽章', desc: '一枚生锈的士兵徽章，似乎曾属于某位英雄。（效果暂未实现）' },
-    { id: 'relic_2', name: '破损护符', desc: '裂成两半的魔法护符，仍残留着一丝魔力。（效果暂未实现）' },
-    { id: 'relic_3', name: '鼠尾挂坠', desc: '用硕鼠尾巴编织成的奇怪饰品。（效果暂未实现）' },
-    { id: 'relic_4', name: '田鼠之牙', desc: '一颗巨大的硕鼠门牙，锋利无比。（效果暂未实现）' },
-    { id: 'relic_5', name: '腐蚀钱币', desc: '一枚被地下城腐蚀的古旧钱币，上面刻着不认识的文字。（效果暂未实现）' }
+    { id: 'relic_1', name: '锈迹徽章', desc: '一枚生锈的士兵徽章，似乎曾属于某位英雄。', rarity: 'white' },
+    { id: 'relic_2', name: '破损护符', desc: '裂成两半的魔法护符，仍残留着一丝魔力。', rarity: 'white' },
+    { id: 'relic_3', name: '鼠尾挂坠', desc: '用硕鼠尾巴编织成的奇怪饰品。', rarity: 'blue' },
+    { id: 'relic_4', name: '田鼠之牙', desc: '一颗巨大的硕鼠门牙，锋利无比。', rarity: 'blue' },
+    { id: 'relic_5', name: '腐蚀钱币', desc: '一枚被地下城腐蚀的古旧钱币，上面刻着不认识的文字。', rarity: 'gold' }
 ];
 
 // ========== 商店商品池 ==========
+const RARITY_PRICE = { white: 1, blue: 2, gold: 3 };
+
 function createShopStock() {
     const cards = [];
     const cardIds = Object.keys(CARD_DEFS);
     for (let i = 0; i < 4; i++) {
         const defId = cardIds[Math.floor(Math.random() * cardIds.length)];
-        const price = 1 + Math.floor(Math.random() * 3);
-        cards.push({ defId, price, discount: Math.random() < 0.25 });
+        const def = CARD_DEFS[defId];
+        const price = RARITY_PRICE[def.rarity] || 1;
+        cards.push({ defId, price, bought: false });
     }
+    return { cards };
+}
+
+function createBlacksmithStock() {
     const relics = [];
     for (let i = 0; i < 2; i++) {
         const relic = RELIC_DEFS[Math.floor(Math.random() * RELIC_DEFS.length)];
-        const price = 2 + Math.floor(Math.random() * 2);
-        relics.push({ ...relic, price, discount: Math.random() < 0.25 });
+        const price = RARITY_PRICE[relic.rarity] || 1;
+        relics.push({ ...relic, price, bought: false });
     }
-    return { cards, relics };
+    const enchantKeywords = Object.keys(KEYWORDS);
+    const enchantKeyword = enchantKeywords[Math.floor(Math.random() * enchantKeywords.length)];
+    return { relics, enchantKeyword };
 }
 
-// 战后三选一牌的卡池
+// 战后三选一牌的卡池（只出现追加4新卡）
 const CARD_REWARD_POOL = [
-    'precise_strike', 'feint', 'maintain_gear', 'wild_strike', 'shield_bash',
     'war_training', 'show_muscle', 'training_trace', 'hone_skill', 're_training',
     'thirty_hour_training', 'extra_training', 'training_hormone', 'training_program', 'proper_training',
     'muscle_never_betrays', 'surging_anger', 'clear_mind', 'recall_past', 'perfect_state'
