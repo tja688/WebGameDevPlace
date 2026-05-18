@@ -17,40 +17,52 @@ const AutoTest = {
         });
 
         document.getElementById('btn-auto-play').addEventListener('click', () => {
-            this.autoPlayOptimal();
+            if (this.state.screen === 'battle') {
+                this.autoPlayOptimal();
+            } else {
+                this.log('仅在战斗界面可用');
+            }
         });
 
         document.getElementById('btn-auto-end').addEventListener('click', () => {
-            if (this.state.phase === 'playing') {
+            if (this.state.screen === 'battle' && this.state.phase === 'playing') {
                 endTurn(this.state);
                 this.checkEnd();
             }
         });
 
         document.getElementById('btn-cheat-hand').addEventListener('click', () => {
-            this.cheatHand();
+            if (this.state.screen === 'battle') {
+                this.cheatHand();
+            }
         });
 
         document.getElementById('btn-refill-deck').addEventListener('click', () => {
-            while (this.state.deck.length < 5) {
-                this.state.deck.push(createCardInstance('precise_strike'));
+            if (this.state.screen === 'battle') {
+                while (this.state.deck.length < 5) {
+                    this.state.deck.push(createCardInstance('precise_strike'));
+                }
+                logCombat(this.state, '调试: 牌库已补满');
+                this.log('牌库已补满');
             }
-            logCombat(this.state, '调试: 牌库已补满');
-            this.log('牌库已补满');
         });
 
         document.getElementById('btn-kill-monster').addEventListener('click', () => {
-            this.state.monster.hp = 0;
-            this.state.totalDamage += 999;
-            this.state.phase = 'ended';
-            this.state.result = 'win';
-            this.log('秒杀怪物');
-            Input.checkBattleEnd();
+            if (this.state.screen === 'battle') {
+                this.state.monster.hp = 0;
+                this.state.totalDamage += 999;
+                this.state.phase = 'ended';
+                this.state.result = 'win';
+                this.log('秒杀怪物');
+                Input.checkBattleEnd();
+            }
         });
 
         document.getElementById('btn-heal-player').addEventListener('click', () => {
-            this.state.player.hearts = this.state.player.maxHearts;
-            this.log('玩家生命回满');
+            if (this.state.screen === 'battle') {
+                this.state.player.hearts = this.state.player.maxHearts;
+                this.log('玩家生命回满');
+            }
         });
 
         document.getElementById('btn-reset-battle').addEventListener('click', () => {
@@ -59,12 +71,13 @@ const AutoTest = {
         });
 
         document.getElementById('btn-set-mul').addEventListener('click', () => {
+            if (this.state.screen !== 'battle') return;
             const m0 = parseInt(document.getElementById('slot0-mul').value) || 1;
             const m1 = parseInt(document.getElementById('slot1-mul').value) || 1;
             const m2 = parseInt(document.getElementById('slot2-mul').value) || 1;
-            this.state.slots[0].multiplier = m0;
-            this.state.slots[1].multiplier = m1;
-            this.state.slots[2].multiplier = m2;
+            if (this.state.slots[0]) this.state.slots[0].multiplier = m0;
+            if (this.state.slots[1]) this.state.slots[1].multiplier = m1;
+            if (this.state.slots[2]) this.state.slots[2].multiplier = m2;
             this.log(`倍率已设置: [${m0}X, ${m1}X, ${m2}X]`);
         });
     },
@@ -79,9 +92,8 @@ const AutoTest = {
         }
     },
 
-    // 贪心自动打牌：优先把点数最高的牌放到倍率最高的可用格子
     autoPlayOptimal() {
-        if (this.state.phase !== 'playing') return;
+        if (this.state.screen !== 'battle' || this.state.phase !== 'playing') return;
 
         let played = 0;
         let safety = 20;
@@ -103,7 +115,6 @@ const AutoTest = {
 
             if (candidates.length === 0) break;
 
-            // 优先选择能击杀的，否则选择单卡产出最高的
             const killMove = candidates.find(c => c.total >= this.state.monster.hp);
             if (killMove) {
                 playCardToSlot(killMove.card, killMove.slotIndex, this.state);
@@ -113,7 +124,6 @@ const AutoTest = {
                 break;
             }
 
-            // 否则选单卡产出最高的
             candidates.sort((a, b) => b.output - a.output);
             const best = candidates[0];
             playCardToSlot(best.card, best.slotIndex, this.state);
@@ -132,6 +142,7 @@ const AutoTest = {
     },
 
     cheatHand() {
+        if (this.state.screen !== 'battle') return;
         const choice = prompt(
             '输入想要的手牌组合（用逗号分隔）：\n' +
             '1=精确打击, 2=佯攻, 3=保养装备\n' +
@@ -143,31 +154,26 @@ const AutoTest = {
         const map = { '1': 'precise_strike', '2': 'feint', '3': 'maintain_gear' };
         const ids = choice.split(',').map(s => map[s.trim()]).filter(id => id);
 
-        // 把手牌移回牌库
         for (const c of this.state.hand) {
             this.state.deck.push(c);
         }
         this.state.hand = [];
 
-        // 创建新手牌
         for (const id of ids) {
             this.state.hand.push(createCardInstance(id));
         }
         this.log(`手牌已修改: ${ids.length} 张`);
     },
 
-    // 运行一系列预定义测试
     runSmokeTest() {
         this.log('=== 冒烟测试开始 ===');
         const testState = createInitialState();
         drawCards(testState, 5);
 
-        // 测试1: 初始状态
         console.assert(testState.player.hearts === 3, '初始生命应为3');
         console.assert(testState.slots[1].multiplier === 2, '中间格应为2X');
         this.log('测试1 通过: 初始状态正确');
 
-        // 测试2: 打出精确打击到中间格
         const strike = testState.hand.find(c => c.defId === 'precise_strike');
         if (strike) {
             playCardToSlot(strike, 1, testState);
@@ -176,7 +182,6 @@ const AutoTest = {
             this.log('测试2 通过: 精确打击基础伤害正确');
         }
 
-        // 测试3: 打出佯攻到旁边，精确打击享受光环
         const feint = testState.hand.find(c => c.defId === 'feint');
         if (feint) {
             playCardToSlot(feint, 0, testState);
@@ -188,7 +193,6 @@ const AutoTest = {
             }
         }
 
-        // 测试4: 伟力翻倍
         const strike2 = testState.hand.find(c => c.defId === 'precise_strike');
         if (strike2) {
             playCardToSlot(strike2, 2, testState);
@@ -201,7 +205,7 @@ const AutoTest = {
     },
 
     checkEnd() {
-        if (this.state.phase === 'ended') {
+        if (this.state.screen === 'battle' && this.state.phase === 'ended') {
             Input.checkBattleEnd();
         }
     }
@@ -209,14 +213,14 @@ const AutoTest = {
 
 // 控制台快捷指令
 window.godMode = function() {
-    if (!window.gameState) return;
+    if (!window.gameState || window.gameState.screen !== 'battle') return;
     window.gameState.player.hearts = 99;
     window.gameState.monster.hp = 1;
     AutoTest.log('上帝模式已开启');
 };
 
 window.fullHand = function(type = 'precise_strike', count = 5) {
-    if (!window.gameState) return;
+    if (!window.gameState || window.gameState.screen !== 'battle') return;
     for (let i = 0; i < count; i++) {
         window.gameState.hand.push(createCardInstance(type));
     }
@@ -224,7 +228,7 @@ window.fullHand = function(type = 'precise_strike', count = 5) {
 };
 
 window.setMonsterHp = function(hp) {
-    if (!window.gameState) return;
+    if (!window.gameState || window.gameState.screen !== 'battle') return;
     window.gameState.monster.hp = hp;
     AutoTest.log(`怪物HP设为 ${hp}`);
 };
@@ -241,7 +245,6 @@ window.simulateBattles = function(count = 100, verbose = false) {
         const s = startBattle();
         let safety = 50;
         while (s.phase !== 'ended' && safety-- > 0) {
-            // 自动出牌
             let played = 0;
             let innerSafety = 20;
             while (innerSafety-- > 0) {
