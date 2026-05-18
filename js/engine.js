@@ -49,8 +49,61 @@ function createCardInstance(defId) {
         color: def.color,
         accentColor: def.accentColor,
         iconType: def.iconType,
-        hasBeenPlayed: false
+        hasBeenPlayed: false,
+        growAmount: def.growAmount || 1,
+        reuse: false
     };
+}
+
+function getSlotEffectiveMultiplier(slot, state) {
+    let mul = slot.multiplier;
+    for (const s of state.slots) {
+        if (Math.abs(s.index - slot.index) === 1) {
+            for (const c of s.cards) {
+                if (c.defId === 'perfect_state') {
+                    mul += 1;
+                }
+            }
+        }
+    }
+    return mul;
+}
+
+function countTrainingCards(state) {
+    const allCards = [
+        ...state.deck,
+        ...state.hand,
+        ...state.discard,
+        ...state.slots.flatMap(s => s.cards)
+    ];
+    return allCards.filter(c => c.name.includes('训练')).length;
+}
+
+function processExitEffect(card, slotIndex, state) {
+    if (!card.keywords.includes('exit')) return;
+    logCombat(state, `${card.name} 触发离场效果！`);
+    if (card.defId === 're_training') {
+        for (const s of state.slots) {
+            if (Math.abs(s.index - slotIndex) === 1 && s.cards.length > 0) {
+                const target = s.cards[s.cards.length - 1];
+                if (target.keywords.includes('grow')) {
+                    target.reuse = true;
+                    logCombat(state, `${target.name} 获得复用！`);
+                }
+            }
+        }
+    }
+    if (card.defId === 'extra_training') {
+        for (const s of state.slots) {
+            if (Math.abs(s.index - slotIndex) === 1 && s.cards.length > 0) {
+                const target = s.cards[s.cards.length - 1];
+                if (target.keywords.includes('grow') && !target.keywords.includes('remain')) {
+                    target.keywords.push('remain');
+                    logCombat(state, `${target.name} 获得留场！`);
+                }
+            }
+        }
+    }
 }
 
 function createDeck(classDef) {
@@ -141,7 +194,8 @@ function initBattleFromRun(runData) {
             cards: [],
             locked: false,
             isStacking: false,
-            available: isAvailable
+            available: isAvailable,
+            nextCardBonus: 0
         });
     }
 
@@ -230,11 +284,17 @@ function getCardEffectiveValue(card, boardCards, cardSlotMap, state) {
     for (const bc of boardCards) {
         if (bc.uuid === card.uuid) continue;
         if (bc.keywords.includes('field')) {
-            if (bc.defId === 'feint') {
-                const bcSlot = cardSlotMap.get(bc.uuid);
-                if (bcSlot !== undefined && Math.abs(bcSlot - slotIndex) === 1) {
-                    val += 2;
-                }
+            const bcSlot = cardSlotMap.get(bc.uuid);
+            if (bcSlot === undefined) continue;
+            const dist = Math.abs(bcSlot - slotIndex);
+            if (bc.defId === 'feint' && dist === 1) {
+                val += 2;
+            }
+            if (bc.defId === 'hone_skill' && dist === 1 && card.keywords.includes('grow')) {
+                val += 4;
+            }
+            if (bc.defId === 'training_program' && dist === 1 && card.keywords.includes('grow')) {
+                val += countTrainingCards(state);
             }
         }
     }
@@ -275,7 +335,7 @@ function calculateCardOutput(card, slot, state) {
     const boardCards = state.slots.flatMap(s => s.cards);
     const cardSlotMap = buildCardSlotMap(state);
     const val = getCardFinalValue(card, boardCards, cardSlotMap, state);
-    return val * slot.multiplier;
+    return val * getSlotEffectiveMultiplier(slot, state);
 }
 
 // 计算整个牌桌当前总伤害
@@ -286,7 +346,7 @@ function calculateTotalBoardDamage(state) {
     for (const slot of state.slots) {
         for (const card of slot.cards) {
             const val = getCardFinalValue(card, boardCards, cardSlotMap, state);
-            total += val * slot.multiplier;
+            total += val * getSlotEffectiveMultiplier(slot, state);
         }
     }
     return total;
@@ -325,6 +385,13 @@ function playCardToSlot(card, slotIndex, state) {
     state.hand.splice(handIdx, 1);
     slot.cards.push(card);
 
+    // 应用格子的 nextCardBonus（怒意上涌等）
+    if (slot.nextCardBonus) {
+        card.permanentBonus += slot.nextCardBonus;
+        logCombat(state, `${card.name} 受到怒意加持，点数+${slot.nextCardBonus}`);
+        slot.nextCardBonus = 0;
+    }
+
     // ========== 打出时词条结算（按优先级） ==========
 
     // 1. 征收：从牌组拉一张堆叠牌到同格
@@ -332,48 +399,173 @@ function playCardToSlot(card, slotIndex, state) {
         processLevy(card, slotIndex, state);
     }
 
-    // 2. 生长：永久+1
-    if (card.keywords.includes('grow')) {
-        card.permanentBonus += 1;
-        logCombat(state, `${card.name} 生长了！永久点数+1`);
+    // 2. 合理训练：同格卡牌打出时+1（无论是否有生长）
+    for (const c of slot.cards) {
+        if (c.defId === 'proper_training' && c.uuid !== card.uuid) {
+            card.permanentBonus += 1;
+            logCombat(state, `${card.name} 受到合理训练加持，点数+1`);
+        }
     }
 
-    // 3. 团结：检查同名牌
+    // 3. 生长
+    if (card.keywords.includes('grow')) {
+        let amount = card.growAmount || 1;
+        // 30小时训练：同一格生长效果触发两次
+        for (const c of slot.cards) {
+            if (c.defId === 'thirty_hour_training' && c.uuid !== card.uuid) {
+                amount += card.growAmount || 1;
+            }
+        }
+        // 训练激素：相邻格生长效果触发两次
+        for (const s of state.slots) {
+            if (Math.abs(s.index - slotIndex) === 1) {
+                for (const c of s.cards) {
+                    if (c.defId === 'training_hormone') {
+                        amount += card.growAmount || 1;
+                    }
+                }
+            }
+        }
+        card.permanentBonus += amount;
+        logCombat(state, `${card.name} 生长了！永久点数+${amount}`);
+    }
+
+    // 3. 训练痕迹：点数达到3时连锁打出
+    if (card.defId === 'training_trace') {
+        const currentVal = getCardBaseValue(card);
+        if (currentVal >= 3) {
+            const traces = state.deck.filter(c => c.defId === 'training_trace');
+            for (const t of traces) {
+                const deckIdx = state.deck.findIndex(c => c.uuid === t.uuid);
+                if (deckIdx !== -1) {
+                    state.deck.splice(deckIdx, 1);
+                    slot.cards.push(t);
+                    logCombat(state, `${card.name} 触发连锁！从牌组打出 ${t.name}`);
+                    if (t.keywords.includes('grow')) {
+                        let tAmount = t.growAmount || 1;
+                        for (const c of slot.cards) {
+                            if (c.defId === 'proper_training' && c.uuid !== t.uuid) {
+                                tAmount += 1;
+                            }
+                        }
+                        for (const c of slot.cards) {
+                            if (c.defId === 'thirty_hour_training' && c.uuid !== t.uuid) {
+                                tAmount += t.growAmount || 1;
+                            }
+                        }
+                        for (const s of state.slots) {
+                            if (Math.abs(s.index - slotIndex) === 1) {
+                                for (const c of s.cards) {
+                                    if (c.defId === 'training_hormone') {
+                                        tAmount += t.growAmount || 1;
+                                    }
+                                }
+                            }
+                        }
+                        t.permanentBonus += tAmount;
+                        logCombat(state, `${t.name} 生长了！永久点数+${tAmount}`);
+                    }
+                    t.hasBeenPlayed = true;
+                }
+            }
+        }
+    }
+
+    // 4. 团结：检查同名牌
     if (card.keywords.includes('unity')) {
         processUnity(card, slotIndex, state);
     }
 
-    // 4. 奉献：给左侧相邻格牌加点数
+    // 5. 奉献：给左侧相邻格牌加点数
     if (card.keywords.includes('dedicate')) {
         processDedicate(card, slotIndex, state);
     }
 
-    // 5. 叠叠乐：检查叠放数量
+    // 6. 叠叠乐：检查叠放数量
     if (card.keywords.includes('stackjoy')) {
         processStackJoy(card, slotIndex, state);
     }
 
-    // 6. 吞噬：吃掉左右格
+    // 7. 吞噬：吃掉左右格
     if (card.keywords.includes('devour')) {
         processDevour(card, slotIndex, state);
     }
 
-    // 7. 吸收：获得两侧数值
+    // 8. 吸收：获得两侧数值
     if (card.keywords.includes('absorb')) {
         processAbsorb(card, slotIndex, state);
     }
 
-    // 8. 保养装备特殊处理
+    // 9. 保养装备特殊处理
     if (card.defId === 'maintain_gear') {
         slot.multiplier += 1;
         logCombat(state, `保养装备提升了第${slotIndex + 1}格倍率至 ${slot.multiplier}X`);
     }
 
-    // 9. 灵动：不锁定，进入弃牌堆
+    // 10. 炫耀肌肉：伟力触发时，相邻卡牌永久+1
+    if (card.defId === 'show_muscle') {
+        const boardCards = state.slots.flatMap(s => s.cards);
+        const cardSlotMap = buildCardSlotMap(state);
+        const myEff = getCardEffectiveValue(card, boardCards, cardSlotMap, state);
+        let hasLarger = false;
+        for (const bc of boardCards) {
+            if (bc.uuid === card.uuid) continue;
+            const bcEff = getCardEffectiveValue(bc, boardCards, cardSlotMap, state);
+            if (bcEff > myEff) {
+                hasLarger = true;
+                break;
+            }
+        }
+        if (!hasLarger) {
+            for (const s of state.slots) {
+                if (Math.abs(s.index - slotIndex) === 1 && s.cards.length > 0) {
+                    const target = s.cards[s.cards.length - 1];
+                    target.permanentBonus += 1;
+                    logCombat(state, `${card.name} 伟力触发！${target.name} 永久+1`);
+                }
+            }
+        }
+    }
+
+    // 11. 理清头绪：抽两张牌，左侧卡牌-1
+    if (card.defId === 'clear_mind') {
+        drawCards(state, 2);
+        const leftSlot = slotIndex > 0 ? state.slots[slotIndex - 1] : null;
+        if (leftSlot && leftSlot.cards.length > 0) {
+            const target = leftSlot.cards[leftSlot.cards.length - 1];
+            target.permanentBonus -= 1;
+            logCombat(state, `${card.name} 理清头绪！左侧 ${target.name} 点数-1`);
+        }
+    }
+
+    // 12. 忆往昔：从弃牌堆拿回一张卡牌
+    if (card.defId === 'recall_past') {
+        if (state.discard.length > 0) {
+            const recalled = state.discard.splice(Math.floor(Math.random() * state.discard.length), 1)[0];
+            state.hand.push(recalled);
+            logCombat(state, `${card.name} 回忆往昔，从弃牌堆拿回 ${recalled.name}`);
+        } else {
+            logCombat(state, `${card.name} 回忆往昔，但弃牌堆为空`);
+        }
+    }
+
+    // 13. 怒意上涌：设置下一张卡加成
+    if (card.defId === 'surging_anger') {
+        slot.nextCardBonus = (slot.nextCardBonus || 0) + 5;
+        logCombat(state, `${card.name} 怒意上涌！下一张同格卡牌+5`);
+    }
+
+    // 14. 灵动：不锁定，进入弃牌堆
     if (card.keywords.includes('agile')) {
         const idx = slot.cards.indexOf(card);
         if (idx !== -1) slot.cards.splice(idx, 1);
-        state.discard.push(card);
+        processExitEffect(card, slotIndex, state);
+        if (card.reuse) {
+            state.deck.push(card);
+            logCombat(state, `${card.name} 复用效果触发，回到牌组`);
+        } else {
+            state.discard.push(card);
+        }
         logCombat(state, `${card.name} 灵动效果触发，进入弃牌堆`);
     }
 
@@ -446,9 +638,7 @@ function processDevour(card, slotIndex, state) {
 
     if (leftSlot && leftSlot.cards.length > 0) {
         for (const c of leftSlot.cards) {
-            if (c.keywords.includes('exit')) {
-                logCombat(state, `${c.name} 触发离场效果！`);
-            }
+            processExitEffect(c, leftSlot.index, state);
             absorbed += getCardFinalValue(c, boardCards, cardSlotMap, state);
         }
         leftSlot.cards = [];
@@ -457,9 +647,7 @@ function processDevour(card, slotIndex, state) {
     }
     if (rightSlot && rightSlot.cards.length > 0) {
         for (const c of rightSlot.cards) {
-            if (c.keywords.includes('exit')) {
-                logCombat(state, `${c.name} 触发离场效果！`);
-            }
+            processExitEffect(c, rightSlot.index, state);
             absorbed += getCardFinalValue(c, boardCards, cardSlotMap, state);
         }
         rightSlot.cards = [];
@@ -554,22 +742,34 @@ function endTurn(state) {
         return;
     }
 
-    // 清理牌桌（留场牌保留，其他进弃牌堆）
+    // 先触发所有非留场牌的离场效果
+    for (const slot of state.slots) {
+        for (const card of slot.cards) {
+            if (!card.keywords.includes('remain') && card.keywords.includes('exit')) {
+                processExitEffect(card, slot.index, state);
+            }
+        }
+    }
+
+    // 清理牌桌（留场牌保留，其他根据复用状态决定去向）
     for (const slot of state.slots) {
         const remaining = [];
         for (const card of slot.cards) {
             if (card.keywords.includes('remain')) {
                 remaining.push(card);
             } else {
-                if (card.keywords.includes('exit')) {
-                    logCombat(state, `${card.name} 触发离场效果！`);
+                if (card.reuse) {
+                    state.deck.push(card);
+                    logCombat(state, `${card.name} 复用效果触发，回到牌组`);
+                } else {
+                    state.discard.push(card);
                 }
-                state.discard.push(card);
             }
         }
         slot.cards = remaining;
         slot.locked = remaining.length > 0 && !remaining[remaining.length - 1].keywords.includes('stack');
         slot.isStacking = remaining.length > 0 && remaining[remaining.length - 1].keywords.includes('stack');
+        slot.nextCardBonus = 0;
     }
 
     drawCards(state, 4);
@@ -630,7 +830,8 @@ function getPlacementPreview(card, slotIndex, state) {
     const cardSlotMap = buildCardSlotMap(tempState);
     const boardCards = tempState.slots.flatMap(s => s.cards);
     const val = getCardFinalValue(card, boardCards, cardSlotMap, tempState);
-    const output = val * tempSlot.multiplier;
+    const effMul = getSlotEffectiveMultiplier(tempSlot, tempState);
+    const output = val * effMul;
     const total = calculateTotalBoardDamage(tempState);
 
     return {
@@ -638,7 +839,7 @@ function getPlacementPreview(card, slotIndex, state) {
         totalDamage: total,
         monsterRemaining: Math.max(0, state.monster.hp - total),
         willKill: total >= state.monster.hp,
-        slotMultiplier: tempSlot.multiplier
+        slotMultiplier: effMul
     };
 }
 
@@ -779,7 +980,8 @@ function createInitialState() {
             cards: [],
             locked: false,
             isStacking: false,
-            available: isAvailable
+            available: isAvailable,
+            nextCardBonus: 0
         });
     }
 

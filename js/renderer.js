@@ -1511,7 +1511,8 @@ const Renderer = {
                 continue;
             }
 
-            const mulLabel = `${slot.multiplier}X`;
+            const effMul = typeof getSlotEffectiveMultiplier === 'function' ? getSlotEffectiveMultiplier(slot, state) : slot.multiplier;
+            const mulLabel = `${effMul}X`;
             ctx.fillStyle = 'rgba(30,30,50,0.9)';
             ctx.strokeStyle = '#555';
             ctx.lineWidth = 2;
@@ -1546,7 +1547,7 @@ const Renderer = {
                 const cy = y + 10 + c * 38;
                 const cw = slotW - 20;
                 const ch = 34;
-                this.drawMiniCard(ctx, card, cx, cy, cw, ch, slot.multiplier, state);
+                this.drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state);
             }
 
             if (slot.cards.length > 0) {
