@@ -130,19 +130,22 @@ const Renderer = {
         ctx.textAlign = 'center';
         ctx.fillText(`${Math.max(0, state.monster.hp)} / ${state.monster.maxHp}`, mx, barY + 17);
 
-        // 怪物词条
+        // 怪物词条（放在怪物右侧）
         if (state.monster.keywords.length > 0) {
-            const tagY = barY + 42;
+            const tagX = mx + 90;
+            const tagY = my + 20;
             ctx.fillStyle = '#8B0000';
             ctx.strokeStyle = '#cc4444';
             ctx.lineWidth = 1;
             const tagW = 280;
             const tagH = 36;
-            ctx.fillRect(mx - tagW / 2, tagY - tagH / 2, tagW, tagH);
-            ctx.strokeRect(mx - tagW / 2, tagY - tagH / 2, tagW, tagH);
+            ctx.fillRect(tagX, tagY - tagH / 2, tagW, tagH);
+            ctx.strokeRect(tagX, tagY - tagH / 2, tagW, tagH);
             ctx.fillStyle = '#ffaaaa';
             ctx.font = '13px Microsoft YaHei';
-            ctx.fillText(state.monster.keywordDesc, mx, tagY + 5);
+            ctx.textAlign = 'left';
+            ctx.fillText(state.monster.keywordDesc, tagX + 10, tagY + 5);
+            ctx.textAlign = 'center';
         }
     },
 
