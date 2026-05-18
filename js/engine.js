@@ -171,7 +171,7 @@ function initBattleFromRun(runData) {
         heartsLost: 0
     };
 
-    drawCards(state, 5);
+    drawCards(state, 4);
     return state;
 }
 
@@ -427,7 +427,7 @@ function endTurn(state) {
         slot.isStacking = remaining.length > 0 && remaining[remaining.length - 1].keywords.includes('stack');
     }
 
-    drawCards(state, 5 - state.hand.length);
+    drawCards(state, 4);
     state.turn++;
     state.turnDamage = 0;
 }
@@ -648,6 +648,6 @@ function createInitialState() {
 
 function startBattle() {
     const state = createInitialState();
-    drawCards(state, 5);
+    drawCards(state, 4);
     return state;
 }
