@@ -72,13 +72,17 @@ const AutoTest = {
 
         document.getElementById('btn-set-mul').addEventListener('click', () => {
             if (this.state.screen !== 'battle') return;
-            const m0 = parseInt(document.getElementById('slot0-mul').value) || 1;
+            const m0 = parseInt(document.getElementById('slot0-mul').value) || 0;
             const m1 = parseInt(document.getElementById('slot1-mul').value) || 1;
-            const m2 = parseInt(document.getElementById('slot2-mul').value) || 1;
+            const m2 = parseInt(document.getElementById('slot2-mul').value) || 2;
+            const m3 = parseInt(document.getElementById('slot3-mul').value) || 1;
+            const m4 = parseInt(document.getElementById('slot4-mul').value) || 0;
             if (this.state.slots[0]) this.state.slots[0].multiplier = m0;
             if (this.state.slots[1]) this.state.slots[1].multiplier = m1;
             if (this.state.slots[2]) this.state.slots[2].multiplier = m2;
-            this.log(`倍率已设置: [${m0}X, ${m1}X, ${m2}X]`);
+            if (this.state.slots[3]) this.state.slots[3].multiplier = m3;
+            if (this.state.slots[4]) this.state.slots[4].multiplier = m4;
+            this.log(`倍率已设置: [${m0}X, ${m1}X, ${m2}X, ${m3}X, ${m4}X]`);
         });
     },
 
@@ -145,13 +149,13 @@ const AutoTest = {
         if (this.state.screen !== 'battle') return;
         const choice = prompt(
             '输入想要的手牌组合（用逗号分隔）：\n' +
-            '1=精确打击, 2=佯攻, 3=保养装备\n' +
-            '例如: 1,1,3,2,1',
-            '1,1,3,2,1'
+            '1=精确打击, 2=佯攻, 3=保养装备, 4=狂野打击, 5=盾击\n' +
+            '例如: 1,1,3,2,5',
+            '1,1,3,2,5'
         );
         if (!choice) return;
 
-        const map = { '1': 'precise_strike', '2': 'feint', '3': 'maintain_gear' };
+        const map = { '1': 'precise_strike', '2': 'feint', '3': 'maintain_gear', '4': 'wild_strike', '5': 'shield_bash' };
         const ids = choice.split(',').map(s => map[s.trim()]).filter(id => id);
 
         for (const c of this.state.hand) {
@@ -168,15 +172,15 @@ const AutoTest = {
     runSmokeTest() {
         this.log('=== 冒烟测试开始 ===');
         const testState = createInitialState();
-        drawCards(testState, 5);
+        drawCards(testState, 4);
 
         console.assert(testState.player.hearts === 3, '初始生命应为3');
-        console.assert(testState.slots[1].multiplier === 2, '中间格应为2X');
+        console.assert(testState.slots[2].multiplier === 2, '中间格应为2X');
         this.log('测试1 通过: 初始状态正确');
 
         const strike = testState.hand.find(c => c.defId === 'precise_strike');
         if (strike) {
-            playCardToSlot(strike, 1, testState);
+            playCardToSlot(strike, 2, testState);
             const dmg = calculateTotalBoardDamage(testState);
             console.assert(dmg === 10, `精确打击在2X格应为10，实际${dmg}`);
             this.log('测试2 通过: 精确打击基础伤害正确');
@@ -184,10 +188,10 @@ const AutoTest = {
 
         const feint = testState.hand.find(c => c.defId === 'feint');
         if (feint) {
-            playCardToSlot(feint, 0, testState);
-            const strikeOnBoard = testState.slots[1].cards.find(c => c.defId === 'precise_strike');
+            playCardToSlot(feint, 1, testState);
+            const strikeOnBoard = testState.slots[2].cards.find(c => c.defId === 'precise_strike');
             if (strikeOnBoard) {
-                const val = getCardEffectiveValue(strikeOnBoard, testState.slots.flatMap(s => s.cards), 1);
+                const val = getCardEffectiveValue(strikeOnBoard, testState.slots.flatMap(s => s.cards), buildCardSlotMap(testState), testState);
                 console.assert(val === 7, `佯攻光环后精确打击应为7，实际${val}`);
                 this.log('测试3 通过: 驻场光环正确');
             }
@@ -195,8 +199,8 @@ const AutoTest = {
 
         const strike2 = testState.hand.find(c => c.defId === 'precise_strike');
         if (strike2) {
-            playCardToSlot(strike2, 2, testState);
-            const val = getCardFinalValue(strike2, testState.slots.flatMap(s => s.cards), 2);
+            playCardToSlot(strike2, 3, testState);
+            const val = getCardFinalValue(strike2, testState.slots.flatMap(s => s.cards), buildCardSlotMap(testState), testState);
             console.assert(val === 10, `伟力应翻倍为10，实际${val}`);
             this.log('测试4 通过: 伟力翻倍正确');
         }

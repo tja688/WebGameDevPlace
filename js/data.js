@@ -14,7 +14,12 @@ const KEYWORDS = {
     field: { name: '驻场', desc: '当该卡牌已经在倍率牌桌上后，触发效果（持续光环）', color: '#1ABC9C' },
     unity: { name: '团结', desc: '当同名卡牌已经在倍率牌桌上后，触发效果', color: '#F39C12' },
     response: { name: '响应', desc: '当倍率牌桌数值已达到X，触发效果', color: '#E74C3C' },
-    grow: { name: '生长', desc: '每次打出后数值永久加一', color: '#2ECC71' }
+    grow: { name: '生长', desc: '每次打出后数值永久加一', color: '#2ECC71' },
+    echo: { name: '回响', desc: '本牌的其他词条效果触发时，再结算一次。回响不会触发自身', color: '#9B59B6' },
+    dedicate: { name: '奉献', desc: '若左侧相邻格有牌，将自身点数一半（向下取整）加至该牌上。自身点数保留', color: '#E67E22' },
+    levy: { name: '征收', desc: '从牌组中随机选择一张【堆叠】牌，将其打出到本牌所在格子', color: '#3498DB' },
+    stackjoy: { name: '叠叠乐', desc: '当本牌所在格子叠放超过3张牌时，触发卡面所述效果', color: '#F39C12' },
+    reinforce: { name: '救兵', desc: '结束回合时，若牌桌有空位，将本牌打出到空位上', color: '#6BCB77' }
 };
 
 // ========== 卡牌定义 ==========
@@ -51,6 +56,29 @@ const CARD_DEFS = {
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'gear'
+    },
+    // 新增测试卡牌
+    wild_strike: {
+        id: 'wild_strike',
+        name: '狂野打击',
+        baseValue: 4,
+        size: 1,
+        keywords: ['grow'],
+        description: '生长：每次打出后永久+1点数',
+        color: '#6B238E',
+        accentColor: '#BB88DD',
+        iconType: 'sword'
+    },
+    shield_bash: {
+        id: 'shield_bash',
+        name: '盾击',
+        baseValue: 2,
+        size: 1,
+        keywords: ['dedicate'],
+        description: '奉献：若左侧有牌，将自身点数一半加至该牌',
+        color: '#2C5F2D',
+        accentColor: '#97BC62',
+        iconType: 'shield'
     }
 };
 
@@ -76,12 +104,26 @@ const MONSTER_COLOR_THEMES = {
         pupil: '#ff0000', nose: '#ff4444', whiskers: '#AA5555',
         teeth: '#ffcccc', tail: '#600000', claws: '#440000',
         shadow: 'rgba(60,0,0,0.5)'
+    },
+    stone: {
+        body: '#5A5A5A', bodyHighlight: '#7A7A7A', head: '#4A4A4A',
+        ears: '#3A3A3A', earInner: '#999999', eyes: '#fff',
+        pupil: '#666666', nose: '#aaaaaa', whiskers: '#777777',
+        teeth: '#cccccc', tail: '#3A3A3A', claws: '#2A2A2A',
+        shadow: 'rgba(0,0,0,0.5)'
+    },
+    dummy: {
+        body: '#8B7355', bodyHighlight: '#A0826D', head: '#7A6345',
+        ears: '#6B5335', earInner: '#CCBBAA', eyes: '#fff',
+        pupil: '#5A5A5A', nose: '#999999', whiskers: '#887766',
+        teeth: '#DDDDDD', tail: '#6B5335', claws: '#5A4535',
+        shadow: 'rgba(0,0,0,0.3)'
     }
 };
 
 // ========== 怪物定义 ==========
 const MONSTER_DEFS = {
-    // 普通怪 - 棕色系
+    // 普通怪 - 第一层 50-160 HP
     lone_rat: {
         id: 'lone_rat',
         name: '离群硕鼠',
@@ -112,27 +154,78 @@ const MONSTER_DEFS = {
         theme: 'normal',
         type: 'normal'
     },
-    // 精英怪 - 紫色系
+    cave_bat: {
+        id: 'cave_bat',
+        name: '洞穴蝙蝠',
+        hp: 55,
+        description: '在地下城深处栖息的蝙蝠',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'normal',
+        type: 'normal'
+    },
+    mud_slime: {
+        id: 'mud_slime',
+        name: '泥浆软泥怪',
+        hp: 80,
+        description: '被污染的泥浆凝聚而成的怪物',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'normal',
+        type: 'normal'
+    },
+    polluted_flower: {
+        id: 'polluted_flower',
+        name: '污染之花',
+        hp: 90,
+        description: '被地下城气息侵蚀的食人花',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'normal',
+        type: 'normal'
+    },
+    stone_guard: {
+        id: 'stone_guard',
+        name: '巨石门卫',
+        hp: 100,
+        description: '被魔法唤醒的石制守卫',
+        keywords: ['hard_skin'],
+        keywordDesc: '硬质皮肤：放在最左和最右倍率格子上的卡牌数值减少1',
+        theme: 'stone',
+        type: 'normal'
+    },
+    // 精英怪 - 第一层 130-150 HP
     elite_guard: {
         id: 'elite_guard',
         name: '鼠王近卫',
-        hp: 100,
+        hp: 140,
         description: '守护鼠王的精锐战士',
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
         theme: 'elite',
         type: 'elite'
     },
-    // BOSS - 红色系
+    // BOSS - 第一层 200-250 HP
     rat_king: {
         id: 'rat_king',
         name: '鼠疫之王',
-        hp: 150,
+        hp: 200,
         description: '地下城鼠群的统治者',
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
         theme: 'boss',
         type: 'boss'
+    },
+    // 训练靶子 - 测试用
+    training_dummy: {
+        id: 'training_dummy',
+        name: '训练靶子',
+        hp: 200,
+        description: '一个耐打的稻草人靶子（测试用）',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'dummy',
+        type: 'normal'
     }
 };
 
@@ -145,7 +238,7 @@ const CLASS_DEFS = {
         relic: {
             name: '兵团装备',
             description: '为倍率牌桌最中间一格提供1倍率',
-            effect: { type: 'slot_multiplier', slotIndex: 1, bonus: 1 }
+            effect: { type: 'slot_multiplier', slotIndex: 2, bonus: 1 }
         },
         startingDeck: [
             { defId: 'precise_strike', count: 5 },
@@ -179,14 +272,14 @@ const CLASS_DEFS = {
 
 // ========== 关卡配置 ==========
 const STAGE_CONFIG = {
-    '1-1': { type: 'normal',  monsterPool: ['lone_rat', 'rotten_rat', 'gluttony_swarm'], postBattle: 'two_events',   baseSouls: 3 },
-    '1-2': { type: 'normal',  monsterPool: ['lone_rat', 'rotten_rat', 'gluttony_swarm'], postBattle: 'treasure',     baseSouls: 3 },
-    '1-3': { type: 'normal',  monsterPool: ['lone_rat', 'rotten_rat', 'gluttony_swarm'], postBattle: 'shop_choice',  baseSouls: 3 },
-    '1-4': { type: 'elite',   monsterPool: ['elite_guard'],                               postBattle: 'three_events', baseSouls: 4 },
-    '1-5': { type: 'normal',  monsterPool: ['lone_rat', 'rotten_rat', 'gluttony_swarm'], postBattle: 'two_events',   baseSouls: 3 },
-    '1-6': { type: 'normal',  monsterPool: ['lone_rat', 'rotten_rat', 'gluttony_swarm'], postBattle: 'two_events',   baseSouls: 3 },
-    '1-7': { type: 'normal',  monsterPool: ['lone_rat', 'rotten_rat', 'gluttony_swarm'], postBattle: 'shop_choice',  baseSouls: 3 },
-    '1-8': { type: 'boss',    monsterPool: ['rat_king'],                                  postBattle: 'act_clear',    baseSouls: 5 }
+    '1-1': { type: 'normal',  monsterPool: ['lone_rat', 'cave_bat', 'rotten_rat'],          postBattle: 'two_events',   baseSouls: 3 },
+    '1-2': { type: 'normal',  monsterPool: ['rotten_rat', 'gluttony_swarm', 'mud_slime'],    postBattle: 'treasure',     baseSouls: 3 },
+    '1-3': { type: 'normal',  monsterPool: ['mud_slime', 'polluted_flower', 'stone_guard'],   postBattle: 'shop_choice',  baseSouls: 3 },
+    '1-4': { type: 'elite',   monsterPool: ['elite_guard'],                                   postBattle: 'three_events', baseSouls: 4 },
+    '1-5': { type: 'normal',  monsterPool: ['gluttony_swarm', 'cave_bat', 'polluted_flower'], postBattle: 'two_events',   baseSouls: 3 },
+    '1-6': { type: 'normal',  monsterPool: ['stone_guard', 'lone_rat', 'mud_slime'],          postBattle: 'two_events',   baseSouls: 3 },
+    '1-7': { type: 'normal',  monsterPool: ['polluted_flower', 'rotten_rat', 'gluttony_swarm'], postBattle: 'shop_choice', baseSouls: 3 },
+    '1-8': { type: 'boss',    monsterPool: ['rat_king'],                                      postBattle: 'act_clear',    baseSouls: 5 }
 };
 
 // ========== 事件名称池（占位） ==========
@@ -210,7 +303,7 @@ const RELIC_DEFS = [
     { id: 'relic_5', name: '腐蚀钱币', desc: '一枚被地下城腐蚀的古旧钱币，上面刻着不认识的文字。（效果暂未实现）' }
 ];
 
-// ========== 商店商品池（占位） ==========
+// ========== 商店商品池 ==========
 function createShopStock() {
     const cards = [];
     const cardIds = Object.keys(CARD_DEFS);
@@ -228,4 +321,19 @@ function createShopStock() {
     return { cards, relics };
 }
 
-const SLOT_COUNT = 3;
+// 战后三选一牌的卡池
+const CARD_REWARD_POOL = ['precise_strike', 'feint', 'maintain_gear', 'wild_strike', 'shield_bash'];
+
+function createCardRewardOptions() {
+    const options = [];
+    const pool = [...CARD_REWARD_POOL];
+    for (let i = 0; i < 3; i++) {
+        if (pool.length === 0) break;
+        const idx = Math.floor(Math.random() * pool.length);
+        options.push(pool.splice(idx, 1)[0]);
+    }
+    return options;
+}
+
+const SLOT_COUNT = 5;
+const MAX_UNLOCKED_SLOTS = 3; // 初始可用格数

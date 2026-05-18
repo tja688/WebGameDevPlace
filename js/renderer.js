@@ -39,6 +39,7 @@ const Renderer = {
             case 'map': this.drawMap(ctx, state); break;
             case 'battle': this.drawBattle(ctx, state); break;
             case 'post_battle': this.drawPostBattle(ctx, state); break;
+            case 'card_pick': this.drawCardPick(ctx, state); break;
             case 'shop': this.drawShop(ctx, state); break;
             case 'blacksmith': this.drawBlacksmith(ctx, state); break;
             case 'event': this.drawEvent(ctx, state); break;
@@ -332,7 +333,7 @@ const Renderer = {
         ctx.fillStyle = '#aaa';
         ctx.font = '16px Microsoft YaHei';
         ctx.textAlign = 'left';
-        ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 个 | 倍率格: ${runData.slotCount} 格`, 30, this.height - 60);
+        ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 个 | 倍率格: ${runData.unlockedSlots}/${runData.slotCount} 格`, 30, this.height - 60);
 
         // 当前关卡提示
         if (runData.stageIndex < 8) {
@@ -500,6 +501,95 @@ const Renderer = {
             ctx.fillText('点击进入', x + cardW / 2, y + cardH - 30);
 
             state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, type: opt.type, data: opt });
+        }
+    },
+
+    // ========== 选牌界面 ==========
+    drawCardPick(ctx, state) {
+        this.drawBackground(ctx);
+        const data = state.data;
+        const cx = this.width / 2;
+
+        // 标题
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 32px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText('选择一张卡牌加入牌组', cx, 100);
+
+        ctx.fillStyle = '#aaa';
+        ctx.font = '18px Microsoft YaHei';
+        ctx.fillText('普通怪战利品', cx, 140);
+
+        state.data.optionRects = [];
+        const options = data.options || [];
+        const cardW = 180;
+        const cardH = 260;
+        const gap = 40;
+        const totalW = options.length * cardW + (options.length - 1) * gap;
+        const startX = cx - totalW / 2;
+        const startY = 200;
+
+        for (let i = 0; i < options.length; i++) {
+            const defId = options[i];
+            const def = CARD_DEFS[defId];
+            const x = startX + i * (cardW + gap);
+            const y = startY;
+            const isHover = state.data.hoverOption === i;
+
+            // 卡片背景
+            ctx.globalAlpha = isHover ? 0.95 : 0.85;
+            const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+            grad.addColorStop(0, def.color);
+            grad.addColorStop(1, darkenColor(def.color, -40));
+            ctx.fillStyle = grad;
+            this.roundRect(ctx, x, y, cardW, cardH, 10);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            ctx.strokeStyle = isHover ? '#fff' : def.accentColor;
+            ctx.lineWidth = isHover ? 3 : 2;
+            ctx.stroke();
+
+            // 名称
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Microsoft YaHei';
+            ctx.textAlign = 'center';
+            ctx.fillText(def.name, x + cardW / 2, y + 30);
+
+            // 点数
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 24px Microsoft YaHei';
+            ctx.fillText(def.baseValue, x + cardW / 2, y + 70);
+
+            // 关键词
+            let tagY = y + 100;
+            for (const kw of def.keywords) {
+                const kwData = KEYWORDS[kw];
+                if (!kwData) continue;
+                const tagW = ctx.measureText(kwData.name).width + 12;
+                const tagX = x + (cardW - tagW) / 2;
+                ctx.fillStyle = kwData.color + '33';
+                ctx.strokeStyle = kwData.color;
+                ctx.lineWidth = 1;
+                ctx.fillRect(tagX, tagY, tagW, 18);
+                ctx.strokeRect(tagX, tagY, tagW, 18);
+                ctx.fillStyle = kwData.color;
+                ctx.font = '11px Microsoft YaHei';
+                ctx.fillText(kwData.name, x + cardW / 2, tagY + 13);
+                tagY += 22;
+            }
+
+            // 描述
+            ctx.fillStyle = '#ccc';
+            ctx.font = '12px Microsoft YaHei';
+            this.wrapText(ctx, def.description, x + cardW / 2, tagY + 10, cardW - 20, 18);
+
+            // 选择提示
+            ctx.fillStyle = isHover ? '#ffcc88' : '#666';
+            ctx.font = '14px Microsoft YaHei';
+            ctx.fillText('点击选择', x + cardW / 2, y + cardH - 20);
+
+            state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, defId });
         }
     },
 
@@ -725,9 +815,11 @@ const Renderer = {
         for (const card of runData.deck) {
             columns[0].items.push({ type: 'upgrade_card', name: card.name, cost: 1, data: card });
         }
-        for (let i = 0; i < runData.slotCount; i++) {
-            const cost = runData.blacksmithSlotCosts[i];
-            columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i });
+        const availableIndices = getAvailableSlotIndices(runData.slotCount, runData.unlockedSlots);
+        for (let idx = 0; idx < availableIndices.length; idx++) {
+            const i = availableIndices[idx];
+            const cost = runData.blacksmithSlotCosts[idx] || 2 + idx;
+            columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, costIndex: idx });
         }
         columns[2].items.push({ type: 'refresh_keywords', name: '刷新词条', cost: 5 });
         columns[2].items.push({ type: 'refresh_option', name: '刷新选项', cost: 1 });
@@ -1392,6 +1484,33 @@ const Renderer = {
             const x = startX + i * (slotW + gap);
             const y = startY;
 
+            // 不可用格子（未解锁）
+            if (!slot.available) {
+                ctx.fillStyle = 'rgba(20,20,30,0.5)';
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.fillRect(x, y - 40, slotW, 36);
+                ctx.strokeRect(x, y - 40, slotW, 36);
+                ctx.fillStyle = '#555';
+                ctx.font = 'bold 14px Microsoft YaHei';
+                ctx.textAlign = 'center';
+                ctx.fillText('🔒', x + slotW / 2, y - 16);
+
+                ctx.fillStyle = 'rgba(20,20,30,0.4)';
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 8]);
+                ctx.fillRect(x, y, slotW, slotH);
+                ctx.strokeRect(x, y, slotW, slotH);
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#444';
+                ctx.font = 'bold 16px Microsoft YaHei';
+                ctx.textAlign = 'center';
+                ctx.fillText('未解锁', x + slotW / 2, y + slotH / 2 + 5);
+                continue;
+            }
+
             const mulLabel = `${slot.multiplier}X`;
             ctx.fillStyle = 'rgba(30,30,50,0.9)';
             ctx.strokeStyle = '#555';
@@ -1456,7 +1575,7 @@ const Renderer = {
 
         const boardCards = state.slots.flatMap(s => s.cards);
         const cardSlotMap = buildCardSlotMap(state);
-        const finalVal = getCardFinalValue(card, boardCards, cardSlotMap);
+        const finalVal = getCardFinalValue(card, boardCards, cardSlotMap, state);
         const output = finalVal * multiplier;
 
         ctx.fillStyle = '#fff';
@@ -1631,6 +1750,21 @@ const Renderer = {
                     ctx.lineTo(Math.cos(angle) * size / 2.5, Math.sin(angle) * size / 2.5);
                     ctx.stroke();
                 }
+                break;
+            case 'shield':
+                ctx.beginPath();
+                ctx.moveTo(0, -size / 2);
+                ctx.bezierCurveTo(size / 2, -size / 3, size / 2, size / 4, 0, size / 2);
+                ctx.bezierCurveTo(-size / 2, size / 4, -size / 2, -size / 3, 0, -size / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, -size / 3);
+                ctx.lineTo(0, size / 3);
+                ctx.moveTo(-size / 4, -size / 6);
+                ctx.lineTo(size / 4, -size / 6);
+                ctx.stroke();
                 break;
         }
         ctx.restore();

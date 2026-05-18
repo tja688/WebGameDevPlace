@@ -20,6 +20,18 @@ function pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function getAvailableSlotIndices(totalSlots, unlockedCount) {
+    const center = Math.floor(totalSlots / 2);
+    const half = Math.floor(unlockedCount / 2);
+    const start = center - half;
+    const end = start + unlockedCount - 1;
+    const indices = [];
+    for (let i = start; i <= end; i++) {
+        if (i >= 0 && i < totalSlots) indices.push(i);
+    }
+    return indices;
+}
+
 // ========== 卡牌实例 ==========
 function createCardInstance(defId) {
     const def = CARD_DEFS[defId];
@@ -61,11 +73,16 @@ function createRunData(classId) {
         heartsLostInStage: 0,
         deck: shuffleArray(createDeck(cls)),
         relics: [cls.relic],
-        slotCount: SLOT_COUNT,
+        slotCount: SLOT_COUNT, // 总格数 5
+        unlockedSlots: MAX_UNLOCKED_SLOTS, // 可用格数 3
         classId: classId,
         completedStages: [],
-        shopStock: null, // 懒加载
-        blacksmithSlotCosts: [2, 2, 2], // 每个格子的强化费用
+        shopStock: null,
+        blacksmithSlotCosts: [2, 3, 4], // 每个可用格子的强化费用，按顺序对应可用格
+        pendingPostBattle: null,
+        pendingSoulsGained: 0,
+        firstUpgradeDiscount: true,
+        firstBlacksmithRefreshFree: true
     };
 }
 
@@ -88,7 +105,6 @@ function createGameState(screen) {
         animTime: 0,
         message: null,
         messageTimer: 0,
-        // 各屏幕专有数据挂载在 state.data 上
         data: {}
     };
 }
@@ -108,10 +124,14 @@ function initBattleFromRun(runData) {
     const monsterDefId = pickRandom(config.monsterPool);
     const monsterDef = MONSTER_DEFS[monsterDefId];
 
+    const availableIndices = getAvailableSlotIndices(runData.slotCount, runData.unlockedSlots);
+
     const slots = [];
     for (let i = 0; i < runData.slotCount; i++) {
-        let mul = 1;
-        if (cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
+        const isAvailable = availableIndices.includes(i);
+        let mul = isAvailable ? 1 : 0;
+        // 中间格（索引2）遗物加成
+        if (isAvailable && cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
             mul += cls.relic.effect.bonus;
         }
         slots.push({
@@ -120,7 +140,8 @@ function initBattleFromRun(runData) {
             baseMultiplier: mul,
             cards: [],
             locked: false,
-            isStacking: false
+            isStacking: false,
+            available: isAvailable
         });
     }
 
@@ -165,7 +186,6 @@ function initBattleFromRun(runData) {
         message: null,
         messageTimer: 0,
         combatLog: [],
-        // 保留runData引用用于战后结算
         runDataRef: runData,
         stageKey: stageKey,
         heartsLost: 0
@@ -191,10 +211,22 @@ function buildCardSlotMap(state) {
     return map;
 }
 
-// 获取卡牌在考虑光环后的有效点数
-function getCardEffectiveValue(card, boardCards, cardSlotMap) {
+// 获取硬质皮肤惩罚
+function getHardSkinPenalty(card, slotIndex, state) {
+    if (!state.monster.keywords.includes('hard_skin')) return 0;
+    const availableSlots = state.slots.filter(s => s.available);
+    if (availableSlots.length === 0) return 0;
+    const leftmost = availableSlots[0].index;
+    const rightmost = availableSlots[availableSlots.length - 1].index;
+    if (slotIndex === leftmost || slotIndex === rightmost) return 1;
+    return 0;
+}
+
+// 获取卡牌在考虑光环后的有效点数（不含硬质皮肤）
+function getCardEffectiveValue(card, boardCards, cardSlotMap, state) {
     const slotIndex = cardSlotMap.get(card.uuid);
     let val = getCardBaseValue(card);
+
     for (const bc of boardCards) {
         if (bc.uuid === card.uuid) continue;
         if (bc.keywords.includes('field')) {
@@ -209,15 +241,15 @@ function getCardEffectiveValue(card, boardCards, cardSlotMap) {
     return val;
 }
 
-// 获取卡牌在考虑伟力后的最终点数
-function getCardFinalValue(card, boardCards, cardSlotMap) {
-    let val = getCardEffectiveValue(card, boardCards, cardSlotMap);
+// 获取卡牌在考虑伟力和硬质皮肤后的最终点数
+function getCardFinalValue(card, boardCards, cardSlotMap, state) {
+    let val = getCardEffectiveValue(card, boardCards, cardSlotMap, state);
     if (card.keywords.includes('mighty')) {
-        const myEff = getCardEffectiveValue(card, boardCards, cardSlotMap);
+        const myEff = getCardEffectiveValue(card, boardCards, cardSlotMap, state);
         let hasLarger = false;
         for (const bc of boardCards) {
             if (bc.uuid === card.uuid) continue;
-            const bcEff = getCardEffectiveValue(bc, boardCards, cardSlotMap);
+            const bcEff = getCardEffectiveValue(bc, boardCards, cardSlotMap, state);
             if (bcEff > myEff) {
                 hasLarger = true;
                 break;
@@ -227,6 +259,14 @@ function getCardFinalValue(card, boardCards, cardSlotMap) {
             val *= 2;
         }
     }
+    // 硬质皮肤在伟力之后生效
+    if (state && cardSlotMap) {
+        const slotIndex = cardSlotMap.get(card.uuid);
+        if (slotIndex !== undefined) {
+            val -= getHardSkinPenalty(card, slotIndex, state);
+            val = Math.max(0, val);
+        }
+    }
     return val;
 }
 
@@ -234,7 +274,7 @@ function getCardFinalValue(card, boardCards, cardSlotMap) {
 function calculateCardOutput(card, slot, state) {
     const boardCards = state.slots.flatMap(s => s.cards);
     const cardSlotMap = buildCardSlotMap(state);
-    const val = getCardFinalValue(card, boardCards, cardSlotMap);
+    const val = getCardFinalValue(card, boardCards, cardSlotMap, state);
     return val * slot.multiplier;
 }
 
@@ -245,7 +285,7 @@ function calculateTotalBoardDamage(state) {
     const boardCards = state.slots.flatMap(s => s.cards);
     for (const slot of state.slots) {
         for (const card of slot.cards) {
-            const val = getCardFinalValue(card, boardCards, cardSlotMap);
+            const val = getCardFinalValue(card, boardCards, cardSlotMap, state);
             total += val * slot.multiplier;
         }
     }
@@ -254,6 +294,9 @@ function calculateTotalBoardDamage(state) {
 
 // 检查是否可以放置卡牌到某个格子
 function canPlaceCard(card, slot, state) {
+    if (!slot.available) {
+        return { ok: false, reason: '该格子尚未解锁' };
+    }
     if (card.size > 1) {
         return { ok: false, reason: '多格卡暂未实现' };
     }
@@ -282,22 +325,51 @@ function playCardToSlot(card, slotIndex, state) {
     state.hand.splice(handIdx, 1);
     slot.cards.push(card);
 
-    if (card.defId === 'maintain_gear') {
-        slot.multiplier += 1;
-        logCombat(state, `保养装备提升了第${slotIndex + 1}格倍率至 ${slot.multiplier}X`);
+    // ========== 打出时词条结算（按优先级） ==========
+
+    // 1. 征收：从牌组拉一张堆叠牌到同格
+    if (card.keywords.includes('levy')) {
+        processLevy(card, slotIndex, state);
     }
 
-    if (card.keywords.includes('devour')) {
-        processDevour(card, slotIndex, state);
-    }
-    if (card.keywords.includes('absorb')) {
-        processAbsorb(card, slotIndex, state);
-    }
+    // 2. 生长：永久+1
     if (card.keywords.includes('grow')) {
         card.permanentBonus += 1;
         logCombat(state, `${card.name} 生长了！永久点数+1`);
     }
 
+    // 3. 团结：检查同名牌
+    if (card.keywords.includes('unity')) {
+        processUnity(card, slotIndex, state);
+    }
+
+    // 4. 奉献：给左侧相邻格牌加点数
+    if (card.keywords.includes('dedicate')) {
+        processDedicate(card, slotIndex, state);
+    }
+
+    // 5. 叠叠乐：检查叠放数量
+    if (card.keywords.includes('stackjoy')) {
+        processStackJoy(card, slotIndex, state);
+    }
+
+    // 6. 吞噬：吃掉左右格
+    if (card.keywords.includes('devour')) {
+        processDevour(card, slotIndex, state);
+    }
+
+    // 7. 吸收：获得两侧数值
+    if (card.keywords.includes('absorb')) {
+        processAbsorb(card, slotIndex, state);
+    }
+
+    // 8. 保养装备特殊处理
+    if (card.defId === 'maintain_gear') {
+        slot.multiplier += 1;
+        logCombat(state, `保养装备提升了第${slotIndex + 1}格倍率至 ${slot.multiplier}X`);
+    }
+
+    // 9. 灵动：不锁定，进入弃牌堆
     if (card.keywords.includes('agile')) {
         const idx = slot.cards.indexOf(card);
         if (idx !== -1) slot.cards.splice(idx, 1);
@@ -309,6 +381,60 @@ function playCardToSlot(card, slotIndex, state) {
     state.slotFlashes.push({ slotIndex, timer: 20 });
     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
     return true;
+}
+
+function processLevy(card, slotIndex, state) {
+    // 从牌组中找一张堆叠牌
+    const stackIdx = state.deck.findIndex(c => c.keywords.includes('stack'));
+    if (stackIdx !== -1) {
+        const stackCard = state.deck.splice(stackIdx, 1)[0];
+        state.slots[slotIndex].cards.push(stackCard);
+        logCombat(state, `${card.name} 征收效果触发，从牌组打出 ${stackCard.name}！`);
+        // 征收打出的牌也结算其效果
+        if (stackCard.defId === 'maintain_gear') {
+            state.slots[slotIndex].multiplier += 1;
+            logCombat(state, `保养装备提升了第${slotIndex + 1}格倍率至 ${state.slots[slotIndex].multiplier}X`);
+        }
+        if (stackCard.keywords.includes('grow')) {
+            stackCard.permanentBonus += 1;
+            logCombat(state, `${stackCard.name} 生长了！永久点数+1`);
+        }
+    } else {
+        logCombat(state, `${card.name} 征收效果触发，但牌组中没有堆叠牌`);
+    }
+}
+
+function processDedicate(card, slotIndex, state) {
+    const leftSlot = slotIndex > 0 ? state.slots[slotIndex - 1] : null;
+    if (leftSlot && leftSlot.cards.length > 0) {
+        const val = getCardBaseValue(card);
+        const bonus = Math.floor(val / 2);
+        if (bonus > 0) {
+            // 给左侧格子的最上面一张牌加点数
+            const target = leftSlot.cards[leftSlot.cards.length - 1];
+            target.permanentBonus += bonus;
+            logCombat(state, `${card.name} 奉献了 ${bonus} 点给 ${target.name}！`);
+        }
+    }
+}
+
+function processUnity(card, slotIndex, state) {
+    const boardCards = state.slots.flatMap(s => s.cards);
+    const hasSameName = boardCards.some(c => c.uuid !== card.uuid && c.defId === card.defId);
+    if (hasSameName) {
+        // 团结效果：当前实现为+2点数
+        card.permanentBonus += 2;
+        logCombat(state, `${card.name} 团结效果触发！点数+2`);
+    }
+}
+
+function processStackJoy(card, slotIndex, state) {
+    const slot = state.slots[slotIndex];
+    if (slot.cards.length > 3) {
+        // 叠叠乐效果：当前实现为+3点数
+        card.permanentBonus += 3;
+        logCombat(state, `${card.name} 叠叠乐触发！叠放超过3张，点数+3`);
+    }
 }
 
 function processDevour(card, slotIndex, state) {
@@ -323,7 +449,7 @@ function processDevour(card, slotIndex, state) {
             if (c.keywords.includes('exit')) {
                 logCombat(state, `${c.name} 触发离场效果！`);
             }
-            absorbed += getCardFinalValue(c, boardCards, cardSlotMap);
+            absorbed += getCardFinalValue(c, boardCards, cardSlotMap, state);
         }
         leftSlot.cards = [];
         leftSlot.locked = false;
@@ -334,7 +460,7 @@ function processDevour(card, slotIndex, state) {
             if (c.keywords.includes('exit')) {
                 logCombat(state, `${c.name} 触发离场效果！`);
             }
-            absorbed += getCardFinalValue(c, boardCards, cardSlotMap);
+            absorbed += getCardFinalValue(c, boardCards, cardSlotMap, state);
         }
         rightSlot.cards = [];
         rightSlot.locked = false;
@@ -355,12 +481,12 @@ function processAbsorb(card, slotIndex, state) {
 
     if (leftSlot && leftSlot.cards.length > 0) {
         for (const c of leftSlot.cards) {
-            gained += getCardFinalValue(c, boardCards, cardSlotMap);
+            gained += getCardFinalValue(c, boardCards, cardSlotMap, state);
         }
     }
     if (rightSlot && rightSlot.cards.length > 0) {
         for (const c of rightSlot.cards) {
-            gained += getCardFinalValue(c, boardCards, cardSlotMap);
+            gained += getCardFinalValue(c, boardCards, cardSlotMap, state);
         }
     }
     if (gained > 0) {
@@ -378,6 +504,22 @@ function logCombat(state, msg) {
 function endTurn(state) {
     if (state.phase !== 'playing') return;
     if (typeof GameAudio !== 'undefined') GameAudio.playEndTurn();
+
+    // 救兵：结束回合时，若牌桌有空位，将手牌中的救兵牌自动打出到空位
+    const reinforceCards = state.hand.filter(c => c.keywords.includes('reinforce'));
+    for (const rCard of reinforceCards) {
+        const emptySlots = state.slots.filter(s => s.available && s.cards.length === 0);
+        if (emptySlots.length > 0) {
+            const targetSlot = emptySlots[0];
+            const handIdx = state.hand.findIndex(c => c.uuid === rCard.uuid);
+            if (handIdx !== -1) {
+                state.hand.splice(handIdx, 1);
+                targetSlot.cards.push(rCard);
+                logCombat(state, `${rCard.name} 救兵效果触发！自动打出到空位`);
+                state.slotFlashes.push({ slotIndex: targetSlot.index, timer: 20 });
+            }
+        }
+    }
 
     const totalDmg = calculateTotalBoardDamage(state);
     state.turnDamage = totalDmg;
@@ -412,13 +554,16 @@ function endTurn(state) {
         return;
     }
 
-    // 清理牌桌（留场牌保留）
+    // 清理牌桌（留场牌保留，其他进弃牌堆）
     for (const slot of state.slots) {
         const remaining = [];
         for (const card of slot.cards) {
             if (card.keywords.includes('remain')) {
                 remaining.push(card);
             } else {
+                if (card.keywords.includes('exit')) {
+                    logCombat(state, `${card.name} 触发离场效果！`);
+                }
                 state.discard.push(card);
             }
         }
@@ -428,6 +573,17 @@ function endTurn(state) {
     }
 
     drawCards(state, 4);
+
+    // 留场牌下回合开始时获得【堆叠】
+    for (const slot of state.slots) {
+        for (const card of slot.cards) {
+            if (card.keywords.includes('remain') && !card.keywords.includes('stack')) {
+                card.keywords.push('stack');
+                logCombat(state, `${card.name} 留场效果：获得【堆叠】`);
+            }
+        }
+    }
+
     state.turn++;
     state.turnDamage = 0;
 }
@@ -456,19 +612,24 @@ function getPlacementPreview(card, slotIndex, state) {
     const check = canPlaceCard(card, slot, state);
     if (!check.ok) return null;
 
+    // 创建临时状态来计算预览
+    const tempHand = state.hand.filter(c => c.uuid !== card.uuid);
     const tempSlot = {
         ...slot,
         cards: [...slot.cards, card],
         multiplier: slot.multiplier + (card.defId === 'maintain_gear' ? 1 : 0)
     };
+    const tempSlots = state.slots.map((s, i) => i === slotIndex ? tempSlot : s);
+
     const tempState = {
         ...state,
-        slots: state.slots.map((s, i) => i === slotIndex ? tempSlot : s)
+        hand: tempHand,
+        slots: tempSlots
     };
 
     const cardSlotMap = buildCardSlotMap(tempState);
     const boardCards = tempState.slots.flatMap(s => s.cards);
-    const val = getCardFinalValue(card, boardCards, cardSlotMap);
+    const val = getCardFinalValue(card, boardCards, cardSlotMap, tempState);
     const output = val * tempSlot.multiplier;
     const total = calculateTotalBoardDamage(tempState);
 
@@ -485,7 +646,6 @@ function getPlacementPreview(card, slotIndex, state) {
 function resolveBattleEnd(battleState) {
     const runData = battleState.runDataRef;
     if (!runData) {
-        // 调试/测试模式，无 runData，直接返回胜利
         return { result: 'win', soulsGained: 0, postBattleType: 'act_clear', postBattleData: { reward: '测试奖励', desc: '调试模式' }, nextStage: null };
     }
     const config = STAGE_CONFIG[battleState.stageKey];
@@ -497,8 +657,7 @@ function resolveBattleEnd(battleState) {
         runData.heartsLostInStage = battleState.heartsLost;
         runData.completedStages.push(battleState.stageKey);
 
-        // 同步卡组（战斗中的永久变化保留到runData）
-        // 合并deck、hand、discard、board上的卡牌回到runData.deck
+        // 同步卡组
         const allCards = [
             ...battleState.deck,
             ...battleState.hand,
@@ -507,13 +666,32 @@ function resolveBattleEnd(battleState) {
         ];
         runData.deck = allCards;
 
-        // 准备战后数据
-        const postBattleData = generatePostBattleData(config.postBattle, runData);
+        // 如果是普通怪，先给三选一牌，再进入战后奖励
+        if (config.type === 'normal' && !runData.pendingPostBattle) {
+            runData.pendingPostBattle = config.postBattle;
+            runData.pendingSoulsGained = soulGain;
+            return {
+                result: 'win',
+                soulsGained: soulGain,
+                postBattleType: 'card_pick',
+                postBattleData: { options: createCardRewardOptions() },
+                nextStage: runData.stageIndex + 1
+            };
+        }
+
+        // 清除pending（如果存在）
+        const pendingType = runData.pendingPostBattle;
+        const pendingSouls = runData.pendingSoulsGained;
+        runData.pendingPostBattle = null;
+        runData.pendingSoulsGained = 0;
+
+        const postBattleType = pendingType || config.postBattle;
+        const postBattleData = generatePostBattleData(postBattleType, runData);
 
         return {
             result: 'win',
-            soulsGained: soulGain,
-            postBattleType: config.postBattle,
+            soulsGained: pendingSouls || soulGain,
+            postBattleType: postBattleType,
             postBattleData: postBattleData,
             nextStage: battleState.stageKey === '1-8' ? null : runData.stageIndex + 1
         };
@@ -581,15 +759,17 @@ function showPlaceholderToast(msg) {
 
 // ========== 调试/测试后备函数 ==========
 function createInitialState() {
-    // 创建一个独立的战斗状态（用于测试）
     const cls = CLASS_DEFS.soldier;
     const deck = shuffleArray(createDeck(cls));
     const monster = MONSTER_DEFS.lone_rat;
 
+    const availableIndices = getAvailableSlotIndices(SLOT_COUNT, MAX_UNLOCKED_SLOTS);
+
     const slots = [];
     for (let i = 0; i < SLOT_COUNT; i++) {
-        let mul = 1;
-        if (cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
+        const isAvailable = availableIndices.includes(i);
+        let mul = isAvailable ? 1 : 0;
+        if (isAvailable && cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
             mul += cls.relic.effect.bonus;
         }
         slots.push({
@@ -598,7 +778,8 @@ function createInitialState() {
             baseMultiplier: mul,
             cards: [],
             locked: false,
-            isStacking: false
+            isStacking: false,
+            available: isAvailable
         });
     }
 

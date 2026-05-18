@@ -65,6 +65,9 @@ const Input = {
             case 'post_battle':
                 this.handlePostBattleClick(pos);
                 break;
+            case 'card_pick':
+                this.handleCardPickClick(pos);
+                break;
             case 'shop':
                 this.handleShopClick(pos);
                 break;
@@ -108,6 +111,9 @@ const Input = {
                 break;
             case 'post_battle':
                 this.handlePostBattleHover(pos, state);
+                break;
+            case 'card_pick':
+                this.handleCardPickHover(pos, state);
                 break;
             case 'shop':
                 this.handleShopHover(pos, state);
@@ -251,6 +257,57 @@ const Input = {
                 this.state.screen = 'battle';
                 this.state.data = {};
                 return;
+            }
+        }
+    },
+
+    // ========== 选牌界面 ==========
+    handleCardPickHover(pos, state) {
+        if (state.data.optionRects) {
+            for (const rect of state.data.optionRects) {
+                if (this.hitTest(pos, rect)) {
+                    state.data.hoverOption = rect.index;
+                    this.canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+        }
+        this.canvas.style.cursor = 'default';
+    },
+
+    handleCardPickClick(pos) {
+        const data = this.state.data;
+        const runData = data.runData;
+
+        if (data.optionRects) {
+            for (const rect of data.optionRects) {
+                if (this.hitTest(pos, rect)) {
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    // 将选中的牌加入牌组
+                    const newCard = createCardInstance(rect.defId);
+                    runData.deck.push(newCard);
+                    showPlaceholderToast(`获得卡牌：${newCard.name}`);
+
+                    // 继续战后流程
+                    setTimeout(() => {
+                        const result = resolveBattleEnd(this.state);
+                        if (result.postBattleType === 'act_clear') {
+                            switchScreen(this.state, 'act_transition', {
+                                runData,
+                                reward: result.postBattleData.reward,
+                                desc: result.postBattleData.desc
+                            });
+                        } else {
+                            switchScreen(this.state, 'post_battle', {
+                                runData,
+                                type: result.postBattleType,
+                                soulsGained: result.soulsGained,
+                                postBattleData: result.postBattleData
+                            });
+                        }
+                    }, 300);
+                    return;
+                }
             }
         }
     },
@@ -422,7 +479,8 @@ const Input = {
                     if (rect.canAfford) {
                         runData.souls -= rect.item.cost;
                         if (rect.item.type === 'upgrade_slot') {
-                            runData.blacksmithSlotCosts[rect.item.slotIndex]++;
+                            const costIdx = rect.item.costIndex !== undefined ? rect.item.costIndex : rect.item.slotIndex;
+                            runData.blacksmithSlotCosts[costIdx] = (runData.blacksmithSlotCosts[costIdx] || 2) + 1;
                         }
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                         showPlaceholderToast('强化成功！（效果占位）');
@@ -528,13 +586,11 @@ const Input = {
 
         if (data.transitionBtnRect && this.hitTest(pos, data.transitionBtnRect)) {
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-            // 拓展牌桌
-            runData.slotCount = 4;
-            // 2-1 占位画面
-            switchScreen(this.state, 'title', {});
-            setTimeout(() => {
-                showPlaceholderToast('2-X 关卡正在开发中...');
-            }, 100);
+            // 拓展牌桌：增加可用格数
+            runData.unlockedSlots = Math.min(SLOT_COUNT, runData.unlockedSlots + 1);
+            runData.stageIndex++;
+            runData.act = 2;
+            switchScreen(this.state, 'map', { runData });
         }
     },
 
@@ -607,7 +663,13 @@ const Input = {
                 if (isWin) {
                     const result = resolveBattleEnd(this.state);
                     const runData = this.state.runDataRef;
-                    if (result.postBattleType === 'act_clear') {
+                    if (result.postBattleType === 'card_pick') {
+                        switchScreen(this.state, 'card_pick', {
+                            runData,
+                            soulsGained: result.soulsGained,
+                            options: result.postBattleData.options
+                        });
+                    } else if (result.postBattleType === 'act_clear') {
                         switchScreen(this.state, 'act_transition', {
                             runData,
                             reward: result.postBattleData.reward,
