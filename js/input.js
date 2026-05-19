@@ -18,6 +18,7 @@ const Input = {
         this.canvas.addEventListener('mouseup', e => this.onMouseUp(e));
         this.canvas.addEventListener('mouseleave', e => this.onMouseUp(e));
         this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+        this.canvas.addEventListener('wheel', e => this.onWheel(e), { passive: false });
 
         this.canvas.addEventListener('touchstart', e => {
             e.preventDefault();
@@ -161,10 +162,6 @@ const Input = {
             const success = playCardToSlot(this.state.draggedCard, slotIdx, this.state);
             if (success) {
                 this.state.turnDamage = calculateTotalBoardDamage(this.state);
-                if (this.state.turnDamage >= this.state.monster.hp) {
-                    this.state.message = '伤害已达标！结束回合击败怪物';
-                    this.state.messageTimer = 120;
-                }
             } else {
                 this.state.message = '无法放置到此格子';
                 this.state.messageTimer = 60;
@@ -277,11 +274,14 @@ const Input = {
 
     // ========== 通用卡牌选择界面 ==========
     handleCardSelectHover(pos, state) {
+        const scrollY = state.data.cardSelectScrollY || 0;
+        const adjustedPos = { x: pos.x, y: pos.y + scrollY };
         if (state.data.optionRects) {
             for (const rect of state.data.optionRects) {
-                if (this.hitTest(pos, rect)) {
+                if (this.hitTest(adjustedPos, rect)) {
                     state.data.hoverOption = rect.index;
                     this.canvas.style.cursor = 'pointer';
+                    this.updateTooltip(rect.card, pos.x, pos.y);
                     return;
                 }
             }
@@ -292,6 +292,7 @@ const Input = {
             return;
         }
         this.canvas.style.cursor = 'default';
+        this.hideTooltip();
     },
 
     handleCardSelectClick(pos) {
@@ -299,9 +300,11 @@ const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
+        const scrollY = data.cardSelectScrollY || 0;
+        const adjustedPos = { x: pos.x, y: pos.y + scrollY };
         if (data.optionRects) {
             for (const rect of data.optionRects) {
-                if (this.hitTest(pos, rect)) {
+                if (this.hitTest(adjustedPos, rect)) {
                     const card = rect.card;
                     data.processing = true;
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
@@ -516,6 +519,19 @@ const Input = {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
                     state.data.hoverShopItem = rect.key;
                     this.canvas.style.cursor = 'pointer';
+                    const def = CARD_DEFS[rect.item.defId];
+                    if (def) {
+                        const pseudoCard = {
+                            name: def.name,
+                            baseValue: def.baseValue,
+                            permanentBonus: 0,
+                            tempBonus: 0,
+                            size: def.size,
+                            keywords: def.keywords,
+                            description: def.description
+                        };
+                        this.updateTooltip(pseudoCard, pos.x, pos.y);
+                    }
                     return;
                 }
             }
@@ -535,6 +551,7 @@ const Input = {
             return;
         }
         this.canvas.style.cursor = 'default';
+        this.hideTooltip();
     },
 
     handleShopClick(pos) {
@@ -629,6 +646,7 @@ const Input = {
                 if (this.hitTest(pos, rect)) {
                     state.data.hoverBlacksmith = rect.key;
                     this.canvas.style.cursor = 'pointer';
+                    this.updateBlacksmithTooltip(rect.item, pos.x, pos.y);
                     return;
                 }
             }
@@ -639,6 +657,7 @@ const Input = {
             return;
         }
         this.canvas.style.cursor = 'default';
+        this.hideTooltip();
     },
 
     handleBlacksmithClick(pos) {
@@ -968,6 +987,42 @@ const Input = {
 
     hideTooltip() {
         document.getElementById('tooltip').classList.add('hidden');
+    },
+
+    updateBlacksmithTooltip(item, clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        let html = '';
+        if (item.type === 'buy_relic') {
+            html = `<h4>${item.data.name}</h4>`;
+            html += `<p>${item.data.desc}</p>`;
+        } else if (item.type === 'upgrade_slot') {
+            html = `<h4>强化倍率格：${item.name}</h4>`;
+            html += `<p>将该格子的倍率永久+1</p>`;
+        } else if (item.type === 'enchant') {
+            html = `<h4>${item.name}</h4>`;
+            html += `<p>${item.subText}</p>`;
+        } else if (item.type === 'refresh') {
+            html = `<h4>${item.name}</h4>`;
+            html += `<p>${item.subText}</p>`;
+        }
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 300);
+        const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    onWheel(e) {
+        const state = this.state;
+        if (state.screen === 'card_select') {
+            e.preventDefault();
+            const scrollY = state.data.cardSelectScrollY || 0;
+            const maxScroll = state.data.cardSelectMaxScroll || 0;
+            let newScroll = scrollY + e.deltaY;
+            newScroll = Math.max(0, Math.min(newScroll, maxScroll));
+            state.data.cardSelectScrollY = newScroll;
+        }
     }
 };
 

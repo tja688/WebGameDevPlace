@@ -638,14 +638,35 @@ const Renderer = {
         const totalW = perRow * cardW + (perRow - 1) * gap;
         let startX = cx - totalW / 2;
         let startY = 150;
+        const scrollY = state.data.cardSelectScrollY || 0;
+
+        // 计算最大滚动值
+        const rows = Math.ceil(cards.length / perRow);
+        const contentBottom = startY + rows * (cardH + 30);
+        const visibleBottom = this.height - 100;
+        state.data.cardSelectMaxScroll = Math.max(0, contentBottom - visibleBottom);
+
+        // 裁剪区域
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 130, this.width, visibleBottom - 130);
+        ctx.clip();
 
         for (let i = 0; i < cards.length; i++) {
             const card = cards[i];
             const col = i % perRow;
             const row = Math.floor(i / perRow);
             const x = startX + col * (cardW + gap);
-            const y = startY + row * (cardH + 30);
+            const y = startY + row * (cardH + 30) - scrollY;
             const isHover = state.data.hoverOption === i;
+
+            // 跳过完全不可见的卡牌
+            if (y + cardH < 130 || y > visibleBottom) {
+                // 仍然存储rect以便hitTest（使用原始y）
+                const originalY = startY + row * (cardH + 30);
+                state.data.optionRects.push({ x, y: originalY, w: cardW, h: cardH, index: i, card });
+                continue;
+            }
 
             ctx.globalAlpha = isHover ? 0.95 : 0.85;
             const grad = ctx.createLinearGradient(x, y, x, y + cardH);
@@ -690,7 +711,21 @@ const Renderer = {
             ctx.font = '12px Microsoft YaHei';
             ctx.fillText('点击选择', x + cardW / 2, y + cardH - 15);
 
-            state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, card });
+            const originalY = startY + row * (cardH + 30);
+            state.data.optionRects.push({ x, y: originalY, w: cardW, h: cardH, index: i, card });
+        }
+
+        ctx.restore();
+
+        // 滚动条指示
+        const maxScroll = state.data.cardSelectMaxScroll;
+        if (maxScroll > 0) {
+            const scrollBarH = Math.max(40, (visibleBottom - 130) * (visibleBottom - 130) / (contentBottom - 130));
+            const scrollBarY = 130 + ((visibleBottom - 130) - scrollBarH) * (scrollY / maxScroll);
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillRect(this.width - 12, scrollBarY, 6, scrollBarH);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(this.width - 12, scrollBarY, 6, scrollBarH);
         }
 
         // 返回/取消按钮
