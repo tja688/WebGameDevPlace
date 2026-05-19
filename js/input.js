@@ -86,6 +86,9 @@ const Input = {
             case 'act_transition':
                 this.handleActTransitionClick(pos);
                 break;
+            case 'victory':
+                this.handleGameOverClick(pos);
+                break;
             case 'game_over':
                 this.handleGameOverClick(pos);
                 break;
@@ -135,6 +138,9 @@ const Input = {
                 break;
             case 'act_transition':
                 this.handleActTransitionHover(pos, state);
+                break;
+            case 'victory':
+                this.handleGameOverHover(pos, state);
                 break;
             case 'game_over':
                 this.handleGameOverHover(pos, state);
@@ -661,10 +667,8 @@ const Input = {
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'upgrade_slot') {
                         runData.souls -= rect.item.cost;
-                        const costIdx = rect.item.costIndex !== undefined ? rect.item.costIndex : rect.item.slotIndex;
-                        runData.blacksmithSlotCosts[costIdx] = (runData.blacksmithSlotCosts[costIdx] || 2) + 1;
-                        // 实际增加倍率升级次数
                         const slotIndex = rect.item.slotIndex;
+                        runData.blacksmithSlotCosts[slotIndex] = (runData.blacksmithSlotCosts[slotIndex] || 2) + 1;
                         runData.slotUpgrades[slotIndex] = (runData.slotUpgrades[slotIndex] || 0) + 1;
                         showPlaceholderToast(`第${slotIndex + 1}格倍率+1！`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
@@ -819,8 +823,13 @@ const Input = {
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
             runData.unlockedSlots = Math.min(SLOT_COUNT, runData.unlockedSlots + 1);
             runData.stageIndex++;
-            runData.act = 2;
-            switchScreen(this.state, 'map', { runData });
+            // 当前版本仅第一大关，通关后进入胜利画面
+            if (runData.stageIndex >= 8) {
+                switchScreen(this.state, 'victory', { runData });
+            } else {
+                runData.act = 2;
+                switchScreen(this.state, 'map', { runData });
+            }
         }
     },
 

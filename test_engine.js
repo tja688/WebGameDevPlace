@@ -92,11 +92,14 @@ const ok6 = canPlaceCard(s6gear2, s6.slots[1], s6);
 assert(!ok6.ok, '普通牌封口后不能再堆叠');
 
 // Test 7: 病毒之源惩罚
+// 设计文档：第1回合不扣心；第2回合扣1心并触发病毒之源；第3回合扣2心
 const s7 = makeTestState([]);
 endTurn(s7);
-assert(s7.player.hearts === 2, '第一回合结束扣1心');
+assert(s7.player.hearts === 3, '第一回合结束不扣心');
 endTurn(s7);
-assert(s7.player.hearts === 0, '第二回合结束扣2心（病毒之源），总计3心扣完');
+assert(s7.player.hearts === 2, '第二回合结束扣1心，触发病毒之源');
+endTurn(s7);
+assert(s7.player.hearts === 0, '第三回合结束扣2心（1基础+1病毒），总计3心扣完');
 assert(s7.phase === 'ended', '玩家死亡');
 assert(s7.result === 'lose', '战斗失败');
 

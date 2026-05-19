@@ -149,13 +149,24 @@ const AutoTest = {
         if (this.state.screen !== 'battle') return;
         const choice = prompt(
             '输入想要的手牌组合（用逗号分隔）：\n' +
-            '1=精确打击, 2=佯攻, 3=保养装备, 4=狂野打击, 5=盾击\n' +
-            '例如: 1,1,3,2,5',
-            '1,1,3,2,5'
+            '1=精确打击, 2=佯攻, 3=保养装备\n' +
+            '6=战时训练, 7=炫耀肌肉, 8=训练痕迹, 9=磨练技巧, 10=再训练\n' +
+            '11=30小时训练, 12=加练！, 13=训练激素, 14=训练纲领, 15=合理训练\n' +
+            '16=肌肉不会背叛你, 17=怒意上涌, 18=理清头绪, 19=忆往昔, 20=完美境界\n' +
+            '例如: 1,1,3,2,6',
+            '1,1,3,2,6'
         );
         if (!choice) return;
 
-        const map = { '1': 'precise_strike', '2': 'feint', '3': 'maintain_gear', '4': 'wild_strike', '5': 'shield_bash' };
+        const map = {
+            '1': 'precise_strike', '2': 'feint', '3': 'maintain_gear',
+            '4': 'wild_strike', '5': 'shield_bash',
+            '6': 'war_training', '7': 'show_muscle', '8': 'training_trace',
+            '9': 'hone_skill', '10': 're_training', '11': 'thirty_hour_training',
+            '12': 'extra_training', '13': 'training_hormone', '14': 'training_program',
+            '15': 'proper_training', '16': 'muscle_never_betrays', '17': 'surging_anger',
+            '18': 'clear_mind', '19': 'recall_past', '20': 'perfect_state'
+        };
         const ids = choice.split(',').map(s => map[s.trim()]).filter(id => id);
 
         for (const c of this.state.hand) {

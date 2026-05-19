@@ -7,7 +7,6 @@ const KEYWORDS = {
     agile: { name: '灵动', desc: '该卡牌放上倍率牌桌后不锁定，计算完数值后进入弃牌堆', color: '#4ECDC4' },
     stack: { name: '堆叠', desc: '该卡牌放上倍率牌桌后，可以继续将带有堆叠词条的卡牌打在该位置，或者再打一张没有堆叠词条的卡牌', color: '#FFD93D' },
     mighty: { name: '伟力', desc: '如果场上没有比该牌点数大的牌，触发效果', color: '#FF6B6B' },
-    absorb: { name: '吸收', desc: '获得两侧卡牌数值', color: '#6BCB77' },
     devour: { name: '吞噬', desc: '将左右两侧卡牌的数值加在该卡牌数值上后，将两侧卡牌移入弃牌堆', color: '#9B59B6' },
     exit: { name: '离场', desc: '当该卡牌离开倍率牌桌时，触发效果', color: '#E67E22' },
     remain: { name: '留场', desc: '在新的回合开始后，该卡牌不会离开倍率牌桌', color: '#3498DB' },
@@ -56,7 +55,7 @@ const CARD_DEFS = {
         size: 1,
         keywords: ['stack'],
         rarity: 'white',
-        description: '堆叠，将该卡牌所处倍率格提升一倍',
+        description: '堆叠；将该卡牌所处倍率格倍率+1',
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'gear'
@@ -73,18 +72,6 @@ const CARD_DEFS = {
         color: '#6B238E',
         accentColor: '#BB88DD',
         iconType: 'sword'
-    },
-    shield_bash: {
-        id: 'shield_bash',
-        name: '盾击',
-        baseValue: 2,
-        size: 1,
-        keywords: ['dedicate'],
-        rarity: 'white',
-        description: '奉献：若左侧有牌，将自身点数一半加至该牌',
-        color: '#2C5F2D',
-        accentColor: '#97BC62',
-        iconType: 'shield'
     },
     // ========== 生长体系 ==========
     war_training: {
@@ -265,7 +252,7 @@ const CARD_DEFS = {
         size: 1,
         keywords: ['stack', 'field'],
         rarity: 'gold',
-        description: '堆叠，驻场：相邻倍率格提升1倍',
+        description: '堆叠，驻场：相邻倍率格倍率+1',
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'star'
@@ -390,8 +377,8 @@ const MONSTER_DEFS = {
         name: '鼠王近卫',
         hp: 140,
         description: '守护鼠王的精锐战士',
-        keywords: ['virus_source'],
-        keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
+        keywords: [],
+        keywordDesc: '',
         theme: 'elite',
         type: 'elite'
     },
@@ -401,8 +388,8 @@ const MONSTER_DEFS = {
         name: '鼠疫之王',
         hp: 200,
         description: '地下城鼠群的统治者',
-        keywords: ['virus_source'],
-        keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
+        keywords: [],
+        keywordDesc: '',
         theme: 'boss',
         type: 'boss'
     },
@@ -498,7 +485,8 @@ const RARITY_PRICE = { white: 1, blue: 2, gold: 3 };
 
 function createShopStock() {
     const cards = [];
-    const cardIds = Object.keys(CARD_DEFS);
+    const excludedIds = ['wild_strike', 'shield_bash'];
+    const cardIds = Object.keys(CARD_DEFS).filter(id => !excludedIds.includes(id));
     for (let i = 0; i < 4; i++) {
         const defId = cardIds[Math.floor(Math.random() * cardIds.length)];
         const def = CARD_DEFS[defId];

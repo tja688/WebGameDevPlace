@@ -41,6 +41,7 @@ function createCardInstance(defId) {
         defId: defId,
         baseValue: def.baseValue,
         permanentBonus: 0,
+        tempBonus: 0,
         currentValue: def.baseValue,
         size: def.size,
         keywords: [...def.keywords],
@@ -133,7 +134,7 @@ function createRunData(classId) {
         shopStock: null,
         blacksmithStock: null,
         slotUpgrades: {}, // 格子倍率升级次数 {slotIndex: count}
-        blacksmithSlotCosts: [2, 3, 4], // 每个可用格子的强化费用，按顺序对应可用格
+        blacksmithSlotCosts: [2, 2, 2, 2, 2], // 每个格子的倍率升级费用（按slotIndex）
         shopUpgradeCost: 1, // 卡牌数值强化费用（1/2/3递增）
         shopRefreshCost: 1, // 商店刷新费用（递增）
         blacksmithEnchantCost: 4, // 词条附魔费用（4/5/6递增）
@@ -260,7 +261,7 @@ function initBattleFromRun(runData) {
 
 // 获取卡牌在考虑永久成长后的基础值
 function getCardBaseValue(card) {
-    return card.baseValue + card.permanentBonus;
+    return card.baseValue + card.permanentBonus + (card.tempBonus || 0);
 }
 
 // 构建卡牌到格子的映射
@@ -394,10 +395,10 @@ function playCardToSlot(card, slotIndex, state) {
     state.hand.splice(handIdx, 1);
     slot.cards.push(card);
 
-    // 应用格子的 nextCardBonus（怒意上涌等）
+    // 应用格子的 nextCardBonus（怒意上涌等）——临时加成
     if (slot.nextCardBonus) {
-        card.permanentBonus += slot.nextCardBonus;
-        logCombat(state, `${card.name} 受到怒意加持，点数+${slot.nextCardBonus}`);
+        card.tempBonus = (card.tempBonus || 0) + slot.nextCardBonus;
+        logCombat(state, `${card.name} 受到怒意加持，本回合点数+${slot.nextCardBonus}`);
         slot.nextCardBonus = 0;
     }
 
@@ -500,12 +501,7 @@ function playCardToSlot(card, slotIndex, state) {
         processDevour(card, slotIndex, state);
     }
 
-    // 8. 吸收：获得两侧数值
-    if (card.keywords.includes('absorb')) {
-        processAbsorb(card, slotIndex, state);
-    }
-
-    // 9. 保养装备特殊处理
+    // 8. 保养装备特殊处理
     if (card.defId === 'maintain_gear') {
         slot.multiplier += 1;
         logCombat(state, `保养装备提升了第${slotIndex + 1}格倍率至 ${slot.multiplier}X`);
@@ -669,29 +665,6 @@ function processDevour(card, slotIndex, state) {
     }
 }
 
-function processAbsorb(card, slotIndex, state) {
-    const leftSlot = slotIndex > 0 ? state.slots[slotIndex - 1] : null;
-    const rightSlot = slotIndex < state.slots.length - 1 ? state.slots[slotIndex + 1] : null;
-    let gained = 0;
-    const cardSlotMap = buildCardSlotMap(state);
-    const boardCards = state.slots.flatMap(s => s.cards);
-
-    if (leftSlot && leftSlot.cards.length > 0) {
-        for (const c of leftSlot.cards) {
-            gained += getCardFinalValue(c, boardCards, cardSlotMap, state);
-        }
-    }
-    if (rightSlot && rightSlot.cards.length > 0) {
-        for (const c of rightSlot.cards) {
-            gained += getCardFinalValue(c, boardCards, cardSlotMap, state);
-        }
-    }
-    if (gained > 0) {
-        card.permanentBonus += gained;
-        logCombat(state, `${card.name} 吸收了两侧 ${gained} 点数值！`);
-    }
-}
-
 function logCombat(state, msg) {
     state.combatLog.push(`[T${state.turn}] ${msg}`);
     if (state.combatLog.length > 50) state.combatLog.shift();
@@ -738,14 +711,21 @@ function endTurn(state) {
 
     // 扣心（精英和BOSS不触发病毒惩罚）
     const isEliteOrBoss = state.monster.type === 'elite' || state.monster.type === 'boss';
-    let heartLoss = 1 + (isEliteOrBoss ? 0 : state.monster.virusPenalty);
+    // 设计文档：第1回合不扣心，第2回合起每回合扣1心（基础）
+    let baseHeartLoss = state.turn === 1 ? 0 : 1;
+    let heartLoss = baseHeartLoss + (isEliteOrBoss ? 0 : state.monster.virusPenalty);
     state.player.hearts -= heartLoss;
     state.heartsLost += heartLoss;
-    if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
-    logCombat(state, `失去 ${heartLoss} 颗心！剩余 ${state.player.hearts} 颗`);
+    if (heartLoss > 0 && typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
+    if (heartLoss > 0) {
+        logCombat(state, `失去 ${heartLoss} 颗心！剩余 ${state.player.hearts} 颗`);
+    } else {
+        logCombat(state, `第1回合不扣心，剩余 ${state.player.hearts} 颗`);
+    }
 
-    if (!isEliteOrBoss) {
-        state.monster.virusPenalty += 1;
+    // 病毒之源：本次扣心后，下次多扣1心（仅对普通怪）
+    if (!isEliteOrBoss && baseHeartLoss > 0) {
+        state.monster.virusPenalty = 1;
     }
 
     if (state.player.hearts <= 0) {
@@ -784,15 +764,30 @@ function endTurn(state) {
         slot.nextCardBonus = 0;
     }
 
+    // 清空所有卡牌的临时加成
+    const allCards = [
+        ...state.deck, ...state.hand, ...state.discard,
+        ...state.slots.flatMap(s => s.cards)
+    ];
+    for (const c of allCards) {
+        if (c.tempBonus) c.tempBonus = 0;
+    }
+
     drawCards(state, 4);
 
-    // 留场牌下回合开始时获得【堆叠】
+    // 留场牌下回合开始时获得【堆叠】，并更新格子状态
     for (const slot of state.slots) {
         for (const card of slot.cards) {
             if (card.keywords.includes('remain') && !card.keywords.includes('stack')) {
                 card.keywords.push('stack');
                 logCombat(state, `${card.name} 留场效果：获得【堆叠】`);
             }
+        }
+        // 更新格子锁定/堆叠状态以反映留场牌的新词条
+        if (slot.cards.length > 0) {
+            const top = slot.cards[slot.cards.length - 1];
+            slot.locked = !top.keywords.includes('stack') && !top.keywords.includes('agile');
+            slot.isStacking = top.keywords.includes('stack');
         }
     }
 
@@ -803,15 +798,10 @@ function endTurn(state) {
 function drawCards(state, count) {
     let drawn = 0;
     for (let i = 0; i < count; i++) {
-        if (state.deck.length === 0) {
-            if (state.discard.length === 0) break;
-            state.deck = shuffleArray(state.discard);
-            state.discard = [];
-        }
-        if (state.deck.length > 0) {
-            state.hand.push(state.deck.pop());
-            drawn++;
-        }
+        // 设计文档：战斗内不洗牌，牌库抽完即止
+        if (state.deck.length === 0) break;
+        state.hand.push(state.deck.pop());
+        drawn++;
     }
     if (drawn > 0) {
         logCombat(state, `抽了 ${drawn} 张牌`);
@@ -867,7 +857,8 @@ function resolveBattleEnd(battleState) {
         let soulGain = 0;
         // 只有第一次调用才计算魂收益（避免card_pick后的二次结算重复加魂）
         if (!runData.pendingPostBattle) {
-            soulGain = Math.max(0, config.baseSouls - battleState.heartsLost);
+            // 设计文档：每损失1心魂减少1，最低为1
+            soulGain = Math.max(1, config.baseSouls - battleState.heartsLost);
             runData.souls += soulGain;
             runData.heartsLostInStage = battleState.heartsLost;
             runData.completedStages.push(battleState.stageKey);

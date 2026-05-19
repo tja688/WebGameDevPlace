@@ -46,6 +46,7 @@ const Renderer = {
             case 'event': this.drawEvent(ctx, state); break;
             case 'treasure': this.drawTreasure(ctx, state); break;
             case 'act_transition': this.drawActTransition(ctx, state); break;
+            case 'victory': this.drawVictory(ctx, state); break;
             case 'game_over': this.drawGameOver(ctx, state); break;
         }
 
@@ -898,9 +899,9 @@ const Renderer = {
         const availableIndices = getAvailableSlotIndices(runData.slotCount, runData.unlockedSlots);
         for (let idx = 0; idx < availableIndices.length; idx++) {
             const i = availableIndices[idx];
-            const cost = runData.blacksmithSlotCosts[idx] || 2 + idx;
+            const cost = runData.blacksmithSlotCosts[i] || 2;
             const upgradeCount = runData.slotUpgrades[i] || 0;
-            columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, costIndex: idx, subText: `当前+${upgradeCount}倍率` });
+            columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, subText: `当前+${upgradeCount}倍率` });
         }
 
         // 填充数据：服务
@@ -1182,6 +1183,59 @@ const Renderer = {
         ctx.fillText('进入第二大关', cx, btnY + 35);
 
         state.data.transitionBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+    },
+
+    // ========== 胜利画面 ==========
+    drawVictory(ctx, state) {
+        const data = state.data;
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+        const runData = data.runData;
+
+        ctx.fillStyle = 'rgba(10,15,10,0.95)';
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 56px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎉 恭喜通关！', cx, cy - 120);
+
+        ctx.strokeStyle = '#b8860b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 200, cy - 90);
+        ctx.lineTo(cx + 200, cy - 90);
+        ctx.stroke();
+
+        ctx.fillStyle = '#aaa';
+        ctx.font = '22px Microsoft YaHei';
+        ctx.fillText(`你成功清除了被污染的农田！`, cx, cy - 40);
+
+        ctx.fillStyle = '#ffcc66';
+        ctx.font = '20px Microsoft YaHei';
+        ctx.fillText(`累计获得魂: ${runData ? runData.souls : 0}`, cx, cy + 10);
+        ctx.fillText(`牌库数量: ${runData ? runData.deck.length : 0} 张`, cx, cy + 45);
+        ctx.fillText(`遗物数量: ${runData ? runData.relics.length : 0} 个`, cx, cy + 80);
+
+        const btnW = 220;
+        const btnH = 55;
+        const btnX = cx - btnW / 2;
+        const btnY = cy + 140;
+        const isHover = state.data.hoverRestartBtn;
+
+        ctx.fillStyle = isHover ? 'rgba(80,60,20,0.95)' : 'rgba(60,45,15,0.9)';
+        ctx.strokeStyle = isHover ? '#ffd700' : '#b8860b';
+        ctx.lineWidth = isHover ? 3 : 2;
+        this.roundRect(ctx, btnX, btnY, btnW, btnH, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isHover ? '#ffcc88' : '#ffd700';
+        ctx.font = 'bold 20px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText('返回主菜单', cx, btnY + 35);
+
+        state.data.restartBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
     },
 
     // ========== 失败画面 ==========
