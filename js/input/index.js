@@ -11,7 +11,7 @@ import { switchScreen, getCurrentStageKey } from '../core/state.js';
 import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { resolveBattleEnd } from '../systems/post-battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview, getCardBaseValue } from '../systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, KEYWORDS, CARD_DEFS } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';

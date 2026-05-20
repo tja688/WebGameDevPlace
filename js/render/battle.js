@@ -4,7 +4,7 @@
 
 import { roundRect, darkenColor } from './core.js';
 import { KEYWORDS } from '../data/index.js';
-import { getCardBaseValue, getCardFinalValue, buildCardSlotMap, canPlaceCard, getSlotEffectiveMultiplier } from '../systems/board.js';
+import { getCardBaseValue, getCardFinalValue, buildCardSlotMap, canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview } from '../systems/board.js';
 import { calculateTotalBoardDamage } from '../systems/board.js';
 import { MONSTER_COLOR_THEMES } from '../data/index.js';
 
