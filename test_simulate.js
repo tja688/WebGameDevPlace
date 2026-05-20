@@ -1,17 +1,17 @@
-const fs = require('fs');
-const vm = require('vm');
+import { startBattle } from './js/core/state.js';
+import { drawCards, endTurn } from './js/systems/battle.js';
+import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview, canPlaceCard } from './js/systems/board.js';
+import { MONSTER_DEFS } from './js/data/index.js';
 
-global.window = global;
-global.document = undefined;
+// 必须导入以触发效果注册
+import './js/effects/index.js';
 
-const files = ['js/data.js', 'js/engine.js', 'js/audio.js', 'js/renderer.js', 'js/input.js', 'js/autotest.js'];
-for (const f of files) {
-    vm.runInThisContext(fs.readFileSync(f, 'utf8'));
-}
+// 将 simulateBattles 挂载到全局以便调用
+import './js/autotest.js';
 
 function testHp(hp) {
     MONSTER_DEFS.lone_rat.hp = hp;
-    const result = simulateBattles(200, false);
+    const result = window.simulateBattles(200, false);
     console.log(`HP=${hp}: 胜率 ${result.wins}/200 (${(result.wins/200*100).toFixed(1)}%), 平均回合 ${result.avgTurns}`);
 }
 

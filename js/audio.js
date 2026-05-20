@@ -2,7 +2,7 @@
  * 卡牌地下城 - 简单音效系统（Web Audio API）
  */
 
-const GameAudio = {
+export const GameAudio = {
     ctx: null,
     enabled: true,
 

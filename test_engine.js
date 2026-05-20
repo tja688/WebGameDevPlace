@@ -1,11 +1,11 @@
-const fs = require('fs');
-const vm = require('vm');
+import fs from 'fs';
+import { createInitialState, startBattle } from './js/core/state.js';
+import { drawCards, endTurn } from './js/systems/battle.js';
+import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard } from './js/systems/board.js';
+import { createCardInstance } from './js/data/index.js';
 
-const dataCode = fs.readFileSync('./js/data.js', 'utf8');
-const engineCode = fs.readFileSync('./js/engine.js', 'utf8');
-
-vm.runInThisContext(dataCode);
-vm.runInThisContext(engineCode);
+// 必须导入以触发效果注册
+import './js/effects/index.js';
 
 let pass = 0;
 let fail = 0;
@@ -50,8 +50,7 @@ const s3feint = s3.hand[1];
 playCardToSlot(s3strike, 2, s3);
 playCardToSlot(s3feint, 1, s3);
 const strikeOnBoard = s3.slots[2].cards[0];
-const csm3 = buildCardSlotMap(s3);
-const effVal = getCardEffectiveValue(strikeOnBoard, s3.slots.flatMap(x=>x.cards), csm3, s3);
+const effVal = getCardEffectiveValue(strikeOnBoard, s3);
 assert(effVal === 7, `佯攻光环后精确打击应为7，实际${effVal}`);
 
 // Test 4: 伟力不触发（场上有更大点数）
@@ -61,14 +60,12 @@ const s4strike2 = s4.hand[1];
 const s4feint = s4.hand[2];
 playCardToSlot(s4strike1, 2, s4);
 playCardToSlot(s4strike2, 3, s4);
-const csm4a = buildCardSlotMap(s4);
-const fv4a = getCardFinalValue(s4.slots[3].cards[0], s4.slots.flatMap(x=>x.cards), csm4a, s4);
+const fv4a = getCardFinalValue(s4.slots[3].cards[0], s4);
 assert(fv4a === 10, `空场精确打击2伟力应翻倍为10，实际${fv4a}`);
 playCardToSlot(s4feint, 1, s4);
-const csm4b = buildCardSlotMap(s4);
-const fv4b = getCardFinalValue(s4.slots[2].cards[0], s4.slots.flatMap(x=>x.cards), csm4b, s4);
+const fv4b = getCardFinalValue(s4.slots[2].cards[0], s4);
 assert(fv4b === 14, `佯攻光环后精确打击1应为7*2=14，实际${fv4b}`);
-const fv4c = getCardFinalValue(s4.slots[3].cards[0], s4.slots.flatMap(x=>x.cards), csm4b, s4);
+const fv4c = getCardFinalValue(s4.slots[3].cards[0], s4);
 assert(fv4c === 5, `精确打击2旁边无佯攻，且场上有14点牌，伟力不应触发，实际${fv4c}`);
 
 // Test 5: 保养装备提升倍率 + 精确打击吃倍率
@@ -92,7 +89,6 @@ const ok6 = canPlaceCard(s6gear2, s6.slots[1], s6);
 assert(!ok6.ok, '普通牌封口后不能再堆叠');
 
 // Test 7: 病毒之源惩罚
-// 设计文档：第1回合不扣心；第2回合扣1心并触发病毒之源；第3回合扣2心
 const s7 = makeTestState([]);
 endTurn(s7);
 assert(s7.player.hearts === 3, '第一回合结束不扣心');
@@ -140,30 +136,28 @@ const ok11b = canPlaceCard(s11.hand[0], s11.slots[2], s11);
 assert(ok11b.ok, '可用格子可以放牌');
 
 // Test 12: 巨石门卫硬质皮肤
-// 使用无伟力牌测试基础效果
 const s12 = makeTestState(['feint']);
 s12.monster.keywords.push('hard_skin');
 s12.monster.keywordDesc = '硬质皮肤：最左最右格-1';
-playCardToSlot(s12.hand[0], 1, s12); // 最左可用格
+playCardToSlot(s12.hand[0], 1, s12);
 const dmg12a = calculateTotalBoardDamage(s12);
 assert(dmg12a === 2, `佯攻(3)在最左可用格受硬质皮肤(3-1=2)*1=2，实际${dmg12a}`);
 
 const s12b = makeTestState(['feint']);
 s12b.monster.keywords.push('hard_skin');
-playCardToSlot(s12b.hand[0], 3, s12b); // 最右可用格
+playCardToSlot(s12b.hand[0], 3, s12b);
 const dmg12b = calculateTotalBoardDamage(s12b);
 assert(dmg12b === 2, `佯攻(3)在最右可用格受硬质皮肤(3-1=2)*1=2，实际${dmg12b}`);
 
-// 使用有伟力牌测试交互：伟力先翻倍，再减1
 const s12c = makeTestState(['precise_strike']);
 s12c.monster.keywords.push('hard_skin');
-playCardToSlot(s12c.hand[0], 1, s12c); // 最左可用格
+playCardToSlot(s12c.hand[0], 1, s12c);
 const dmg12c = calculateTotalBoardDamage(s12c);
 assert(dmg12c === 9, `精确打击(5)伟力翻倍10再-1=9*1=9，实际${dmg12c}`);
 
 const s12d = makeTestState(['precise_strike']);
 s12d.monster.keywords.push('hard_skin');
-playCardToSlot(s12d.hand[0], 2, s12d); // 中间格，不受硬质皮肤影响
+playCardToSlot(s12d.hand[0], 2, s12d);
 const dmg12d = calculateTotalBoardDamage(s12d);
 assert(dmg12d === 20, `精确打击(5)在中间格不受硬质皮肤影响，伟力翻倍10*2=20，实际${dmg12d}`);
 

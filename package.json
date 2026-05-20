@@ -1,0 +1,14 @@
+{
+  "name": "card-dungeon",
+  "version": "0.3.0",
+  "description": "卡牌地下城 - 重构版",
+  "type": "module",
+  "scripts": {
+    "start": "node serve.js",
+    "test": "node test_engine.js",
+    "simulate": "node test_simulate.js"
+  },
+  "keywords": ["game", "card", "roguelike"],
+  "author": "",
+  "license": "MIT"
+}

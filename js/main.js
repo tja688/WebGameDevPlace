@@ -2,18 +2,33 @@
  * 卡牌地下城 - 主入口
  */
 
+import { createGameState, switchScreen, startBattle } from './core/state.js';
+import { endTurn } from './systems/battle.js';
+import { calculateTotalBoardDamage } from './systems/board.js';
+import { Input } from './input/index.js';
+import { Renderer } from './render/renderer.js';
+import { initBattleFromRun } from './systems/battle.js';
+import { GameAudio } from './audio.js';
+
+// 挂载到全局，供各系统使用
+window.GameAudio = GameAudio;
+
+// 必须导入以触发效果注册副作用
+import './effects/index.js';
+
 window.gameState = null;
 
 function init() {
     Renderer.init('gameCanvas');
     bindKeys();
 
-    // 初始进入标题界面
     window.gameState = createGameState('title');
     Input.init(window.gameState, Renderer);
+
     if (typeof AutoTest !== 'undefined') {
         AutoTest.init(window.gameState);
     }
+
     requestAnimationFrame(gameLoop);
 }
 
@@ -21,12 +36,10 @@ function bindKeys() {
     document.addEventListener('keydown', e => {
         if (!window.gameState) return;
 
-        // 调试面板
         if (e.key === 'd' || e.key === 'D') {
             document.getElementById('debug-panel').classList.toggle('hidden');
         }
 
-        // 战斗中的快捷键
         if (window.gameState.screen === 'battle') {
             if (e.key === 'e' || e.key === 'E') {
                 if (window.gameState.phase === 'playing') {
@@ -40,7 +53,6 @@ function bindKeys() {
                 }
             }
             if (e.key === 'r' || e.key === 'R') {
-                // 仅在战斗中重置当前战斗
                 if (window.gameState.runDataRef) {
                     const runData = window.gameState.runDataRef;
                     const battleState = initBattleFromRun(runData);
@@ -57,7 +69,6 @@ function gameLoop() {
     if (window.gameState) {
         Renderer.render(window.gameState);
 
-        // 消息计时器（递减型消息）
         if (window.gameState.messageTimer > 0) {
             window.gameState.messageTimer--;
             if (window.gameState.messageTimer === 0) {
@@ -65,7 +76,6 @@ function gameLoop() {
             }
         }
 
-        // 战斗中的持续提示
         if (window.gameState.screen === 'battle' && window.gameState.phase === 'playing') {
             const totalDmg = calculateTotalBoardDamage(window.gameState);
             if (totalDmg >= window.gameState.monster.hp) {
@@ -83,3 +93,12 @@ function gameLoop() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
+
+// 全局辅助函数
+window.restartGame = function() {
+    window.gameState = startBattle();
+    Input.state = window.gameState;
+    if (typeof AutoTest !== 'undefined') {
+        AutoTest.state = window.gameState;
+    }
+};

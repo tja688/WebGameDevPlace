@@ -1,272 +1,353 @@
-# 卡牌地下城 - 项目全景导航
+# 卡牌地下城 - 重构版 v0.3
 
-> 版本：v0.2 "地图循环" | 最后更新：2026-05-18
-> 本文档为项目现状的客观全景拆解，作为后续修改的核心事实锚点。
-
----
-
-## 一、项目定位与运行方式
-
-| 项 | 事实 |
-|---|---|
-| 项目类型 | 纯前端网页游戏（单HTML + JS + CSS） |
-| 游戏类型 | 卡牌构筑 + 倍率牌桌（类Balatro）+ Rogue-lite爬塔 |
-| 运行方式 | 直接打开 `index.html`，无需构建工具/服务器 |
-| 浏览器依赖 | 依赖 Canvas 2D、Web Audio API、ES6+ |
-| 后端 | 无 |
-| 包管理 | 无（零依赖） |
+> 纯前端网页游戏 | 卡牌构筑 + 倍率牌桌（类Balatro）+ Rogue-lite爬塔
 
 ---
 
-## 二、文件结构（7+4 体系）
+## 🚀 快速开始
+
+### 环境要求
+- 现代浏览器（Chrome/Firefox/Edge），支持 ES6 Modules 和 Canvas 2D
+- Node.js 16+（用于运行测试和本地服务器）
+
+### 运行方式
+
+由于项目使用 ES6 Modules，`index.html` 必须通过 **HTTP 服务器** 访问，不能直接 `file://` 打开。
+
+```bash
+# 方式1：使用项目自带的 Node.js 服务器
+node serve.js
+# 然后访问 http://localhost:8080
+
+# 方式2：使用 npx（无需安装）
+npx serve .
+
+# 方式3：Python 3
+python -m http.server 8080
+
+# 方式4：VS Code Live Server 插件
+```
+
+### 测试
+
+```bash
+# 运行单元测试（35个断言）
+npm test
+# 或
+node test_engine.js
+
+# 运行胜率模拟
+npm run simulate
+# 或
+node test_simulate.js
+```
+
+---
+
+## 📁 项目结构
 
 ```
 WebGameDevPlace/
-├── index.html              # 入口：DOM容器、script加载顺序、开始界面规则说明
-├── css/style.css           # 353行：全局暗色主题、UI覆盖层、调试面板、模态框
+├── index.html              # 入口：DOM容器、Canvas、调试面板
+├── css/style.css           # 暗色主题、UI覆盖层
+├── serve.js                # Node.js 静态文件服务器
+├── package.json            # 项目配置（type: module）
+├── test_engine.js          # 引擎单元测试（35个断言）
+├── test_simulate.js        # 自动战斗胜率模拟
 ├── js/
-│   ├── data.js             # 542行：所有静态数据定义（关键词/卡牌/怪物/职业/关卡/商店）
-│   ├── engine.js           # 1068行：核心状态机、战斗引擎、卡牌结算、战后系统
-│   ├── renderer.js         # 2039行：Canvas 2D渲染器，13个屏幕的绘制逻辑
-│   ├── input.js            # 1001行：鼠标/触摸输入处理，所有界面的点击/悬停逻辑
-│   ├── audio.js            # 83行：Web Audio API合成音效（放置/伤害/胜利等）
-│   ├── main.js             # 85行：主入口、游戏循环、快捷键绑定
-│   └── autotest.js         # 285行：调试面板、自动出牌、控制台快捷指令
-├── test_engine.js          # 168行：Node.js引擎单元测试（12个断言）
-└── test_simulate.js        # 21行：自动战斗胜率模拟脚本
-```
-
-**加载顺序（严格依赖链）：**
-```
-data.js → engine.js → audio.js → renderer.js → input.js → autotest.js → main.js
+│   ├── main.js             # 主入口、游戏循环、快捷键
+│   ├── autotest.js         # 调试面板、自动出牌、控制台指令
+│   ├── audio.js            # Web Audio API 合成音效
+│   │
+│   ├── core/               # 🏗️ 基础设施层
+│   │   ├── utils.js        # 工具函数（UUID、洗牌、颜色处理等）
+│   │   ├── constants.js    # 全局常量、触发时机枚举、优先级枚举
+│   │   ├── state.js        # 状态机、RunData、战斗状态创建
+│   │   └── battle-core.js  # 战斗基础工具（抽牌、日志、提示）
+│   │
+│   ├── data/               # 📦 数据层（纯静态数据定义）
+│   │   ├── index.js        # 数据统一入口：卡牌实例工厂、牌组创建
+│   │   ├── keywords.js     # 关键词定义（名称、描述、颜色）
+│   │   ├── cards.js        # 卡牌定义（CARD_DEFS、奖励卡池）
+│   │   ├── monsters.js     # 怪物定义、颜色主题
+│   │   ├── classes.js      # 职业定义、初始牌组
+│   │   ├── stages.js       # 关卡配置
+│   │   ├── relics.js       # 遗物与事件数据
+│   │   └── shop.js         # 商店库存生成
+│   │
+│   ├── effects/            # ⚡ 效果系统（重构核心）
+│   │   ├── index.js        # 效果系统统一入口（导入即注册所有效果）
+│   │   ├── core.js         # EffectSystem, EffectContext, EffectHandler
+│   │   ├── play.js         # ON_PLAY 效果（打出时触发）
+│   │   ├── calc.js         # ON_CALC_VALUE / ON_CALC_FINAL（数值计算）
+│   │   ├── turn.js         # ON_TURN_START / ON_TURN_END（回合效果）
+│   │   ├── exit.js         # ON_EXIT（离场效果）
+│   │   └── slot.js         # ON_SLOT_CALC（格子倍率计算）
+│   │
+│   ├── systems/            # 🎮 游戏系统层
+│   │   ├── battle.js       # 战斗流程：initBattleFromRun, endTurn
+│   │   ├── board.js        # 牌桌逻辑：playCardToSlot, 伤害计算, 放置规则
+│   │   ├── shop.js         # 商店库存管理
+│   │   └── post-battle.js  # 战后结算、奖励生成
+│   │
+│   ├── render/             # 🎨 渲染层
+│   │   ├── core.js         # 基础绘制工具（背景、圆角矩形、文字换行）
+│   │   ├── battle.js       # 战斗界面渲染（怪物、牌桌、手牌、UI）
+│   │   ├── screens.js      # 所有非战斗界面（标题、地图、商店等）
+│   │   └── renderer.js     # 主渲染器入口、屏幕分发
+│   │
+│   └── input/              # 🖱️ 输入层
+│       └── index.js        # 输入处理核心 + 所有界面点击/悬停逻辑
 ```
 
 ---
 
-## 三、核心数据规模
+## 🏛️ 架构核心：效果系统
 
-| 数据类型 | 数量 | 说明 |
+### 为什么重构效果系统？
+
+旧架构中，所有卡牌效果硬编码在 `engine.js` 的 `playCardToSlot()` 函数里，形成一段**14步的顺序结算代码**。每新增一张有特殊效果的卡牌，都要：
+1. 在 `playCardToSlot()` 里增加一个 `if` 分支
+2. 手动确定这个效果在14步中的位置
+3. 修改伤害计算公式以支持新逻辑
+
+这种设计导致：
+- ❌ 效果之间高度耦合，互相影响难以追踪
+- ❌ 新增卡牌需要深入修改核心战斗代码
+- ❌ 相同关键词的不同卡牌可能有完全不同的处理路径
+- ❌ 数值计算链（effective → final）与效果逻辑纠缠不清
+
+### 新架构：基于触发时机的效果系统
+
+**核心思想**：将所有卡牌效果抽象为 **"触发时机(Trigger) + 效果处理器(Handler)"** 的插件模型。
+
+```
+卡牌打出 → 创建 EffectContext → FX.fire(ON_PLAY, ctx)
+              ↓
+    按优先级排序，遍历所有注册的 ON_PLAY 处理器
+              ↓
+    每个处理器检查 condition → 执行 execute(ctx)
+              ↓
+    ctx 中包含 state/card/slotIndex 等全部上下文，处理器通过 ctx 读写状态
+```
+
+#### 触发时机（Triggers）
+
+| 触发时机 | 触发时机点 | 典型效果 |
 |---|---|---|
-| 关键词 | 14种 | agile/stack/mighty/absorb/devour/exit/remain/field/unity/response/grow/echo/dedicate/levy/stackjoy/reinforce/reuse |
-| 卡牌定义 | 15张 | data.js中CARD_DEFS，分为"生长体系"10张+"无体系"5张 |
-| 怪物 | 11种 | 6普通 + 1精英 + 1BOSS + 1训练靶子 + 2占位 |
-| 职业 | 3种 | 仅"兵大哥(soldier)"可用，法师/村民占位锁死 |
-| 关卡节点 | 8个 | 线性1-1到1-8，固定配置 |
-| 遗物 | 5种 | 纯文本占位，无实际效果（除初始遗物） |
-| 事件名池 | 8个 | 纯文本，无分支逻辑 |
+| `ON_PLAY` | 卡牌打出到格子后 | 生长、征收、吞噬、奉献、抽牌等 |
+| `ON_CALC_VALUE` | 计算卡牌**有效点数**时（光环加成阶段） | 佯攻+2、磨练技巧+4、训练纲领+N |
+| `ON_CALC_FINAL` | 计算卡牌**最终点数**时（翻倍/惩罚阶段） | 伟力翻倍、硬质皮肤-1 |
+| `ON_TURN_START` | 回合开始时 | 留场牌获得堆叠 |
+| `ON_TURN_END` | 回合结束时 | 救兵自动打出 |
+| `ON_EXIT` | 卡牌离开牌桌时 | 再训练给相邻牌复用、加练给留场 |
+| `ON_SLOT_CALC` | 计算格子倍率时 | 完美境界给相邻格+1倍率 |
+
+#### 优先级（Priority）
+
+同一触发时机下，多个效果按 `priority` 数值**从小到大**依次执行：
+
+```javascript
+Priority = {
+    SLOT_MODIFIER: 100,   // 格子倍率修改（保养装备、完美境界）
+    VALUE_AURA: 200,      // 驻场光环加点数（佯攻、磨练技巧）
+    VALUE_BONUS: 300,     // 临时/永久加成（奉献、团结、叠叠乐）
+    VALUE_MIGHTY: 400,    // 伟力翻倍
+    VALUE_PENALTY: 500,   // 惩罚（硬质皮肤）
+    DRAW: 600,            // 抽牌（理清头绪、忆往昔）
+    GROW: 700,            // 生长
+    SPECIAL: 800,         // 特殊效果（训练痕迹连锁、炫耀肌肉）
+    CLEANUP: 900,         // 清理（灵动进入弃牌堆）
+};
+```
+
+#### EffectContext（效果上下文）
+
+每次触发效果时传递的上下文对象，包含效果执行所需的全部信息：
+
+```javascript
+const ctx = new EffectContext({
+    state,        // 当前游戏状态
+    trigger,      // 触发时机
+    card,         // 当前触发效果的卡牌
+    slotIndex,    // 当前格子索引
+    targetCard,   // 目标卡牌（如给相邻牌加点数）
+    targetSlotIndex,
+    amount,       // 通用数值参数
+    value,        // 计算链中的当前数值（可被修改）
+    extra: {}     // 扩展字段
+});
+```
+
+常用辅助方法：
+- `ctx.log(msg)` - 记录战斗日志
+- `ctx.getCardSlotIndex(card)` - 查找卡牌所在格子
+- `ctx.getCardBaseValue(card)` - 获取卡牌基础值
+- `ctx.getBoardCards()` - 获取所有在牌桌上的卡牌
+- `ctx.getAdjacentSlots(index)` - 获取相邻格子
+- `ctx.getTopCard(slotIndex)` - 获取某格最上方的卡牌
 
 ---
 
-## 四、架构拆解
+## 🛠️ 开发者指南：如何扩展
 
-### 4.1 状态机（engine.js）
+### 1. 新增一个关键词效果
 
-```
-screen 枚举（共13个）：
-  title → class_select → map → battle → post_battle → card_pick → card_select
-  → shop → blacksmith → event → treasure → act_transition → game_over
-```
+假设你要新增关键词 **爆发(burst)**：打出时，如果本回合已打出3张牌，此牌点数+5。
 
-**全局状态：** `window.gameState` —— 单例状态对象，screen字段决定当前界面。
+**步骤1**：在 `js/data/keywords.js` 中定义关键词：
 
-**Run Data（持久化进度）：** `runDataRef` 挂载在战斗state上，包含：
-- act/stageIndex（当前大关/节点）
-- souls（魂货币）
-- deck（牌组，CardInstance数组）
-- relics（遗物数组）
-- slotCount=5 / unlockedSlots（可用格数，初始3，过关后+1）
-- slotUpgrades（格子倍率升级次数）
-- 商店/铁匠费用递增状态
-
-### 4.2 战斗核心流程
-
-```
-initBattleFromRun(runData)
-  ↓ 生成5格牌桌（中间格2X遗物加成，铁匠升级叠加）
-  ↓ 从runData.deck复制牌库并洗牌
-  ↓ 抽4张牌
-  → phase='playing'
-
-playing阶段：
-  - 玩家拖拽手牌 → 格子（canPlaceCard校验）
-  - playCardToSlot()：14步打出时结算（见4.3）
-  - 按E或点击结束回合
-
-endTurn()：
-  1. 救兵牌自动打出到空位
-  2. 计算总伤害 → 扣怪物HP
-  3. 若未击杀：扣心（普通怪有virusPenalty递增）
-  4. 触发非留场牌离场效果
-  5. 清理牌桌（留场牌保留，复用牌回牌组，其余入弃牌堆）
-  6. 抽4张牌
-  7. 留场牌获得【堆叠】
-  8. turn++
-
-phase='ended' → Input.checkBattleEnd() → 战后结算/切换屏幕
+```javascript
+burst: {
+    name: '爆发',
+    desc: '本回合已打出3张牌时，该卡牌点数+5',
+    color: '#FF4500'
+}
 ```
 
-### 4.3 卡牌打出时结算顺序（engine.js:404-585）
+**步骤2**：在 `js/effects/play.js` 中注册效果处理器：
 
-打出到格子后，按以下固定顺序结算：
-1. 格子的 `nextCardBonus`（怒意上涌）
-2. **征收** levy：从牌组拉一张堆叠牌到同格
-3. **合理训练** proper_training：同格卡牌+1
-4. **生长** grow：永久加点（受30小时训练/训练激素/合理训练影响）
-5. **训练痕迹** training_trace：点数≥3时连锁打出牌组内所有同名卡
-6. **团结** unity：同名牌在场则+2
-7. **奉献** dedicate：左侧相邻格牌加自身一半点数
-8. **叠叠乐** stackjoy：叠放超3张则+3
-9. **吞噬** devour：清空两侧格子，吸收其数值
-10. **吸收** absorb：获得两侧数值（不清空）
-11. **保养装备** maintain_gear：格子倍率+1
-12. **炫耀肌肉** show_muscle：伟力触发时相邻牌永久+1
-13. **理清头绪** clear_mind：抽2张，左侧牌-1
-14. **忆往昔** recall_past：从弃牌堆随机拿回1张
-15. **怒意上涌** surging_anger：设置下一张同格+5
-16. **灵动** agile：不锁定，直接进入弃牌堆（或复用回牌组）
+```javascript
+import { EffectHandler, FX } from './core.js';
+import { Trigger, Priority } from '../core/constants.js';
 
-### 4.4 伤害计算公式
-
-```
-单卡伤害 = getCardFinalValue(card) × getSlotEffectiveMultiplier(slot)
-
-getCardFinalValue 计算链：
-  baseValue + permanentBonus                          ← 基础值
-  + 驻场光环（佯攻+2 / 磨练技巧+4 / 训练纲领+N）      ← 有效值
-  × 伟力翻倍（若场上无更大有效值牌）                   ← 伟力后
-  - 硬质皮肤惩罚（最左/最右格-1）                      ← 最终值
+FX.register(new EffectHandler({
+    id: 'burst',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.VALUE_BONUS,
+    condition: (ctx) => ctx.card.keywords.includes('burst'),
+    execute: (ctx) => {
+        // 统计本回合已打出的牌数
+        const playedThisTurn = ctx.getBoardCards().filter(c => c.hasBeenPlayed).length;
+        if (playedThisTurn >= 3) {
+            ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 5;
+            ctx.log(`${ctx.card.name} 爆发！本回合点数+5`);
+        }
+    }
+}));
 ```
 
-### 4.5 地图系统（renderer.js:204-348 / input.js:241-270）
+> 无需修改 `playCardToSlot()`！效果系统会自动在合适的时机调用你的处理器。
 
-- **纯线性**：8个节点横向排列，虚线连接
-- 节点类型固定：`1-1普通 → 1-2普通 → 1-3普通 → 1-4精英 → 1-5普通 → 1-6普通 → 1-7普通 → 1-8 BOSS`
-- 战后奖励类型固定配置于 `STAGE_CONFIG`：
-  - 普通怪：先card_pick（三选一牌）→ 再two_events/treasure/shop_choice
-  - 精英：three_events
-  - BOSS：act_clear（解锁第4格）
+**步骤3**：在卡牌定义中使用该关键词：
+
+```javascript
+// js/data/cards.js
+my_new_card: {
+    id: 'my_new_card',
+    name: '我的新卡',
+    baseValue: 3,
+    size: 1,
+    keywords: ['burst', 'grow'],
+    rarity: 'blue',
+    description: '爆发：本回合已打出3张牌时+5；生长：每次打出后永久+1',
+    color: '#FF4500',
+    accentColor: '#FF6347',
+    iconType: 'fire'
+}
+```
+
+### 2. 新增一个卡牌专属效果（无关键词）
+
+假设某张特殊卡牌的效果不是通用关键词，而是独一无二的机制。
+
+**步骤1**：在 `js/effects/play.js`（或其他时机文件）中注册：
+
+```javascript
+FX.register(new EffectHandler({
+    id: 'my_special_card',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL,
+    condition: (ctx) => ctx.card.defId === 'my_special_card',
+    execute: (ctx) => {
+        // 任意自定义逻辑
+        ctx.state.monster.hp -= 10;
+        ctx.log(`${ctx.card.name} 造成10点直击伤害！`);
+    }
+}));
+```
+
+**步骤2**：卡牌定义中不需要 keywords，只需定义 defId 与效果处理器的 condition 匹配即可。
+
+### 3. 新增一个数值计算效果（光环/惩罚）
+
+假设新增怪物特性 **魔法护盾**：所有卡牌有效点数-1。
+
+在 `js/effects/calc.js` 中添加：
+
+```javascript
+FX.register(new EffectHandler({
+    id: 'magic_shield',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA,
+    condition: (ctx) => ctx.state.monster.keywords.includes('magic_shield'),
+    execute: (ctx) => {
+        ctx.value -= 1;
+    }
+}));
+```
+
+### 4. 新增一个回合效果
+
+在 `js/effects/turn.js` 中添加 `ON_TURN_START` 或 `ON_TURN_END` 处理器。
+
+### 5. 新增一个格子效果
+
+在 `js/effects/slot.js` 中添加 `ON_SLOT_CALC` 处理器，通过修改 `ctx.value` 来改变格子倍率。
 
 ---
 
-## 五、各屏幕详细功能矩阵
+## 🧪 测试体系
 
-| 屏幕 | 渲染 | 输入 | 数据 | 完成度 |
-|---|---|---|---|---|
-| title（标题） | ✓ 光效+按钮 | ✓ 点击进入class_select | - | 完整 |
-| class_select（职业选择） | ✓ 三卡片 | ✓ 仅soldier可点 | CLASS_DEFS | 2/3占位锁死 |
-| map（地图） | ✓ 8节点+连线+顶部栏 | ✓ 仅当前节点可进 | runData | 完整 |
-| battle（战斗） | ✓ 怪物/牌桌/手牌/UI | ✓ 拖拽/点击/悬停提示 | battleState | 完整 |
-| post_battle（战后） | ✓ 事件选项/宝箱/商店选择 | ✓ 点击选择 | resolveBattleEnd | 完整 |
-| card_pick（选牌） | ✓ 三选一 | ✓ 点击/跳过 | CARD_REWARD_POOL | 完整 |
-| card_select（通用选卡） | ✓ 网格展示 | ✓ 点击/返回 | 多模式复用 | 完整 |
-| shop（牌店） | ✓ 卡牌商品+服务按钮 | ✓ 购买/删牌/强化/刷新/返回 | shopStock | 完整 |
-| blacksmith（铁匠铺） | ✓ 三栏布局 | ✓ 购买遗物/升级倍率/附魔/刷新 | blacksmithStock | 完整 |
-| event（事件） | ✓ 事件卡片+两个按钮 | ✓ 接受/离开 | EVENT_NAMES | **纯占位**：所有事件效果相同（buff_card+2） |
-| treasure（宝箱） | ✓ 开箱动画+遗物展示 | ✓ 点击开启/收下 | RELIC_DEFS | 完整（遗物无实际效果） |
-| act_transition（大关过渡） | ✓ 黑屏+奖励说明+按钮 | ✓ 点击进入下一大关 | runData | 仅Act1→Act2，内容未扩展 |
-| game_over（失败） | ✓ 到达关卡+累计魂+重启 | ✓ 点击重新开始 | runData | 完整 |
+### 单元测试（test_engine.js）
 
----
+覆盖：
+- 初始状态正确性
+- 伟力翻倍逻辑（包括不触发场景）
+- 驻场光环（佯攻相邻+2）
+- 堆叠规则
+- 病毒之源扣心机制
+- 击杀胜利/失败
+- 保养装备倍率提升
+- 牌库流转（不洗牌）
+- 未解锁格子限制
+- 硬质皮肤惩罚
 
-## 六、已知占位/未完成区域
-
-### 6.1 硬占位（功能缺失）
-
-| 区域 | 现状 | 影响 |
-|---|---|---|
-| 事件系统 | 所有事件效果固定为"选一张牌+2" | 事件多样性为零 |
-| 遗物效果 | 仅初始遗物"兵团装备"有效果（中间格+1倍率） | 宝箱/铁匠遗物纯装饰 |
-| 职业系统 | 法师、村民未实现（startingDeck为空，relic效果none） | 仅兵大哥可玩 |
-| 第二大关 | act_transition后act=2，但STAGE_CONFIG无act=2配置 | 通关后重复act1内容或崩溃 |
-| 多格卡牌 | canPlaceCard直接返回"多格卡暂未实现" | 所有卡牌size>1不可使用 |
-| 怪物AI | 怪物无行动，仅作为血量和被动存在 | 纯DPS检测 |
-
-### 6.2 软占位（功能简化）
-
-| 区域 | 现状 |
-|---|---|
-| 怪物绘制 | 所有怪物共用同一个Canvas手绘老鼠，仅换色（normal/elite/boss/stone/dummy五套色板） |
-| 卡牌图标 | 仅5种图标（sword/shadow/gear/shield/star），其他类型无绘制 |
-| 音效 | 全部Web Audio API合成，无外部音频文件 |
-| 动画 | 仅有slotFlashes/monsterFlash/拖拽高亮，无复杂动画系统 |
-| 存档 | 无localStorage，刷新页面进度丢失 |
-
----
-
-## 七、测试与调试体系
-
-### 7.1 单元测试（test_engine.js）
+运行：
 ```bash
 node test_engine.js
 ```
-- 12个断言，覆盖：初始状态、伟力翻倍、驻场光环、硬质皮肤、堆叠规则、病毒惩罚、击杀胜利、牌库流转、未解锁格。
-- **状态**：全部通过（截至当前代码）。
 
-### 7.2 胜率模拟（test_simulate.js）
-```bash
-node test_simulate.js
+### 冒烟测试（游戏内）
+
+按 `D` 打开调试面板，控制台运行：
+```javascript
+testCombat()           // 运行冒烟测试
+simulateBattles(100)   // 模拟100场自动战斗
 ```
-- 200场×5档HP（55/65/75/85/95），自动最优出牌策略。
-- 用于数值平衡验证。
 
-### 7.3 游戏内调试面板（D键或🛠️按钮）
-| 功能 | 说明 |
-|---|---|
-| 自动打出最优解 | AutoTest.autoPlayOptimal()：优先找击杀组合，否则按单卡输出贪心 |
-| 自动结束回合 | 直接调用endTurn |
-| 指定手牌 | prompt输入1-5数字组合 |
-| 补满牌库 | 添加5张精确打击 |
-| 秒杀/回满/重置 | 即时修改状态 |
-| 设置倍率 | 直接修改5格multiplier |
+### 调试指令
 
-### 7.4 控制台快捷指令
-```js
-godMode()          // 99心，怪物HP=1
-fullHand(type, n)  // 添加n张指定牌
-setMonsterHp(hp)   // 设置怪物HP
-testCombat()       // 运行冒烟测试
-simulateBattles(n) // 模拟n场自动战斗
+```javascript
+godMode()                    // 99心，怪物HP=1
+fullHand('precise_strike', 5) // 添加5张指定牌
+setMonsterHp(50)             // 设置怪物HP
 ```
 
 ---
 
-## 八、关键常数与数值锚点
-
-```js
-SLOT_COUNT = 5                    // 总格数
-MAX_UNLOCKED_SLOTS = 3            // 初始可用格数
-player.maxHearts = 3              // 初始生命（全职业）
-
-drawCards(state, 4)               // 每回合抽牌数
-
-// 兵大哥初始牌组（12张）
-precise_strike ×5  // 基础5，伟力
-feint ×5           // 基础3，驻场
-maintain_gear ×2   // 基础0，堆叠，升倍率
-
-// 魂收益
-normal baseSouls = 3
-elite baseSouls = 4
-boss baseSouls = 5
-实际收益 = baseSouls - heartsLost（不低于0）
-
-// 商店费用基线
-删牌 = 1魂
-数值强化 = 1→2→3魂（首次-1）
-商店刷新 = 1→2→3...魂
-铁匠倍率升级 = 2→3→4...魂（按可用格顺序）
-附魔 = 4→5→6...魂
-铁匠刷新 = 0（首次免费）→1→2...魂
-```
-
----
-
-## 九、数据流图
+## 📐 数据流图
 
 ```
 [createRunData] ──→ runData（持久进度）
         ↓
 [initBattleFromRun] ──→ battleState（临时战斗状态）
+        ↓
+玩家打出卡牌 → [playCardToSlot] → FX.fire(ON_PLAY, ctx)
+        ↓
+[calculateTotalBoardDamage] → FX.fire(ON_CALC_VALUE) → FX.fire(ON_CALC_FINAL)
+        ↓
+[endTurn] → FX.fire(ON_TURN_END) → 扣怪HP → 扣心 → FX.fire(ON_EXIT) → 清理牌桌
         ↓
 战斗结束 → [resolveBattleEnd]
         ↓
@@ -277,34 +358,68 @@ boss baseSouls = 5
 
 ---
 
-## 十、修改风险点（高精度导航）
+## 🎨 渲染层说明
 
-### 高危区（牵一发动全身）
-1. **`engine.js:404-585` playCardToSlot结算顺序** —— 改变顺序会直接影响卡牌 combo 逻辑。
-2. **`engine.js:314-340` getCardFinalValue** —— 伤害公式的核心链，修改会波及所有测试用例。
-3. **`data.js:26-273` CARD_DEFS** —— 新增/修改卡牌需同步：关键词处理逻辑、Renderer绘制、AutoTest作弊映射、单元测试。
-4. **`renderer.js:203-348` drawMap** —— 地图节点布局硬编码8个，增减节点需同步input.js和STAGE_CONFIG。
+渲染层完全解耦：
+- `render/battle.js` 只负责战斗界面
+- `render/screens.js` 负责所有非战斗界面（标题、地图、商店、选牌等）
+- `render/renderer.js` 作为分发器，根据 `state.screen` 调用对应的绘制函数
+- 绘制函数不修改游戏状态，只读取
 
-### 中危区
-1. **Input.js的returnData/returnScreen模式** —— card_select多场景复用，修改返回逻辑需检查shop/blacksmith/event三处调用点。
-2. **`engine.js:858-917` resolveBattleEnd** —— pendingPostBattle机制防止card_pick后二次加魂，修改需谨慎。
-3. **KEYWORDS新增** —— 需在engine.js添加对应处理分支（若无分支则关键词无效果）。
-
-### 低危区
-1. 纯视觉：CSS、怪物颜色主题、卡牌颜色、背景砖块
-2. 音效：audio.js完全独立
-3. 调试工具：autotest.js不影响主逻辑
+如需新增屏幕：
+1. 在 `render/screens.js` 中新增 `drawXxx(renderer, ctx, state)` 函数
+2. 在 `render/renderer.js` 的 `render()` switch 中增加分支
+3. 在 `input/index.js` 中增加对应的点击/悬停处理
+4. 在 `core/state.js` 或相关系统函数中增加屏幕切换逻辑
 
 ---
 
-## 十一、技术债务速查
+## 🔑 关键技术决策
 
-| 位置 | 问题 | 建议修改方向 |
+### 为什么使用 ES6 Modules？
+
+- 依赖关系清晰，避免全局命名空间污染
+- 真正的模块化隔离，效果系统、数据层、渲染层完全解耦
+- 为将来可能的打包工具（Vite/Webpack）和 TypeScript 迁移打下基础
+- 现代前端行业标准
+
+代价：需要通过 HTTP 服务器运行（已提供 `serve.js`）。
+
+### 为什么将效果系统与数据定义分离？
+
+- **数据层**（`data/`）只包含纯静态对象，无逻辑
+- **效果层**（`effects/`）只包含行为逻辑，无数据
+- 新增卡牌只需修改数据，新增效果只需注册处理器，两者通过 `keywords` 和 `defId` 松散耦合
+
+### 效果系统的性能
+
+当前实现中，每次数值计算都会触发 `FX.fire()`，遍历所有注册的处理器。对于本项目规模（~20个处理器，最多15张牌在场上），性能开销完全可以忽略。如果将来规模扩大，可以优化为：
+- 卡牌打出时缓存其效果ID列表
+- 为每个触发时机维护按关键词索引的快速查找表
+
+---
+
+## 📜 版本历史
+
+| 版本 | 日期 | 变更 |
 |---|---|---|
-| data.js:439-460 | mage/villager空deck | 补startingDeck或移除选择界面 |
-| engine.js:369-370 | 多格卡直接拒绝 | 实现size>1的跨格放置逻辑 |
-| engine.js:994-1062 | createInitialState/startBattle | 仅用于测试，生产流程走runData |
-| renderer.js:1399-1504 | drawMonster仅画老鼠 | 按怪物类型绘制不同造型或改用精灵图 |
-| input.js:995-1001 | restartGame引用startBattle | 应改为重新创建runData并切到map |
-| 全局 | 无存档 | 添加localStorage序列化runData |
-| 全局 | 无第二大关内容 | 添加STAGE_CONFIG act=2 |
+| v0.1 | - | 原型版本 |
+| v0.2 | 2026-05 | 地图循环、商店/铁匠、战后系统 |
+| **v0.3** | **2026-05** | **大规模重构：ES6 Modules、效果系统解耦、目录重组** |
+
+---
+
+## 📝 待办/扩展方向
+
+- [ ] 职业系统：实现法师、村民的牌组和遗物
+- [ ] 多格卡牌（size > 1）的跨格放置逻辑
+- [ ] 第二大关内容（STAGE_CONFIG act=2）
+- [ ] 事件系统多样化（当前所有事件效果固定为+2）
+- [ ] 遗物实际效果（当前仅初始遗物有效）
+- [ ] 存档系统（localStorage 序列化 runData）
+- [ ] 更丰富的动画系统
+- [ ] 音效系统升级（外部音频文件替代合成音效）
+
+---
+
+> 如需进一步理解代码，建议从 `js/effects/core.js`（效果系统核心）和 `js/systems/board.js`（牌桌逻辑）开始阅读。

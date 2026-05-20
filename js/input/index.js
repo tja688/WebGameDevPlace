@@ -1,8 +1,24 @@
 /**
- * 卡牌地下城 - 输入处理
+ * 卡牌地下城 - 输入处理系统
+ * 
+ * 架构：
+ * - 核心层：坐标转换、hover状态管理、拖拽基础
+ * - 分发层：根据 state.screen 分发到各处理函数
+ * - 战斗层：卡牌拖拽、格子检测、结束回合
  */
 
-const Input = {
+import { switchScreen, getCurrentStageKey } from '../core/state.js';
+import { createRunData } from '../core/state.js';
+import { initBattleFromRun, endTurn } from '../systems/battle.js';
+import { resolveBattleEnd } from '../systems/post-battle.js';
+import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview } from '../systems/board.js';
+import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
+import { createCardInstance, KEYWORDS, CARD_DEFS } from '../data/index.js';
+import { showPlaceholderToast } from '../core/battle-core.js';
+import { STAGE_CONFIG } from '../data/index.js';
+import { Renderer } from '../render/renderer.js';
+
+export const Input = {
     state: null,
     renderer: null,
     isDragging: false,
@@ -51,48 +67,20 @@ const Input = {
         const state = this.state;
 
         switch (state.screen) {
-            case 'title':
-                this.handleTitleClick(pos);
-                break;
-            case 'class_select':
-                this.handleClassSelectClick(pos);
-                break;
-            case 'map':
-                this.handleMapClick(pos);
-                break;
-            case 'battle':
-                this.handleBattleMouseDown(pos);
-                break;
-            case 'post_battle':
-                this.handlePostBattleClick(pos);
-                break;
-            case 'card_pick':
-                this.handleCardPickClick(pos);
-                break;
-            case 'card_select':
-                this.handleCardSelectClick(pos);
-                break;
-            case 'shop':
-                this.handleShopClick(pos);
-                break;
-            case 'blacksmith':
-                this.handleBlacksmithClick(pos);
-                break;
-            case 'event':
-                this.handleEventClick(pos);
-                break;
-            case 'treasure':
-                this.handleTreasureClick(pos);
-                break;
-            case 'act_transition':
-                this.handleActTransitionClick(pos);
-                break;
-            case 'victory':
-                this.handleGameOverClick(pos);
-                break;
-            case 'game_over':
-                this.handleGameOverClick(pos);
-                break;
+            case 'title': this.handleTitleClick(pos); break;
+            case 'class_select': this.handleClassSelectClick(pos); break;
+            case 'map': this.handleMapClick(pos); break;
+            case 'battle': this.handleBattleMouseDown(pos); break;
+            case 'post_battle': this.handlePostBattleClick(pos); break;
+            case 'card_pick': this.handleCardPickClick(pos); break;
+            case 'card_select': this.handleCardSelectClick(pos); break;
+            case 'shop': this.handleShopClick(pos); break;
+            case 'blacksmith': this.handleBlacksmithClick(pos); break;
+            case 'event': this.handleEventClick(pos); break;
+            case 'treasure': this.handleTreasureClick(pos); break;
+            case 'act_transition': this.handleActTransitionClick(pos); break;
+            case 'victory': this.handleGameOverClick(pos); break;
+            case 'game_over': this.handleGameOverClick(pos); break;
         }
     },
 
@@ -100,52 +88,23 @@ const Input = {
         const pos = this.getCanvasPos(e.clientX, e.clientY);
         const state = this.state;
 
-        // 清除所有 hover 状态
         this.clearAllHovers(state);
 
         switch (state.screen) {
-            case 'title':
-                this.handleTitleHover(pos, state);
-                break;
-            case 'class_select':
-                this.handleClassSelectHover(pos, state);
-                break;
-            case 'map':
-                this.handleMapHover(pos, state);
-                break;
-            case 'battle':
-                this.handleBattleMouseMove(pos);
-                break;
-            case 'post_battle':
-                this.handlePostBattleHover(pos, state);
-                break;
-            case 'card_pick':
-                this.handleCardPickHover(pos, state);
-                break;
-            case 'card_select':
-                this.handleCardSelectHover(pos, state);
-                break;
-            case 'shop':
-                this.handleShopHover(pos, state);
-                break;
-            case 'blacksmith':
-                this.handleBlacksmithHover(pos, state);
-                break;
-            case 'event':
-                this.handleEventHover(pos, state);
-                break;
-            case 'treasure':
-                this.handleTreasureHover(pos, state);
-                break;
-            case 'act_transition':
-                this.handleActTransitionHover(pos, state);
-                break;
-            case 'victory':
-                this.handleGameOverHover(pos, state);
-                break;
-            case 'game_over':
-                this.handleGameOverHover(pos, state);
-                break;
+            case 'title': this.handleTitleHover(pos, state); break;
+            case 'class_select': this.handleClassSelectHover(pos, state); break;
+            case 'map': this.handleMapHover(pos, state); break;
+            case 'battle': this.handleBattleMouseMove(pos); break;
+            case 'post_battle': this.handlePostBattleHover(pos, state); break;
+            case 'card_pick': this.handleCardPickHover(pos, state); break;
+            case 'card_select': this.handleCardSelectHover(pos, state); break;
+            case 'shop': this.handleShopHover(pos, state); break;
+            case 'blacksmith': this.handleBlacksmithHover(pos, state); break;
+            case 'event': this.handleEventHover(pos, state); break;
+            case 'treasure': this.handleTreasureHover(pos, state); break;
+            case 'act_transition': this.handleActTransitionHover(pos, state); break;
+            case 'victory': this.handleGameOverHover(pos, state); break;
+            case 'game_over': this.handleGameOverHover(pos, state); break;
         }
     },
 
@@ -199,7 +158,7 @@ const Input = {
                pos.y >= rect.y && pos.y <= rect.y + rect.h;
     },
 
-    // ========== 标题界面 ==========
+    // ===== 标题界面 =====
     handleTitleHover(pos, state) {
         if (state.data.startBtnRect && this.hitTest(pos, state.data.startBtnRect)) {
             state.data.hoverStart = true;
@@ -216,7 +175,7 @@ const Input = {
         }
     },
 
-    // ========== 职业选择 ==========
+    // ===== 职业选择 =====
     handleClassSelectHover(pos, state) {
         if (!state.data.classCardRects) return;
         for (const rect of state.data.classCardRects) {
@@ -241,7 +200,7 @@ const Input = {
         }
     },
 
-    // ========== 地图界面 ==========
+    // ===== 地图界面 =====
     handleMapHover(pos, state) {
         if (!state.data.nodeRects) return;
         for (const rect of state.data.nodeRects) {
@@ -262,7 +221,6 @@ const Input = {
                 this.state.data.processing = true;
                 if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                 const runData = this.state.data.runData;
-                // 进入战斗
                 const battleState = initBattleFromRun(runData);
                 Object.assign(this.state, battleState);
                 this.state.screen = 'battle';
@@ -272,7 +230,7 @@ const Input = {
         }
     },
 
-    // ========== 通用卡牌选择界面 ==========
+    // ===== 通用卡牌选择界面 =====
     handleCardSelectHover(pos, state) {
         const scrollY = state.data.cardSelectScrollY || 0;
         const adjustedPos = { x: pos.x, y: pos.y + scrollY };
@@ -312,11 +270,8 @@ const Input = {
                     if (data.selectMode === 'shop_remove') {
                         runData.souls -= 1;
                         const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
-                        if (idx !== -1) {
-                            runData.deck.splice(idx, 1);
-                            showPlaceholderToast(`已移除 ${card.name}`);
-                        }
-                        // 返回商店
+                        if (idx !== -1) runData.deck.splice(idx, 1);
+                        showPlaceholderToast(`已移除 ${card.name}`);
                         data.processing = false;
                         switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
                         return;
@@ -325,13 +280,10 @@ const Input = {
                     if (data.selectMode === 'shop_upgrade') {
                         const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
                         runData.souls -= upgradeCost;
-                        if (runData.firstUpgradeDiscount) {
-                            runData.firstUpgradeDiscount = false;
-                        }
+                        if (runData.firstUpgradeDiscount) runData.firstUpgradeDiscount = false;
                         card.permanentBonus += 2;
                         runData.shopUpgradeCost = Math.min(3, runData.shopUpgradeCost + 1);
                         showPlaceholderToast(`${card.name} 数值+2！`);
-                        // 返回商店
                         data.processing = false;
                         switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
                         return;
@@ -354,7 +306,6 @@ const Input = {
             }
         }
 
-        // 返回/取消
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
             if (data.returnScreen === 'shop') {
@@ -368,7 +319,7 @@ const Input = {
         }
     },
 
-    // ========== 选牌界面 ==========
+    // ===== 选牌界面 =====
     handleCardPickHover(pos, state) {
         if (state.data.optionRects) {
             for (const rect of state.data.optionRects) {
@@ -392,26 +343,20 @@ const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
-        // 跳过按钮
         if (data.skipRect && this.hitTest(pos, data.skipRect)) {
             data.processing = true;
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-            // 继续战后流程（不加卡）
             setTimeout(() => {
                 const result = resolveBattleEnd(this.state);
                 data.processing = false;
                 if (result.postBattleType === 'act_clear') {
                     switchScreen(this.state, 'act_transition', {
-                        runData,
-                        reward: result.postBattleData.reward,
-                        desc: result.postBattleData.desc
+                        runData, reward: result.postBattleData.reward, desc: result.postBattleData.desc
                     });
                 } else {
                     switchScreen(this.state, 'post_battle', {
-                        runData,
-                        type: result.postBattleType,
-                        soulsGained: result.soulsGained,
-                        postBattleData: result.postBattleData
+                        runData, type: result.postBattleType,
+                        soulsGained: result.soulsGained, postBattleData: result.postBattleData
                     });
                 }
             }, 300);
@@ -423,27 +368,21 @@ const Input = {
                 if (this.hitTest(pos, rect)) {
                     data.processing = true;
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                    // 将选中的牌加入牌组
                     const newCard = createCardInstance(rect.defId);
                     runData.deck.push(newCard);
                     showPlaceholderToast(`获得卡牌：${newCard.name}`);
 
-                    // 继续战后流程
                     setTimeout(() => {
                         data.processing = false;
                         const result = resolveBattleEnd(this.state);
                         if (result.postBattleType === 'act_clear') {
                             switchScreen(this.state, 'act_transition', {
-                                runData,
-                                reward: result.postBattleData.reward,
-                                desc: result.postBattleData.desc
+                                runData, reward: result.postBattleData.reward, desc: result.postBattleData.desc
                             });
                         } else {
                             switchScreen(this.state, 'post_battle', {
-                                runData,
-                                type: result.postBattleType,
-                                soulsGained: result.soulsGained,
-                                postBattleData: result.postBattleData
+                                runData, type: result.postBattleType,
+                                soulsGained: result.soulsGained, postBattleData: result.postBattleData
                             });
                         }
                     }, 300);
@@ -453,7 +392,7 @@ const Input = {
         }
     },
 
-    // ========== 战后选择 ==========
+    // ===== 战后选择 =====
     handlePostBattleHover(pos, state) {
         if (state.data.optionRects) {
             for (const rect of state.data.optionRects) {
@@ -477,7 +416,6 @@ const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
-        // 处理事件选项
         if (data.optionRects) {
             for (const rect of data.optionRects) {
                 if (this.hitTest(pos, rect)) {
@@ -485,10 +423,7 @@ const Input = {
 
                     if (rect.type === 'event') {
                         switchScreen(this.state, 'event', {
-                            runData,
-                            eventName: rect.data.name,
-                            eventDesc: rect.data.desc,
-                            effect: rect.data.effect
+                            runData, eventName: rect.data.name, eventDesc: rect.data.desc, effect: rect.data.effect
                         });
                         return;
                     } else if (rect.type === 'shop') {
@@ -503,7 +438,6 @@ const Input = {
             }
         }
 
-        // 处理宝箱
         if (data.treasureRect && this.hitTest(pos, data.treasureRect)) {
             if (typeof GameAudio !== 'undefined') GameAudio.playWin();
             runData.relics.push(data.postBattleData.relic);
@@ -512,7 +446,7 @@ const Input = {
         }
     },
 
-    // ========== 商店 ==========
+    // ===== 商店 =====
     handleShopHover(pos, state) {
         if (state.data.shopItemRects) {
             for (const rect of state.data.shopItemRects) {
@@ -522,13 +456,8 @@ const Input = {
                     const def = CARD_DEFS[rect.item.defId];
                     if (def) {
                         const pseudoCard = {
-                            name: def.name,
-                            baseValue: def.baseValue,
-                            permanentBonus: 0,
-                            tempBonus: 0,
-                            size: def.size,
-                            keywords: def.keywords,
-                            description: def.description
+                            name: def.name, baseValue: def.baseValue, permanentBonus: 0, tempBonus: 0,
+                            size: def.size, keywords: def.keywords, description: def.description
                         };
                         this.updateTooltip(pseudoCard, pos.x, pos.y);
                     }
@@ -559,7 +488,6 @@ const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
-        // 商品购买
         if (data.shopItemRects) {
             for (const rect of data.shopItemRects) {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
@@ -579,7 +507,6 @@ const Input = {
             }
         }
 
-        // 服务
         if (data.shopServiceRects) {
             for (const rect of data.shopServiceRects) {
                 if (this.hitTest(pos, rect)) {
@@ -592,34 +519,18 @@ const Input = {
                             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                             showPlaceholderToast('商店已刷新');
                         } else if (rect.key === 'remove_card') {
-                            if (runData.deck.length === 0) {
-                                showPlaceholderToast('牌组为空！');
-                                return;
-                            }
+                            if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                             switchScreen(this.state, 'card_select', {
-                                runData,
-                                title: '🗑️ 删牌服务',
-                                desc: '选择牌组内一张卡牌移除（消耗1魂）',
-                                cards: runData.deck,
-                                backText: '取消',
-                                selectMode: 'shop_remove',
-                                returnScreen: 'shop',
-                                returnData: data
+                                runData, title: '🗑️ 删牌服务', desc: '选择牌组内一张卡牌移除（消耗1魂）',
+                                cards: runData.deck, backText: '取消', selectMode: 'shop_remove',
+                                returnScreen: 'shop', returnData: data
                             });
                         } else if (rect.key === 'upgrade_card') {
-                            if (runData.deck.length === 0) {
-                                showPlaceholderToast('牌组为空！');
-                                return;
-                            }
+                            if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                             switchScreen(this.state, 'card_select', {
-                                runData,
-                                title: '⬆️ 数值强化',
-                                desc: '选择牌组内一张卡牌，数值永久+2',
-                                cards: runData.deck,
-                                backText: '取消',
-                                selectMode: 'shop_upgrade',
-                                returnScreen: 'shop',
-                                returnData: data
+                                runData, title: '⬆️ 数值强化', desc: '选择牌组内一张卡牌，数值永久+2',
+                                cards: runData.deck, backText: '取消', selectMode: 'shop_upgrade',
+                                returnScreen: 'shop', returnData: data
                             });
                         }
                     } else {
@@ -631,7 +542,6 @@ const Input = {
             }
         }
 
-        // 返回
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
             runData.stageIndex++;
             runData.shopStock = null;
@@ -639,7 +549,7 @@ const Input = {
         }
     },
 
-    // ========== 铁匠 ==========
+    // ===== 铁匠 =====
     handleBlacksmithHover(pos, state) {
         if (state.data.blacksmithRects) {
             for (const rect of state.data.blacksmithRects) {
@@ -675,10 +585,7 @@ const Input = {
                     }
                     if (rect.item.type === 'buy_relic') {
                         const item = rect.item.data;
-                        if (item.bought) {
-                            showPlaceholderToast('已购买！');
-                            return;
-                        }
+                        if (item.bought) { showPlaceholderToast('已购买！'); return; }
                         runData.souls -= rect.item.cost;
                         item.bought = true;
                         runData.relics.push({ name: item.name, desc: item.desc });
@@ -692,10 +599,7 @@ const Input = {
                         showPlaceholderToast(`第${slotIndex + 1}格倍率+1！`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'enchant') {
-                        if (runData.deck.length === 0) {
-                            showPlaceholderToast('牌组为空！');
-                            return;
-                        }
+                        if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                         runData.souls -= rect.item.cost;
                         const stock = data.stock || getOrCreateBlacksmithStock(runData);
                         const keyword = stock.enchantKeyword;
@@ -733,7 +637,7 @@ const Input = {
         }
     },
 
-    // ========== 事件 ==========
+    // ===== 事件 =====
     handleEventHover(pos, state) {
         if (state.data.eventOptionRects) {
             for (const rect of state.data.eventOptionRects) {
@@ -761,21 +665,13 @@ const Input = {
                         switchScreen(this.state, 'map', { runData });
                         return;
                     }
-                    if (runData.deck.length === 0) {
-                        showPlaceholderToast('牌组为空！');
-                        return;
-                    }
+                    if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                    // 进入选卡界面：给任意卡牌数值+2
                     switchScreen(this.state, 'card_select', {
-                        runData,
-                        title: data.eventName || '神秘力量',
+                        runData, title: data.eventName || '神秘力量',
                         desc: '选择牌组内一张卡牌，使其数值永久+2',
-                        cards: runData.deck,
-                        backText: '离开',
-                        selectMode: 'event_buff',
-                        returnScreen: 'map',
-                        returnData: data
+                        cards: runData.deck, backText: '离开', selectMode: 'event_buff',
+                        returnScreen: 'map', returnData: data
                     });
                     return;
                 }
@@ -783,7 +679,7 @@ const Input = {
         }
     },
 
-    // ========== 宝箱 ==========
+    // ===== 宝箱 =====
     handleTreasureHover(pos, state) {
         if (!state.data.opened && state.data.treasureBoxRect) {
             if (this.hitTest(pos, state.data.treasureBoxRect)) {
@@ -822,7 +718,7 @@ const Input = {
         }
     },
 
-    // ========== 大关过渡 ==========
+    // ===== 大关过渡 =====
     handleActTransitionHover(pos, state) {
         if (state.data.transitionBtnRect && this.hitTest(pos, state.data.transitionBtnRect)) {
             state.data.hoverTransitionBtn = true;
@@ -840,9 +736,8 @@ const Input = {
         if (data.transitionBtnRect && this.hitTest(pos, data.transitionBtnRect)) {
             data.processing = true;
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-            runData.unlockedSlots = Math.min(SLOT_COUNT, runData.unlockedSlots + 1);
+            runData.unlockedSlots = Math.min(5, runData.unlockedSlots + 1);
             runData.stageIndex++;
-            // 当前版本仅第一大关，通关后进入胜利画面
             if (runData.stageIndex >= 8) {
                 switchScreen(this.state, 'victory', { runData });
             } else {
@@ -852,7 +747,7 @@ const Input = {
         }
     },
 
-    // ========== 失败画面 ==========
+    // ===== 失败画面 =====
     handleGameOverHover(pos, state) {
         if (state.data.restartBtnRect && this.hitTest(pos, state.data.restartBtnRect)) {
             state.data.hoverRestartBtn = true;
@@ -869,7 +764,7 @@ const Input = {
         }
     },
 
-    // ========== 战斗输入（保留现有逻辑） ==========
+    // ===== 战斗输入 =====
     handleBattleMouseDown(pos) {
         if (this.state.phase !== 'playing') return;
 
@@ -920,37 +815,28 @@ const Input = {
                 setTimeout(() => isWin ? GameAudio.playWin() : GameAudio.playLose(), 300);
             }
 
-            // 使用战后结算系统替代原有弹窗
             setTimeout(() => {
                 if (isWin) {
                     const result = resolveBattleEnd(this.state);
                     const runData = this.state.runDataRef;
                     if (result.postBattleType === 'card_pick') {
                         switchScreen(this.state, 'card_pick', {
-                            runData,
-                            soulsGained: result.soulsGained,
-                            options: result.postBattleData.options
+                            runData, soulsGained: result.soulsGained, options: result.postBattleData.options
                         });
                     } else if (result.postBattleType === 'act_clear') {
                         switchScreen(this.state, 'act_transition', {
-                            runData,
-                            reward: result.postBattleData.reward,
-                            desc: result.postBattleData.desc
+                            runData, reward: result.postBattleData.reward, desc: result.postBattleData.desc
                         });
                     } else {
                         switchScreen(this.state, 'post_battle', {
-                            runData,
-                            type: result.postBattleType,
-                            soulsGained: result.soulsGained,
-                            postBattleData: result.postBattleData
+                            runData, type: result.postBattleType,
+                            soulsGained: result.soulsGained, postBattleData: result.postBattleData
                         });
                     }
                 } else {
-                    // 失败
                     const runData = this.state.runDataRef;
                     switchScreen(this.state, 'game_over', {
-                        reachedStage: getCurrentStageKey(runData),
-                        totalSouls: runData.souls
+                        reachedStage: getCurrentStageKey(runData), totalSouls: runData.souls
                     });
                 }
             }, 800);
@@ -993,17 +879,13 @@ const Input = {
         const tooltip = document.getElementById('tooltip');
         let html = '';
         if (item.type === 'buy_relic') {
-            html = `<h4>${item.data.name}</h4>`;
-            html += `<p>${item.data.desc}</p>`;
+            html = `<h4>${item.data.name}</h4><p>${item.data.desc}</p>`;
         } else if (item.type === 'upgrade_slot') {
-            html = `<h4>强化倍率格：${item.name}</h4>`;
-            html += `<p>将该格子的倍率永久+1</p>`;
+            html = `<h4>强化倍率格：${item.name}</h4><p>将该格子的倍率永久+1</p>`;
         } else if (item.type === 'enchant') {
-            html = `<h4>${item.name}</h4>`;
-            html += `<p>${item.subText}</p>`;
+            html = `<h4>${item.name}</h4><p>${item.subText}</p>`;
         } else if (item.type === 'refresh') {
-            html = `<h4>${item.name}</h4>`;
-            html += `<p>${item.subText}</p>`;
+            html = `<h4>${item.name}</h4><p>${item.subText}</p>`;
         }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
@@ -1025,41 +907,3 @@ const Input = {
         }
     }
 };
-
-// Modal 系统（保留，但战斗结束后不再使用模态框）
-function showModal(title, text, buttons) {
-    const overlay = document.getElementById('modal-overlay');
-    const titleEl = document.getElementById('modal-title');
-    const textEl = document.getElementById('modal-text');
-    const buttonsEl = document.getElementById('modal-buttons');
-
-    titleEl.textContent = title;
-    textEl.textContent = text;
-    buttonsEl.innerHTML = '';
-
-    for (const btn of buttons) {
-        const b = document.createElement('button');
-        b.textContent = btn.text;
-        if (btn.primary) b.classList.add('primary');
-        b.onclick = () => {
-            overlay.classList.add('hidden');
-            if (btn.action) btn.action();
-        };
-        buttonsEl.appendChild(b);
-    }
-
-    overlay.classList.remove('hidden');
-}
-
-function showLogModal() {
-    const log = window.gameState ? window.gameState.combatLog.join('\n') : '无日志';
-    showModal('📜 战斗日志', log, [{ text: '关闭', action: null }]);
-}
-
-function restartGame() {
-    window.gameState = startBattle();
-    Input.state = window.gameState;
-    if (typeof AutoTest !== 'undefined') {
-        AutoTest.state = window.gameState;
-    }
-}

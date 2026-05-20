@@ -1,0 +1,74 @@
+/**
+ * 卡牌地下城 - 主渲染器
+ * 
+ * 职责：组合各子渲染器，根据当前 screen 分发绘制任务
+ */
+
+import { drawBattle } from './battle.js';
+import {
+    drawTitle, drawClassSelect, drawMap, drawPostBattle,
+    drawCardPick, drawCardSelect, drawShop, drawBlacksmith,
+    drawEvent, drawTreasure, drawActTransition, drawVictory,
+    drawGameOver, drawMessages
+} from './screens.js';
+
+export const Renderer = {
+    canvas: null,
+    ctx: null,
+    width: 1280,
+    height: 720,
+    animTime: 0,
+
+    init(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    },
+
+    resize() {
+        const container = document.getElementById('game-container');
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        const scale = Math.min(w / this.width, h / this.height);
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.canvas.style.width = `${this.width * scale}px`;
+        this.canvas.style.height = `${this.height * scale}px`;
+        this.scale = scale;
+    },
+
+    render(state) {
+        this.animTime += 0.016;
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        switch (state.screen) {
+            case 'title': drawTitle(this, ctx, state); break;
+            case 'class_select': drawClassSelect(this, ctx, state); break;
+            case 'map': drawMap(this, ctx, state); break;
+            case 'battle': drawBattle(this, ctx, state); break;
+            case 'post_battle': drawPostBattle(this, ctx, state); break;
+            case 'card_pick': drawCardPick(this, ctx, state); break;
+            case 'card_select': drawCardSelect(this, ctx, state); break;
+            case 'shop': drawShop(this, ctx, state); break;
+            case 'blacksmith': drawBlacksmith(this, ctx, state); break;
+            case 'event': drawEvent(this, ctx, state); break;
+            case 'treasure': drawTreasure(this, ctx, state); break;
+            case 'act_transition': drawActTransition(this, ctx, state); break;
+            case 'victory': drawVictory(this, ctx, state); break;
+            case 'game_over': drawGameOver(this, ctx, state); break;
+        }
+
+        drawMessages(ctx, state, this.width, this.height);
+    }
+};
+
+// 重新导出战斗渲染中的位置工具，供 input 使用
+export {
+    getEndTurnButtonRect,
+    getHandCardRect,
+    getSlotRect,
+    getSlotIndexAt,
+    getHandCardIndexAt
+} from './battle.js';
