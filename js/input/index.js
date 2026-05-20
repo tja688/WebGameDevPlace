@@ -16,7 +16,7 @@ import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, ref
 import { createCardInstance, KEYWORDS, CARD_DEFS } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { STAGE_CONFIG } from '../data/index.js';
-import { Renderer } from '../render/renderer.js';
+import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
 
 export const Input = {
     state: null,
@@ -115,7 +115,7 @@ export const Input = {
         }
 
         const pos = this.getCanvasPos(e.clientX || 0, e.clientY || 0);
-        const slotIdx = this.renderer.getSlotIndexAt(pos.x, pos.y, this.state.slots.length);
+        const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
 
         if (slotIdx !== null && this.state.draggedCard) {
             const success = playCardToSlot(this.state.draggedCard, slotIdx, this.state);
@@ -768,14 +768,14 @@ export const Input = {
     handleBattleMouseDown(pos) {
         if (this.state.phase !== 'playing') return;
 
-        const btnRect = this.renderer.getEndTurnButtonRect();
+        const btnRect = getEndTurnButtonRect(this.renderer);
         if (this.hitTest(pos, btnRect)) {
             endTurn(this.state);
             this.checkBattleEnd();
             return;
         }
 
-        const handIdx = this.renderer.getHandCardIndexAt(pos.x, pos.y, this.state.hand.length);
+        const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
         if (handIdx !== null) {
             const card = this.state.hand[handIdx];
             this.state.selectedCard = card;
@@ -790,10 +790,10 @@ export const Input = {
         if (this.isDragging && this.state.draggedCard) {
             this.state.dragX = pos.x;
             this.state.dragY = pos.y;
-            this.state.hoveredSlot = this.renderer.getSlotIndexAt(pos.x, pos.y, this.state.slots.length);
+            this.state.hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
         } else {
-            this.state.hoveredSlot = this.renderer.getSlotIndexAt(pos.x, pos.y, this.state.slots.length);
-            const handIdx = this.renderer.getHandCardIndexAt(pos.x, pos.y, this.state.hand.length);
+            this.state.hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+            const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
             if (handIdx !== null) {
                 this.state.selectedCard = this.state.hand[handIdx];
                 this.updateTooltip(this.state.hand[handIdx], pos.x, pos.y);
