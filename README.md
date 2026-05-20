@@ -326,6 +326,12 @@ testCombat()           // 运行冒烟测试
 simulateBattles(100)   // 模拟100场自动战斗
 ```
 
+### 输入与光标回归
+
+- 战斗界面由 `js/input/index.js` 显式管理 Canvas 光标：空白区域保持默认光标，手牌显示 `grab`，拖拽中显示 `grabbing`，结束回合按钮显示 `pointer`。
+- 如果从地图或其他可点击界面进入战斗，不能沿用上一屏遗留的 `canvas.style.cursor = 'pointer'`；否则整块 Canvas 会看起来像被透明按钮覆盖。
+- 鼠标离开 Canvas 时会清理 tooltip、选中牌和格子 hover，避免下次进入画面时继承旧交互状态。
+
 ### 调试指令
 
 ```javascript

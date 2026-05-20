@@ -11,7 +11,7 @@ import { switchScreen, getCurrentStageKey } from '../core/state.js';
 import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { resolveBattleEnd } from '../systems/post-battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview } from '../systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, KEYWORDS, CARD_DEFS } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
@@ -32,7 +32,7 @@ export const Input = {
         this.canvas.addEventListener('mousedown', e => this.onMouseDown(e));
         this.canvas.addEventListener('mousemove', e => this.onMouseMove(e));
         this.canvas.addEventListener('mouseup', e => this.onMouseUp(e));
-        this.canvas.addEventListener('mouseleave', e => this.onMouseUp(e));
+        this.canvas.addEventListener('mouseleave', e => this.onMouseLeave(e));
         this.canvas.addEventListener('contextmenu', e => e.preventDefault());
         this.canvas.addEventListener('wheel', e => this.onWheel(e), { passive: false });
 
@@ -130,8 +130,22 @@ export const Input = {
         this.state.draggedCard = null;
         this.state.hoveredSlot = null;
         this.isDragging = false;
+        this.canvas.style.cursor = 'default';
 
         this.checkBattleEnd();
+    },
+
+    onMouseLeave(e) {
+        this.canvas.style.cursor = 'default';
+        this.hideTooltip();
+
+        if (this.isDragging) {
+            this.onMouseUp(e);
+            return;
+        }
+
+        this.state.selectedCard = null;
+        this.state.hoveredSlot = null;
     },
 
     clearAllHovers(state) {
@@ -766,11 +780,15 @@ export const Input = {
 
     // ===== 战斗输入 =====
     handleBattleMouseDown(pos) {
-        if (this.state.phase !== 'playing') return;
+        if (this.state.phase !== 'playing') {
+            this.canvas.style.cursor = 'default';
+            return;
+        }
 
         const btnRect = getEndTurnButtonRect(this.renderer);
         if (this.hitTest(pos, btnRect)) {
             endTurn(this.state);
+            this.canvas.style.cursor = 'default';
             this.checkBattleEnd();
             return;
         }
@@ -783,22 +801,39 @@ export const Input = {
             this.state.dragX = pos.x;
             this.state.dragY = pos.y;
             this.isDragging = true;
+            this.canvas.style.cursor = 'grabbing';
         }
     },
 
     handleBattleMouseMove(pos) {
+        if (this.state.phase !== 'playing') {
+            this.state.selectedCard = null;
+            this.state.hoveredSlot = null;
+            this.canvas.style.cursor = 'default';
+            this.hideTooltip();
+            return;
+        }
+
         if (this.isDragging && this.state.draggedCard) {
             this.state.dragX = pos.x;
             this.state.dragY = pos.y;
             this.state.hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+            this.canvas.style.cursor = 'grabbing';
+            this.hideTooltip();
         } else {
             this.state.hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
             const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
             if (handIdx !== null) {
                 this.state.selectedCard = this.state.hand[handIdx];
+                this.canvas.style.cursor = 'grab';
                 this.updateTooltip(this.state.hand[handIdx], pos.x, pos.y);
+            } else if (this.hitTest(pos, getEndTurnButtonRect(this.renderer))) {
+                this.state.selectedCard = null;
+                this.canvas.style.cursor = 'pointer';
+                this.hideTooltip();
             } else {
                 this.state.selectedCard = null;
+                this.canvas.style.cursor = 'default';
                 this.hideTooltip();
             }
         }
