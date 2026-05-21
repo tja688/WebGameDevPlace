@@ -1,15 +1,25 @@
 /**
- * 卡牌地下城 - 战斗界面渲染
+ * 卡牌地下城 - 战斗界面渲染（视觉升级版）
  */
 
-import { roundRect, darkenColor, wrapText, drawBackground } from './core.js';
+import {
+    roundRect, darkenColor, wrapText, drawBackground,
+    drawStoneTile, drawMetalFrame, drawParchment, drawGlowText,
+    drawButton, drawHealthBar, drawHeartIcon, drawRarityGlow,
+    drawTorchLight, flickerIntensity
+} from './core.js';
 import { KEYWORDS } from '../data/index.js';
-import { getCardBaseValue, getCardFinalValue, buildCardSlotMap, canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview } from '../systems/board.js';
+import {
+    getCardBaseValue, getCardFinalValue, buildCardSlotMap,
+    canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview
+} from '../systems/board.js';
 import { calculateTotalBoardDamage } from '../systems/board.js';
 import { MONSTER_COLOR_THEMES } from '../data/index.js';
+import { FX } from './fx.js';
 
 export function drawBattle(renderer, ctx, state) {
     drawBackground(ctx, renderer.width, renderer.height, renderer.animTime);
+    FX.draw(ctx, renderer.width, renderer.height);
     drawMonsterArea(renderer, ctx, state);
     drawPlayerArea(renderer, ctx, state);
     drawBoardArea(renderer, ctx, state);
@@ -21,73 +31,89 @@ export function drawBattle(renderer, ctx, state) {
     drawPreview(renderer, ctx, state);
 }
 
+// ============================================================
+// 怪物区域
+// ============================================================
+
 function drawMonsterArea(renderer, ctx, state) {
     const mx = renderer.width * 0.5;
-    const my = 120;
+    const my = 115;
     const monster = state.monster;
     const colors = MONSTER_COLOR_THEMES[monster.theme] || MONSTER_COLOR_THEMES.normal;
+    const t = renderer.animTime;
 
+    // 动态阴影
+    const breathScale = 1 + Math.sin(t * 1.5) * 0.03;
     ctx.fillStyle = colors.shadow;
     ctx.beginPath();
-    ctx.ellipse(mx, my + 75, 70, 20, 0, 0, Math.PI * 2);
+    ctx.ellipse(mx, my + 75, 70 * breathScale, 18 * breathScale, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    drawMonster(ctx, monster, mx, my, colors, renderer.animTime);
+    // 怪物绘制
+    drawMonster(ctx, monster, mx, my, colors, t);
 
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText(monster.name, mx, my - 78);
+    // 名称 - 发光文字
+    drawGlowText(ctx, monster.name, mx, my - 82, {
+        color: '#ffcccc',
+        glowColor: colors.head,
+        glowBlur: 12,
+        font: 'bold 22px Microsoft YaHei',
+        align: 'center'
+    });
 
+    // 类型徽章
     const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
     const typeColors = { normal: '#8B4513', elite: '#8B008B', boss: '#8B0000' };
+    const typeBgColors = { normal: '#3a2211', elite: '#3a113a', boss: '#3a1111' };
+    const typeLabel = typeLabels[monster.type] || '';
+    const badgeW = ctx.measureText(`[${typeLabel}]`).width + 20;
+    const badgeX = mx - badgeW / 2;
+    const badgeY = my + 78;
+
+    ctx.fillStyle = typeBgColors[monster.type] || '#222';
+    roundRect(ctx, badgeX, badgeY - 12, badgeW, 22, 4);
+    ctx.fill();
+    ctx.strokeStyle = typeColors[monster.type] || '#555';
+    ctx.lineWidth = 1;
+    roundRect(ctx, badgeX, badgeY - 12, badgeW, 22, 4);
+    ctx.stroke();
+
     ctx.fillStyle = typeColors[monster.type] || '#555';
     ctx.font = 'bold 12px Microsoft YaHei';
-    ctx.fillText(`[${typeLabels[monster.type] || ''}]`, mx, my + 82);
-
-    const barW = 240;
-    const barH = 24;
-    const barX = mx - barW / 2;
-    const barY = my + 95;
-    ctx.fillStyle = '#2a2a2a';
-    ctx.fillRect(barX, barY, barW, barH);
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(barX, barY, barW, barH);
-
-    const hpRatio = Math.max(0, monster.hp / monster.maxHp);
-    const hpGrad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
-    hpGrad.addColorStop(0, '#e74c3c');
-    hpGrad.addColorStop(1, '#c0392b');
-    ctx.fillStyle = hpGrad;
-    ctx.fillRect(barX + 2, barY + 2, (barW - 4) * hpRatio, barH - 4);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 14px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.max(0, monster.hp)} / ${monster.maxHp}`, mx, barY + 17);
+    ctx.fillText(`[${typeLabel}]`, mx, badgeY + 4);
 
-    ctx.fillStyle = '#aaa';
+    // 血条
+    const barW = 260;
+    const barH = 20;
+    const barX = mx - barW / 2;
+    const barY = my + 100;
+    const hpFlash = monster.hp > 0 && monster.hp / monster.maxHp < 0.3 && Math.sin(t * 8) > 0;
+
+    drawHealthBar(ctx, barX, barY, barW, barH, monster.hp, monster.maxHp, {
+        flash: hpFlash,
+        label: `${Math.max(0, monster.hp)} / ${monster.maxHp}`
+    });
+
+    // 描述
+    ctx.fillStyle = '#999';
     ctx.font = '13px Microsoft YaHei';
+    ctx.textAlign = 'center';
     ctx.fillText(monster.description, mx, my - 58);
 
+    // 关键词面板
     if (monster.keywords.length > 0 && monster.keywordDesc) {
-        const tagW = 420;
+        const tagW = 460;
         const tagX = mx - tagW / 2;
-        const tagY = my - 42;
+        const tagY = my - 48;
         ctx.font = 'bold 12px Microsoft YaHei';
         ctx.textAlign = 'left';
-        const lineHeight = 16;
+        const lineHeight = 18;
         const maxWidth = tagW - 20;
         const lines = estimateLines(ctx, monster.keywordDesc, maxWidth);
-        const tagH = 10 + lines * lineHeight;
+        const tagH = 12 + lines * lineHeight;
 
-        ctx.fillStyle = 'rgba(100,10,10,0.85)';
-        ctx.strokeStyle = '#cc4444';
-        ctx.lineWidth = 1;
-        roundRect(ctx, tagX, tagY, tagW, tagH, 6);
-        ctx.fill();
-        ctx.stroke();
+        drawParchment(ctx, tagX, tagY, tagW, tagH, { alpha: 0.85, radius: 6 });
 
         ctx.fillStyle = '#ffaaaa';
         wrapText(ctx, monster.keywordDesc, tagX + 10, tagY + 18, maxWidth, lineHeight);
@@ -112,6 +138,10 @@ function estimateLines(ctx, text, maxWidth) {
     return lines;
 }
 
+// ============================================================
+// 怪物绘制（保留原有形状，增强质感）
+// ============================================================
+
 function drawMonster(ctx, monster, x, y, colors, t) {
     const shape = monster.shape || 'rat';
     switch (shape) {
@@ -124,21 +154,33 @@ function drawMonster(ctx, monster, x, y, colors, t) {
 }
 
 function drawMonsterRat(ctx, x, y, colors, t) {
+    const breath = 1 + Math.sin(t * 1.5) * 0.02;
+
+    // 身体
     ctx.fillStyle = colors.body;
     ctx.beginPath();
-    ctx.ellipse(x, y + 20, 55, 45, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + 20, 55 * breath, 45 * breath, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = darkenColor(colors.body, -30);
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
+    // 身体高光
     ctx.fillStyle = colors.bodyHighlight;
     ctx.beginPath();
     ctx.ellipse(x - 10, y + 10, 30, 25, -0.2, 0, Math.PI * 2);
     ctx.fill();
 
+    // 头
     ctx.fillStyle = colors.head;
     ctx.beginPath();
     ctx.ellipse(x, y - 15, 35, 30, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = darkenColor(colors.head, -20);
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
+    // 耳朵
     ctx.fillStyle = colors.ears;
     ctx.beginPath();
     ctx.ellipse(x - 22, y - 38, 14, 18, -0.4, 0, Math.PI * 2);
@@ -155,14 +197,19 @@ function drawMonsterRat(ctx, x, y, colors, t) {
     ctx.ellipse(x + 22, y - 38, 8, 10, 0.4, 0, Math.PI * 2);
     ctx.fill();
 
+    // 眼睛（带发光）
     const eyeOffset = Math.sin(t * 2) * 1;
+    const eyeGlow = Math.sin(t * 3) * 0.2 + 0.8;
+
     ctx.fillStyle = colors.eyes;
+    ctx.globalAlpha = eyeGlow;
     ctx.beginPath();
     ctx.ellipse(x - 12, y - 18 + eyeOffset, 8, 9, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.ellipse(x + 12, y - 18 + eyeOffset, 8, 9, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
 
     ctx.fillStyle = colors.pupil;
     ctx.beginPath();
@@ -172,11 +219,22 @@ function drawMonsterRat(ctx, x, y, colors, t) {
     ctx.arc(x + 14, y - 18 + eyeOffset, 4, 0, Math.PI * 2);
     ctx.fill();
 
+    // 眼睛高光
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(x - 12, y - 20 + eyeOffset, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 10, y - 20 + eyeOffset, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 鼻子
     ctx.fillStyle = colors.nose;
     ctx.beginPath();
     ctx.arc(x, y - 5, 5, 0, Math.PI * 2);
     ctx.fill();
 
+    // 胡须
     ctx.strokeStyle = colors.whiskers;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -190,6 +248,7 @@ function drawMonsterRat(ctx, x, y, colors, t) {
     ctx.lineTo(x + 32, y + 2);
     ctx.stroke();
 
+    // 牙齿
     ctx.fillStyle = colors.teeth;
     ctx.beginPath();
     ctx.moveTo(x - 4, y + 2);
@@ -202,6 +261,7 @@ function drawMonsterRat(ctx, x, y, colors, t) {
     ctx.lineTo(x + 4, y + 2);
     ctx.fill();
 
+    // 尾巴
     ctx.strokeStyle = colors.tail;
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -209,6 +269,7 @@ function drawMonsterRat(ctx, x, y, colors, t) {
     ctx.quadraticCurveTo(x + 80, y + 10 + Math.sin(t * 3) * 10, x + 90, y + 40);
     ctx.stroke();
 
+    // 爪子
     ctx.fillStyle = colors.claws;
     ctx.beginPath();
     ctx.ellipse(x - 30, y + 55, 10, 6, 0, 0, Math.PI * 2);
@@ -223,7 +284,6 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     const wingFlap = Math.sin(t * 5) * 0.4;
     const by = y + floatY;
 
-    // 翅膀（后层）
     ctx.fillStyle = colors.ears;
     ctx.beginPath();
     ctx.moveTo(x - 20, by + 5);
@@ -236,7 +296,6 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     ctx.quadraticCurveTo(x + 40, by + 10, x + 20, by + 15);
     ctx.fill();
 
-    // 身体
     ctx.fillStyle = colors.body;
     ctx.beginPath();
     ctx.ellipse(x, by + 15, 35, 30, 0, 0, Math.PI * 2);
@@ -247,13 +306,11 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     ctx.ellipse(x - 8, by + 8, 18, 16, -0.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // 头
     ctx.fillStyle = colors.head;
     ctx.beginPath();
     ctx.ellipse(x, by - 12, 28, 24, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 耳朵（尖大）
     ctx.fillStyle = colors.ears;
     ctx.beginPath();
     ctx.moveTo(x - 18, by - 22);
@@ -282,7 +339,6 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     ctx.closePath();
     ctx.fill();
 
-    // 眼睛（发红光）
     const eyeGlow = Math.sin(t * 3) * 0.3 + 0.7;
     ctx.fillStyle = colors.eyes;
     ctx.globalAlpha = eyeGlow;
@@ -302,7 +358,6 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     ctx.arc(x + 12, by - 14, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 鼻子
     ctx.fillStyle = colors.nose;
     ctx.beginPath();
     ctx.moveTo(x, by - 4);
@@ -311,7 +366,6 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     ctx.closePath();
     ctx.fill();
 
-    // 尖牙
     ctx.fillStyle = colors.teeth;
     ctx.beginPath();
     ctx.moveTo(x - 5, by + 2);
@@ -324,7 +378,6 @@ function drawMonsterBat(ctx, x, y, colors, t) {
     ctx.lineTo(x + 5, by + 2);
     ctx.fill();
 
-    // 脚（爪子）
     ctx.fillStyle = colors.claws;
     ctx.beginPath();
     ctx.ellipse(x - 15, by + 38, 6, 4, 0, 0, Math.PI * 2);
@@ -339,7 +392,6 @@ function drawMonsterSlime(ctx, x, y, colors, t) {
     const bounce = Math.sin(t * 1.5) * 4;
     const sy = y + bounce;
 
-    // 身体（blob）
     ctx.fillStyle = colors.body;
     ctx.beginPath();
     ctx.ellipse(x, sy + 10, 50 * (1 + pulse), 42 * (1 - pulse), 0, 0, Math.PI * 2);
@@ -350,7 +402,6 @@ function drawMonsterSlime(ctx, x, y, colors, t) {
     ctx.ellipse(x - 12, sy - 5, 22, 18, -0.3, 0, Math.PI * 2);
     ctx.fill();
 
-    // 小气泡
     ctx.fillStyle = colors.bodyHighlight;
     ctx.globalAlpha = 0.5;
     ctx.beginPath();
@@ -361,7 +412,6 @@ function drawMonsterSlime(ctx, x, y, colors, t) {
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // 眼睛（在身体上）
     const eyeBounce = Math.sin(t * 4) * 1.5;
     ctx.fillStyle = colors.eyes;
     ctx.beginPath();
@@ -379,7 +429,6 @@ function drawMonsterSlime(ctx, x, y, colors, t) {
     ctx.arc(x + 16, sy - 8 + eyeBounce, 4.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 高光
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath();
     ctx.arc(x - 16, sy - 12 + eyeBounce, 2.5, 0, Math.PI * 2);
@@ -388,7 +437,6 @@ function drawMonsterSlime(ctx, x, y, colors, t) {
     ctx.arc(x + 12, sy - 12 + eyeBounce, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 嘴巴（小波浪）
     ctx.strokeStyle = colors.nose;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -401,7 +449,6 @@ function drawMonsterFlower(ctx, x, y, colors, t) {
     const sway = Math.sin(t * 1.2) * 3;
     const petalBreath = Math.sin(t * 2) * 0.1;
 
-    // 茎
     ctx.strokeStyle = '#4A6B2A';
     ctx.lineWidth = 8;
     ctx.beginPath();
@@ -409,7 +456,6 @@ function drawMonsterFlower(ctx, x, y, colors, t) {
     ctx.quadraticCurveTo(x + sway, y + 30, x + sway * 0.5, y - 10);
     ctx.stroke();
 
-    // 叶子
     ctx.fillStyle = '#558822';
     ctx.beginPath();
     ctx.ellipse(x - 18 + sway * 0.7, y + 40, 16, 7, -0.6, 0, Math.PI * 2);
@@ -418,7 +464,6 @@ function drawMonsterFlower(ctx, x, y, colors, t) {
     ctx.ellipse(x + 18 + sway * 0.7, y + 25, 14, 6, 0.6, 0, Math.PI * 2);
     ctx.fill();
 
-    // 花瓣（后层）
     const petalCount = 6;
     ctx.fillStyle = colors.body;
     for (let i = 0; i < petalCount; i++) {
@@ -430,19 +475,16 @@ function drawMonsterFlower(ctx, x, y, colors, t) {
         ctx.fill();
     }
 
-    // 花盘（头）
     ctx.fillStyle = colors.head;
     ctx.beginPath();
     ctx.ellipse(x + sway * 0.5, y - 10, 28, 26, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 花盘纹理
     ctx.fillStyle = colors.bodyHighlight;
     ctx.beginPath();
     ctx.ellipse(x + sway * 0.5 - 5, y - 15, 10, 8, -0.3, 0, Math.PI * 2);
     ctx.fill();
 
-    // 眼睛
     const blink = Math.sin(t * 2.5) > 0.9 ? 0.2 : 1;
     ctx.fillStyle = colors.eyes;
     ctx.beginPath();
@@ -460,7 +502,6 @@ function drawMonsterFlower(ctx, x, y, colors, t) {
     ctx.arc(x + sway * 0.5 + 12, y - 12, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 嘴巴（锯齿状）
     ctx.fillStyle = colors.teeth;
     ctx.beginPath();
     ctx.moveTo(x + sway * 0.5 - 10, y + 2);
@@ -479,22 +520,18 @@ function drawMonsterGolem(ctx, x, y, colors, t) {
     const gy = y + heavyBounce;
     const eyeGlow = Math.sin(t * 1.5) * 0.3 + 0.7;
 
-    // 腿
     ctx.fillStyle = colors.claws;
     ctx.fillRect(x - 28, gy + 45, 20, 22);
     ctx.fillRect(x + 8, gy + 45, 20, 22);
 
-    // 身体（方壮）
     ctx.fillStyle = colors.body;
     roundRect(ctx, x - 45, gy - 10, 90, 60, 8);
     ctx.fill();
 
-    // 身体高光
     ctx.fillStyle = colors.bodyHighlight;
     roundRect(ctx, x - 38, gy - 5, 30, 20, 4);
     ctx.fill();
 
-    // 裂缝纹理
     ctx.strokeStyle = colors.claws;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -507,22 +544,18 @@ function drawMonsterGolem(ctx, x, y, colors, t) {
     ctx.lineTo(x + 25, gy + 15);
     ctx.stroke();
 
-    // 手臂
     ctx.fillStyle = colors.claws;
     roundRect(ctx, x - 58, gy + 5, 16, 35, 5);
     ctx.fill();
     roundRect(ctx, x + 42, gy + 5, 16, 35, 5);
     ctx.fill();
 
-    // 头（方）
     ctx.fillStyle = colors.head;
     ctx.fillRect(x - 28, gy - 42, 56, 36);
 
-    // 头高光
     ctx.fillStyle = colors.bodyHighlight;
     ctx.fillRect(x - 22, gy - 38, 18, 10);
 
-    // 眼睛（发光矩形）
     ctx.fillStyle = colors.eyes;
     ctx.globalAlpha = eyeGlow;
     ctx.fillRect(x - 16, gy - 30, 10, 8);
@@ -533,11 +566,9 @@ function drawMonsterGolem(ctx, x, y, colors, t) {
     ctx.fillRect(x - 13, gy - 28, 4, 4);
     ctx.fillRect(x + 9, gy - 28, 4, 4);
 
-    // 鼻子
     ctx.fillStyle = colors.nose;
     ctx.fillRect(x - 3, gy - 18, 6, 5);
 
-    // 嘴巴（横线）
     ctx.strokeStyle = colors.teeth;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -546,71 +577,85 @@ function drawMonsterGolem(ctx, x, y, colors, t) {
     ctx.stroke();
 }
 
+// ============================================================
+// 玩家区域
+// ============================================================
+
 function drawPlayerArea(renderer, ctx, state) {
-    const x = 80;
-    const y = 80;
+    const x = 50;
+    const y = 60;
 
-    ctx.fillStyle = 'rgba(40,30,20,0.8)';
-    ctx.strokeStyle = '#b8860b';
-    ctx.lineWidth = 3;
-    ctx.fillRect(x - 50, y - 40, 100, 100);
-    ctx.strokeRect(x - 50, y - 40, 100, 100);
+    // 玩家信息面板 - 羊皮纸背景
+    drawParchment(ctx, x - 10, y - 10, 140, 180, { alpha: 0.7, radius: 8 });
 
-    ctx.fillStyle = '#b8860b';
-    ctx.font = '40px serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚔️', x, y + 10);
-
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 12px Microsoft YaHei';
-    ctx.fillText(state.player.relic.name, x, y + 35);
-
-    const heartX = x - 50;
-    const heartY = y + 80;
-    for (let i = 0; i < state.player.maxHearts; i++) {
-        const filled = i < state.player.hearts;
-        drawHeart(ctx, heartX + i * 38, heartY, filled);
-    }
-
-    ctx.fillStyle = '#aaa';
-    ctx.font = '16px Microsoft YaHei';
-    ctx.textAlign = 'left';
-    ctx.fillText(`第 ${state.turn} 回合`, x - 50, heartY + 45);
-
-    ctx.fillStyle = '#ff8888';
-    ctx.font = 'bold 16px Microsoft YaHei';
-    ctx.fillText(`累计伤害: ${state.totalDamage + state.turnDamage}`, x - 50, heartY + 68);
-
-    ctx.fillStyle = '#ffaa66';
-    ctx.fillText(`本回合: ${state.turnDamage}`, x - 50, heartY + 90);
-
-    ctx.fillStyle = '#888';
-    ctx.font = '13px Microsoft YaHei';
-    ctx.fillText(`牌库: ${state.deck.length} | 弃牌: ${state.discard.length}`, x - 50, heartY + 112);
-}
-
-function drawHeart(ctx, x, y, filled) {
+    // 角色徽章（圆形金属）
+    const badgeY = y + 30;
     ctx.save();
-    ctx.translate(x + 15, y + 15);
-    ctx.scale(0.6, 0.6);
+    ctx.translate(x + 60, badgeY);
+
+    // 外圈
+    ctx.fillStyle = '#3a2a1a';
     ctx.beginPath();
-    ctx.moveTo(0, 5);
-    ctx.bezierCurveTo(-15, -15, -25, 0, 0, 20);
-    ctx.bezierCurveTo(25, 0, 15, -15, 0, 5);
-    ctx.closePath();
-    if (filled) {
-        ctx.fillStyle = '#e74c3c';
-        ctx.fill();
-        ctx.strokeStyle = '#c0392b';
-    } else {
-        ctx.fillStyle = 'rgba(100,50,50,0.3)';
-        ctx.fill();
-        ctx.strokeStyle = '#555';
-    }
+    ctx.arc(0, 0, 32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b8860b';
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    // 内圈高光
+    ctx.fillStyle = '#4a3a2a';
+    ctx.beginPath();
+    ctx.arc(0, 0, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,215,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     ctx.restore();
+
+    ctx.fillStyle = '#b8860b';
+    ctx.font = '36px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚔️', x + 60, badgeY + 12);
+
+    // 遗物名称
+    ctx.fillStyle = '#cc9955';
+    ctx.font = 'bold 11px Microsoft YaHei';
+    ctx.fillText(state.player.relic.name, x + 60, badgeY + 48);
+
+    // 心形
+    const heartX = x + 15;
+    const heartY = y + 95;
+    const heartPulse = state.player.hearts <= 1 ? renderer.animTime : 0;
+    for (let i = 0; i < state.player.maxHearts; i++) {
+        const filled = i < state.player.hearts;
+        drawHeartIcon(ctx, heartX + i * 36, heartY, 28, filled, filled && state.player.hearts <= 1 ? heartPulse : 0);
+    }
+
+    // 信息文字
+    const infoX = x + 10;
+    const infoY = heartY + 35;
+
+    ctx.fillStyle = '#aa9988';
+    ctx.font = '14px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText(`第 ${state.turn} 回合`, infoX, infoY);
+
+    ctx.fillStyle = '#cc8877';
+    ctx.font = 'bold 14px Microsoft YaHei';
+    ctx.fillText(`累计: ${state.totalDamage + state.turnDamage}`, infoX, infoY + 22);
+
+    ctx.fillStyle = '#ddaa66';
+    ctx.fillText(`本回合: ${state.turnDamage}`, infoX, infoY + 44);
+
+    ctx.fillStyle = '#777';
+    ctx.font = '12px Microsoft YaHei';
+    ctx.fillText(`牌库: ${state.deck.length} | 弃牌: ${state.discard.length}`, infoX, infoY + 66);
 }
+
+// ============================================================
+// 倍率牌桌
+// ============================================================
 
 function drawBoardArea(renderer, ctx, state) {
     const startX = renderer.width * 0.5 - (state.slots.length * 220 + (state.slots.length - 1) * 20) / 2;
@@ -618,6 +663,7 @@ function drawBoardArea(renderer, ctx, state) {
     const slotW = 220;
     const slotH = 160;
     const gap = 20;
+    const t = renderer.animTime;
 
     for (let i = 0; i < state.slots.length; i++) {
         const slot = state.slots[i];
@@ -625,25 +671,21 @@ function drawBoardArea(renderer, ctx, state) {
         const y = startY;
 
         if (!slot.available) {
-            ctx.fillStyle = 'rgba(20,20,30,0.5)';
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.fillRect(x, y - 40, slotW, 36);
-            ctx.strokeRect(x, y - 40, slotW, 36);
-            ctx.fillStyle = '#555';
+            // 未解锁格子
+            drawStoneTile(ctx, x, y - 40, slotW, 36, { locked: true });
+            ctx.fillStyle = '#444';
             ctx.font = 'bold 14px Microsoft YaHei';
             ctx.textAlign = 'center';
             ctx.fillText('🔒', x + slotW / 2, y - 16);
 
-            ctx.fillStyle = 'rgba(20,20,30,0.4)';
+            drawStoneTile(ctx, x, y, slotW, slotH, { locked: true });
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
             ctx.setLineDash([8, 8]);
-            ctx.fillRect(x, y, slotW, slotH);
             ctx.strokeRect(x, y, slotW, slotH);
             ctx.setLineDash([]);
 
-            ctx.fillStyle = '#444';
+            ctx.fillStyle = '#3a3a4a';
             ctx.font = 'bold 16px Microsoft YaHei';
             ctx.textAlign = 'center';
             ctx.fillText('未解锁', x + slotW / 2, y + slotH / 2 + 5);
@@ -652,63 +694,93 @@ function drawBoardArea(renderer, ctx, state) {
 
         const effMul = getSlotEffectiveMultiplier(slot, state);
         const mulLabel = `${effMul}X`;
-        ctx.fillStyle = 'rgba(30,30,50,0.9)';
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 2;
-        ctx.fillRect(x, y - 40, slotW, 36);
-        ctx.strokeRect(x, y - 40, slotW, 36);
 
-        ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 18px Microsoft YaHei';
-        ctx.textAlign = 'center';
-        ctx.fillText(`倍率 ${mulLabel}`, x + slotW / 2, y - 16);
+        // 倍率标签 - 金属铭牌
+        drawStoneTile(ctx, x, y - 40, slotW, 36, {});
+        drawMetalFrame(ctx, x, y - 40, slotW, 36, { color: '#665544', thickness: 1.5, radius: 4 });
 
+        // 倍率文字
+        const isHighMul = effMul >= 3;
+        drawGlowText(ctx, `倍率 ${mulLabel}`, x + slotW / 2, y - 16, {
+            color: isHighMul ? '#ffaa44' : '#ffd700',
+            glowColor: isHighMul ? '#ff6600' : '#b8860b',
+            glowBlur: isHighMul ? 8 : 4,
+            font: 'bold 17px Microsoft YaHei',
+            align: 'center'
+        });
+
+        // 格子底座
         const isHovered = state.hoveredSlot === i;
         const canDrop = state.draggedCard && canPlaceCard(state.draggedCard, slot, state).ok;
-        ctx.fillStyle = isHovered && canDrop ? 'rgba(40,80,60,0.8)' :
-                        isHovered ? 'rgba(80,40,40,0.8)' :
-                        'rgba(30,30,50,0.7)';
-        ctx.strokeStyle = isHovered && canDrop ? '#4ecdc4' :
-                          isHovered ? '#ff6b6b' :
-                          slot.cards.length > 0 && !slot.cards[slot.cards.length - 1].keywords.includes('stack') ? '#aa4444' :
-                          '#444';
-        ctx.lineWidth = isHovered ? 4 : 3;
-        ctx.fillRect(x, y, slotW, slotH);
-        ctx.strokeRect(x, y, slotW, slotH);
 
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        const tileOptions = {
+            highlight: isHovered && canDrop,
+            glowColor: isHovered && canDrop ? '#4ecdc4' : (isHovered ? '#ff6b6b' : null)
+        };
+
+        if (!isHovered && slot.cards.length > 0 && !slot.cards[slot.cards.length - 1].keywords.includes('stack')) {
+            tileOptions.locked = true;
+        }
+
+        drawStoneTile(ctx, x, y, slotW, slotH, tileOptions);
+
+        // 格子边框
+        if (isHovered && canDrop) {
+            drawMetalFrame(ctx, x, y, slotW, slotH, { color: '#4ecdc4', glowColor: '#4ecdc4', thickness: 2, radius: 2 });
+        } else if (isHovered) {
+            drawMetalFrame(ctx, x, y, slotW, slotH, { color: '#ff6b6b', glowColor: '#ff6b6b', thickness: 2, radius: 2 });
+        } else {
+            drawMetalFrame(ctx, x, y, slotW, slotH, { color: '#443322', thickness: 1.5, radius: 2 });
+        }
+
+        // 内部装饰线
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 8, y + 8, slotW - 16, slotH - 16);
 
+        // 卡牌
         for (let c = 0; c < slot.cards.length; c++) {
             const card = slot.cards[c];
             const cx = x + 10;
             const cy = y + 10 + c * 38;
             const cw = slotW - 20;
             const ch = 34;
-            drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state);
+            drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state, c);
         }
 
+        // 锁定提示
         if (slot.cards.length > 0) {
             const top = slot.cards[slot.cards.length - 1];
             if (!top.keywords.includes('stack') && !top.keywords.includes('agile')) {
-                ctx.fillStyle = 'rgba(200,50,50,0.3)';
+                ctx.fillStyle = 'rgba(80,20,20,0.4)';
                 ctx.fillRect(x, y, slotW, slotH);
+
                 ctx.fillStyle = '#ff6666';
-                ctx.font = 'bold 14px Microsoft YaHei';
+                ctx.font = 'bold 13px Microsoft YaHei';
                 ctx.textAlign = 'center';
-                ctx.fillText('🔒 已锁定', x + slotW / 2, y + slotH - 10);
+                ctx.fillText('🔒 已锁定', x + slotW / 2, y + slotH - 12);
             }
         }
     }
 }
 
-function drawMiniCard(ctx, card, x, y, w, h, multiplier, state) {
-    ctx.fillStyle = card.color;
-    ctx.globalAlpha = 0.85;
+function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex) {
+    // 堆叠偏移阴影
+    if (stackIndex > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(x + 2, y + 2, w, h);
+    }
+
+    // 卡牌背景
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, card.color);
+    grad.addColorStop(1, darkenColor(card.color, -35));
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.9;
     ctx.fillRect(x, y, w, h);
     ctx.globalAlpha = 1;
 
+    // 边框
     ctx.strokeStyle = card.accentColor;
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
@@ -722,7 +794,7 @@ function drawMiniCard(ctx, card, x, y, w, h, multiplier, state) {
     ctx.fillText(card.name, x + 6, y + 16);
 
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 14px Microsoft YaHei';
+    ctx.font = 'bold 13px Microsoft YaHei';
     ctx.textAlign = 'right';
     ctx.fillText(`${finalVal}→${output}`, x + w - 6, y + 16);
 
@@ -731,14 +803,19 @@ function drawMiniCard(ctx, card, x, y, w, h, multiplier, state) {
     for (const kw of card.keywords) {
         const kwData = KEYWORDS[kw];
         if (!kwData) continue;
-        ctx.fillStyle = kwData.color + '44';
-        ctx.fillRect(tagX, y + 20, 34, 12);
+        const tagW = 32;
+        ctx.fillStyle = kwData.color + '33';
+        ctx.fillRect(tagX, y + 20, tagW, 12);
         ctx.fillStyle = kwData.color;
         ctx.font = '9px Microsoft YaHei';
         ctx.fillText(kwData.name, tagX + 2, y + 29);
-        tagX += 38;
+        tagX += 36;
     }
 }
+
+// ============================================================
+// 手牌区域
+// ============================================================
 
 function drawHandArea(renderer, ctx, state) {
     const hand = state.hand;
@@ -746,7 +823,7 @@ function drawHandArea(renderer, ctx, state) {
 
     const layout = getHandLayout(renderer, hand.length);
 
-    // 绘制抽卡动画
+    // 抽卡动画
     if (state.drawAnimations && state.drawAnimations.length > 0) {
         for (let i = state.drawAnimations.length - 1; i >= 0; i--) {
             const anim = state.drawAnimations[i];
@@ -775,64 +852,102 @@ function drawHandArea(renderer, ctx, state) {
         const isDragged = state.draggedCard && state.draggedCard.uuid === card.uuid;
         if (isDragged) continue;
 
-        const hoverOffset = isSelected ? -20 : 0;
-        drawCard(ctx, card, x, y + hoverOffset, layout.cardW, layout.cardH, state);
+        const hoverOffset = isSelected ? -15 : 0;
+        drawCard(ctx, card, x, y + hoverOffset, layout.cardW, layout.cardH, state, { isHovered: isSelected });
     }
 }
 
 function drawCard(ctx, card, x, y, w, h, state, options = {}) {
-    const { ghost = false, highlight = false } = options;
+    const { ghost = false, highlight = false, isHovered = false } = options;
+    const t = state.animTime || 0;
 
     ctx.save();
     if (ghost) ctx.globalAlpha = 0.5;
 
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 4;
+    // 悬浮放大
+    if (isHovered) {
+        const hoverScale = 1.03;
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        ctx.translate(cx, cy);
+        ctx.scale(hoverScale, hoverScale);
+        ctx.translate(-cx, -cy);
+    }
 
+    // 阴影
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = isHovered ? 20 : 12;
+    ctx.shadowOffsetY = isHovered ? 8 : 5;
+
+    // 稀有度光效背景
+    const rarity = card.rarity || 'white';
+    if (rarity === 'gold') {
+        const pulse = Math.sin(t * 2.5) * 0.3 + 0.7;
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 15 * pulse;
+    } else if (rarity === 'blue') {
+        ctx.shadowColor = '#4488ff';
+        ctx.shadowBlur = 10;
+    }
+
+    // 卡牌主体 - 圆角矩形
     const grad = ctx.createLinearGradient(x, y, x, y + h);
     grad.addColorStop(0, card.color);
-    grad.addColorStop(1, darkenColor(card.color, -30));
+    grad.addColorStop(1, darkenColor(card.color, -35));
     ctx.fillStyle = grad;
-    ctx.fillRect(x, y, w, h);
+    roundRect(ctx, x, y, w, h, 10);
+    ctx.fill();
 
-    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
+    // 边框
     ctx.strokeStyle = highlight ? '#fff' : card.accentColor;
     ctx.lineWidth = highlight ? 3 : 2;
-    ctx.strokeRect(x, y, w, h);
+    roundRect(ctx, x, y, w, h, 10);
+    ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    // 内框装饰
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(x + 6, y + 6, w - 12, h - 12);
+    roundRect(ctx, x + 6, y + 6, w - 12, h - 12, 6);
+    ctx.stroke();
 
+    // 图标区域
     const artY = y + 10;
     const artH = 70;
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(x + 10, artY, w - 20, artH);
+    roundRect(ctx, x + 10, artY, w - 20, artH, 6);
+    ctx.fill();
 
     drawCardIcon(ctx, card.iconType, x + w / 2, artY + artH / 2, 50);
 
+    // 名称
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 16px Microsoft YaHei';
     ctx.textAlign = 'center';
     ctx.fillText(card.name, x + w / 2, y + 105);
 
+    // 数值
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 28px Microsoft YaHei';
     ctx.fillText(getCardBaseValue(card), x + w / 2, y + 140);
 
+    // 词条标签
     let tagY = y + 155;
     for (const kw of card.keywords) {
         const kwData = KEYWORDS[kw];
         if (!kwData) continue;
         const tagW = ctx.measureText(kwData.name).width + 12;
         const tagX = x + (w - tagW) / 2;
-        ctx.fillStyle = kwData.color + '33';
+
+        ctx.fillStyle = kwData.color + '22';
         ctx.strokeStyle = kwData.color;
         ctx.lineWidth = 1;
-        ctx.fillRect(tagX, tagY, tagW, 18);
-        ctx.strokeRect(tagX, tagY, tagW, 18);
+        roundRect(ctx, tagX, tagY, tagW, 18, 3);
+        ctx.fill();
+        ctx.stroke();
+
         ctx.fillStyle = kwData.color;
         ctx.font = '11px Microsoft YaHei';
         ctx.textAlign = 'center';
@@ -840,10 +955,21 @@ function drawCard(ctx, card, x, y, w, h, state, options = {}) {
         tagY += 22;
     }
 
+    // 格子数
     ctx.fillStyle = '#aaa';
     ctx.font = '11px Microsoft YaHei';
     ctx.textAlign = 'right';
     ctx.fillText(`${card.size}格`, x + w - 10, y + h - 10);
+
+    // 稀有度光效覆盖
+    if (rarity === 'gold') {
+        const pulse = Math.sin(t * 2.5) * 0.3 + 0.7;
+        const g = ctx.createRadialGradient(x + w / 2, y + h / 2, w * 0.3, x + w / 2, y + h / 2, w * 0.7);
+        g.addColorStop(0, `rgba(255,215,0,${0.1 * pulse})`);
+        g.addColorStop(1, `rgba(255,215,0,0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+    }
 
     ctx.restore();
 }
@@ -851,9 +977,9 @@ function drawCard(ctx, card, x, y, w, h, state, options = {}) {
 function drawCardIcon(ctx, type, cx, cy, size) {
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 2.5;
 
     switch (type) {
         case 'sword':
@@ -959,68 +1085,129 @@ function drawCardIcon(ctx, type, cx, cy, size) {
     ctx.restore();
 }
 
-function drawUI(renderer, ctx, state) {
-    const btnX = renderer.width - 160;
-    const btnY = renderer.height - 90;
-    const btnW = 140;
-    const btnH = 50;
+// ============================================================
+// UI
+// ============================================================
 
+function drawUI(renderer, ctx, state) {
     const totalDmg = calculateTotalBoardDamage(state);
     const canKill = totalDmg >= state.monster.hp && state.phase === 'playing';
-    ctx.fillStyle = canKill ? 'rgba(40,100,40,0.9)' :
-                    state.phase === 'playing' ? 'rgba(80,40,40,0.9)' : 'rgba(60,60,60,0.5)';
-    ctx.strokeStyle = canKill ? '#66cc66' :
-                      state.phase === 'playing' ? '#cc6666' : '#555';
-    ctx.lineWidth = canKill ? 3 : 2;
-    ctx.fillRect(btnX, btnY, btnW, btnH);
-    ctx.strokeRect(btnX, btnY, btnW, btnH);
 
-    ctx.fillStyle = canKill ? '#ccffcc' :
-                    state.phase === 'playing' ? '#ffcccc' : '#888';
-    ctx.font = 'bold 18px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText(canKill ? '✓ 结束回合（击杀）' : '结束回合', btnX + btnW / 2, btnY + 32);
+    // 结束回合按钮
+    const btnX = renderer.width - 170;
+    const btnY = renderer.height - 95;
+    const btnW = 150;
+    const btnH = 55;
 
+    const btnText = canKill ? '✓ 结束回合（击杀）' : '结束回合';
+    const btnOptions = {
+        hover: false,
+        primary: canKill,
+        disabled: state.phase !== 'playing',
+        radius: 10,
+        fontSize: 16,
+        glow: canKill
+    };
+
+    drawButton(ctx, btnX, btnY, btnW, btnH, btnText, btnOptions);
+
+    // 伤害预览面板
     if (state.phase === 'playing') {
-        if (totalDmg >= state.monster.hp) {
+        const panelW = 320;
+        const panelH = 50;
+        const panelX = renderer.width / 2 - panelW / 2;
+        const panelY = renderer.height - 55;
+
+        if (canKill) {
+            drawParchment(ctx, panelX, panelY, panelW, panelH, { alpha: 0.8, radius: 8 });
+            drawMetalFrame(ctx, panelX, panelY, panelW, panelH, { color: '#2ecc71', glowColor: '#2ecc71', radius: 8 });
+
             ctx.fillStyle = '#2ecc71';
             ctx.font = 'bold 16px Microsoft YaHei';
-            ctx.fillText('✓ 已达成目标！点击结束回合', renderer.width / 2, renderer.height - 30);
+            ctx.textAlign = 'center';
+            ctx.fillText('✓ 已达成目标！点击结束回合', renderer.width / 2, panelY + 30);
         } else {
             const need = state.monster.hp - totalDmg;
+            drawParchment(ctx, panelX, panelY, panelW, panelH, { alpha: 0.6, radius: 8 });
+            drawMetalFrame(ctx, panelX, panelY, panelW, panelH, { color: '#554433', radius: 8 });
+
             ctx.fillStyle = '#e74c3c';
             ctx.font = '14px Microsoft YaHei';
-            ctx.fillText(`还需 ${need} 伤害`, renderer.width / 2, renderer.height - 30);
+            ctx.textAlign = 'center';
+            ctx.fillText(`还需 ${need} 伤害`, renderer.width / 2, panelY + 30);
         }
     }
 }
+
+// ============================================================
+// 特效层
+// ============================================================
 
 function drawMonsterFlash(renderer, ctx, state) {
     if (state.monsterFlash > 0) {
         const mx = renderer.width * 0.5;
         const my = 120;
-        const alpha = state.monsterFlash / 15 * 0.5;
-        ctx.fillStyle = `rgba(255,0,0,${alpha})`;
-        ctx.beginPath();
-        ctx.ellipse(mx, my + 10, 80, 70, 0, 0, Math.PI * 2);
-        ctx.fill();
+        const alpha = state.monsterFlash / 15 * 0.6;
+
+        // 闪光
+        const grad = ctx.createRadialGradient(mx, my + 10, 0, mx, my + 10, 120);
+        grad.addColorStop(0, `rgba(255,100,50,${alpha})`);
+        grad.addColorStop(0.5, `rgba(255,50,0,${alpha * 0.5})`);
+        grad.addColorStop(1, 'rgba(255,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(mx - 120, my - 110, 240, 240);
+
         state.monsterFlash--;
+
+        // 结束时触发粒子
+        if (state.monsterFlash === 0) {
+            FX.spawnMonsterHit(mx, my + 20);
+        }
     }
 }
 
 function drawDragCard(renderer, ctx, state) {
     if (!state.draggedCard) return;
     const card = state.draggedCard;
-    drawCard(ctx, card, state.dragX - 70, state.dragY - 100, 140, 200, state, { highlight: true });
+
+    // 拖拽倾斜
+    ctx.save();
+    const tiltX = (state.dragX - renderer.width / 2) / renderer.width * 10;
+    ctx.translate(state.dragX, state.dragY);
+    ctx.rotate(tiltX * Math.PI / 180);
+    ctx.translate(-70, -100);
+
+    drawCard(ctx, card, 0, 0, 140, 200, state, { highlight: true });
+
+    // 拖拽光效
+    const rgb = hexToRgb(card.color);
+    const g = ctx.createRadialGradient(70, 100, 20, 70, 100, 100);
+    g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.2)`);
+    g.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(-30, -30, 200, 260);
+
+    ctx.restore();
 }
 
 function drawSlotFlashes(renderer, ctx, state) {
     for (let i = state.slotFlashes.length - 1; i >= 0; i--) {
         const flash = state.slotFlashes[i];
         const r = getSlotRect(renderer, flash.slotIndex, state.slots.length);
-        const alpha = flash.timer / 20 * 0.4;
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        const alpha = flash.timer / 20 * 0.5;
+
+        // 闪光效果
+        const grad = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, 0, r.x + r.w / 2, r.y + r.h / 2, r.w);
+        grad.addColorStop(0, `rgba(255,255,255,${alpha})`);
+        grad.addColorStop(1, `rgba(255,255,255,0)`);
+        ctx.fillStyle = grad;
         ctx.fillRect(r.x, r.y, r.w, r.h);
+
+        // 边缘高亮
+        ctx.strokeStyle = `rgba(255,255,200,${alpha * 1.5})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(r.x, r.y, r.w, r.h);
+
         flash.timer--;
         if (flash.timer <= 0) {
             state.slotFlashes.splice(i, 1);
@@ -1034,28 +1221,39 @@ function drawPreview(renderer, ctx, state) {
     if (!preview) return;
 
     const mx = renderer.width / 2;
-    const my = 180;
-    ctx.fillStyle = preview.willKill ? 'rgba(46,204,113,0.2)' : 'rgba(255,255,255,0.1)';
-    ctx.fillRect(mx - 150, my - 30, 300, 60);
+    const my = 200;
+
+    ctx.fillStyle = preview.willKill ? 'rgba(46,204,113,0.15)' : 'rgba(255,255,255,0.08)';
+    roundRect(ctx, mx - 150, my - 25, 300, 50, 8);
+    ctx.fill();
+
+    ctx.strokeStyle = preview.willKill ? 'rgba(46,204,113,0.4)' : 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, mx - 150, my - 25, 300, 50, 8);
+    ctx.stroke();
 
     ctx.fillStyle = preview.willKill ? '#2ecc71' : '#ffd700';
-    ctx.font = 'bold 16px Microsoft YaHei';
+    ctx.font = 'bold 15px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText(`预计伤害: ${preview.cardOutput} | 总计: ${preview.totalDamage}`, mx, my - 5);
+    ctx.fillText(`预计伤害: ${preview.cardOutput} | 总计: ${preview.totalDamage}`, mx, my);
 
     if (preview.willKill) {
         ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 14px Microsoft YaHei';
         ctx.fillText('☠️ 这将击杀怪物！', mx, my + 20);
     } else {
         ctx.fillStyle = '#ff8888';
+        ctx.font = '13px Microsoft YaHei';
         ctx.fillText(`怪物剩余: ${preview.monsterRemaining}`, mx, my + 20);
     }
 }
 
-// ===== 位置工具 =====
+// ============================================================
+// 位置工具
+// ============================================================
 
 export function getEndTurnButtonRect(renderer) {
-    return { x: renderer.width - 160, y: renderer.height - 90, w: 140, h: 50 };
+    return { x: renderer.width - 170, y: renderer.height - 95, w: 150, h: 55 };
 }
 
 function getHandLayout(renderer, total) {
@@ -1119,4 +1317,13 @@ export function getHandCardIndexAt(renderer, px, py, handLength) {
         }
     }
     return null;
+}
+
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 255, g: 255, b: 255 };
 }

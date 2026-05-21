@@ -278,24 +278,28 @@ export function drawPostBattle(renderer, ctx, state) {
     drawBackground(ctx, renderer.width, renderer.height, renderer.animTime);
     const data = state.data;
     const cx = renderer.width / 2;
-    const cy = renderer.height / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, renderer.width, renderer.height);
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 32px Microsoft YaHei';
-    ctx.textAlign = 'center';
-
     let title = '战后休整';
     if (data.type === 'treasure') title = '遗物宝箱';
     else if (data.type === 'shop_choice') title = '选择你的前路';
-    ctx.fillText(title, cx, 100);
+
+    drawGlowText(ctx, title, cx, 100, {
+        color: '#ffd700',
+        glowColor: '#b8860b',
+        glowBlur: 15,
+        font: 'bold 34px Microsoft YaHei',
+        align: 'center'
+    });
 
     if (data.soulsGained !== undefined) {
+        drawSoulIcon(ctx, cx - 80, 135, 18);
         ctx.fillStyle = '#aaa';
         ctx.font = '18px Microsoft YaHei';
-        ctx.fillText(`获得 ${data.soulsGained} 魂 | 累计: ${data.runData.souls} 魂`, cx, 140);
+        ctx.textAlign = 'center';
+        ctx.fillText(`获得 ${data.soulsGained} 魂 | 累计: ${data.runData.souls} 魂`, cx + 10, 140);
     }
 
     state.data.optionRects = [];
@@ -324,11 +328,19 @@ function drawEventOptions(renderer, ctx, state, options) {
         const y = startY;
         const isHover = state.data.hoverOption === i;
 
-        ctx.fillStyle = isHover ? 'rgba(50,40,60,0.95)' : 'rgba(40,30,50,0.9)';
+        const alpha = isHover ? 0.95 : 0.85;
+        ctx.globalAlpha = alpha;
+        const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+        grad.addColorStop(0, isHover ? '#3a2a4a' : '#2a1a3a');
+        grad.addColorStop(1, isHover ? '#1a0a2a' : '#0d0515');
+        ctx.fillStyle = grad;
+        roundRect(ctx, x, y, cardW, cardH, 14);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
         ctx.strokeStyle = isHover ? '#aa77cc' : '#664488';
         ctx.lineWidth = isHover ? 3 : 2;
-        roundRect(ctx, x, y, cardW, cardH, 12);
-        ctx.fill();
+        roundRect(ctx, x, y, cardW, cardH, 14);
         ctx.stroke();
 
         ctx.fillStyle = '#aa77cc';
@@ -359,13 +371,19 @@ function drawTreasureOption(renderer, ctx, state, relic) {
     const w = 300;
     const h = 300;
     const isHover = state.data.hoverTreasure;
+    const t = renderer.animTime;
 
-    ctx.fillStyle = isHover ? 'rgba(80,60,20,0.95)' : 'rgba(60,45,15,0.9)';
-    ctx.strokeStyle = isHover ? '#ffd700' : '#b8860b';
-    ctx.lineWidth = isHover ? 4 : 3;
-    roundRect(ctx, x, y, w, h, 16);
-    ctx.fill();
-    ctx.stroke();
+    if (isHover) {
+        const pulse = Math.sin(t * 3) * 0.3 + 0.7;
+        const g = ctx.createRadialGradient(cx, y + h / 2, w * 0.3, cx, y + h / 2, w);
+        g.addColorStop(0, `rgba(255,215,0,${0.3 * pulse})`);
+        g.addColorStop(1, 'rgba(255,215,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - 20, y - 20, w + 40, h + 40);
+    }
+
+    drawStoneTile(ctx, x, y, w, h, { highlight: isHover, glowColor: isHover ? '#ffd700' : null });
+    drawMetalFrame(ctx, x, y, w, h, { color: isHover ? '#ffd700' : '#b8860b', thickness: 3, radius: 16 });
 
     ctx.fillStyle = '#ffd700';
     ctx.font = '80px serif';
@@ -394,11 +412,19 @@ function drawShopChoiceOptions(renderer, ctx, state, options) {
         const y = startY;
         const isHover = state.data.hoverOption === i;
 
-        ctx.fillStyle = isHover ? 'rgba(40,50,60,0.95)' : 'rgba(30,40,50,0.9)';
+        const alpha = isHover ? 0.95 : 0.85;
+        ctx.globalAlpha = alpha;
+        const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+        grad.addColorStop(0, isHover ? '#2a3040' : '#1a2030');
+        grad.addColorStop(1, isHover ? '#0d1520' : '#0a0f18');
+        ctx.fillStyle = grad;
+        roundRect(ctx, x, y, cardW, cardH, 12);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
         ctx.strokeStyle = isHover ? '#66aadd' : '#445577';
         ctx.lineWidth = isHover ? 3 : 2;
         roundRect(ctx, x, y, cardW, cardH, 12);
-        ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = '#fff';
@@ -427,10 +453,13 @@ export function drawCardPick(renderer, ctx, state) {
     const data = state.data;
     const cx = renderer.width / 2;
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 32px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText('选择一张卡牌加入牌组', cx, 80);
+    drawGlowText(ctx, '选择一张卡牌加入牌组', cx, 80, {
+        color: '#ffd700',
+        glowColor: '#b8860b',
+        glowBlur: 12,
+        font: 'bold 32px Microsoft YaHei',
+        align: 'center'
+    });
 
     ctx.fillStyle = '#aaa';
     ctx.font = '18px Microsoft YaHei';
@@ -525,10 +554,13 @@ export function drawCardSelect(renderer, ctx, state) {
     const data = state.data;
     const cx = renderer.width / 2;
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 28px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText(data.title || '选择一张卡牌', cx, 80);
+    drawGlowText(ctx, data.title || '选择一张卡牌', cx, 80, {
+        color: '#ffd700',
+        glowColor: '#b8860b',
+        glowBlur: 10,
+        font: 'bold 28px Microsoft YaHei',
+        align: 'center'
+    });
 
     ctx.fillStyle = '#aaa';
     ctx.font = '16px Microsoft YaHei';
@@ -653,16 +685,24 @@ export function drawShop(renderer, ctx, state) {
     const stock = data.stock;
     const cx = renderer.width / 2;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(0, 0, renderer.width, 70);
+    drawParchment(ctx, 0, 0, renderer.width, 70, { alpha: 0.5, radius: 0 });
+    ctx.strokeStyle = 'rgba(180,150,100,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 70);
+    ctx.lineTo(renderer.width, 70);
+    ctx.stroke();
+
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 24px Microsoft YaHei';
     ctx.textAlign = 'left';
     ctx.fillText('🏪 牌店', 30, 45);
+
+    drawSoulIcon(ctx, renderer.width - 180, 35, 20);
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`💀 ${runData.souls} 魂`, renderer.width - 30, 45);
+    ctx.fillText(`${runData.souls} 魂`, renderer.width - 30, 45);
 
     state.data.shopItemRects = [];
 
@@ -784,16 +824,24 @@ export function drawBlacksmith(renderer, ctx, state) {
     data.stock = stock;
     const cx = renderer.width / 2;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(0, 0, renderer.width, 70);
+    drawParchment(ctx, 0, 0, renderer.width, 70, { alpha: 0.5, radius: 0 });
+    ctx.strokeStyle = 'rgba(180,150,100,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 70);
+    ctx.lineTo(renderer.width, 70);
+    ctx.stroke();
+
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 24px Microsoft YaHei';
     ctx.textAlign = 'left';
     ctx.fillText('🔨 铁匠铺', 30, 45);
+
+    drawSoulIcon(ctx, renderer.width - 180, 35, 20);
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`💀 ${runData.souls} 魂`, renderer.width - 30, 45);
+    ctx.fillText(`${runData.souls} 魂`, renderer.width - 30, 45);
 
     state.data.blacksmithRects = [];
 
@@ -907,17 +955,16 @@ export function drawEvent(renderer, ctx, state) {
     const x = cx - cardW / 2;
     const y = cy - cardH / 2 - 30;
 
-    ctx.fillStyle = 'rgba(40,30,50,0.95)';
-    ctx.strokeStyle = '#664488';
-    ctx.lineWidth = 3;
-    roundRect(ctx, x, y, cardW, cardH, 16);
-    ctx.fill();
-    ctx.stroke();
+    drawParchment(ctx, x, y, cardW, cardH, { alpha: 0.95, radius: 16 });
+    drawMetalFrame(ctx, x, y, cardW, cardH, { color: '#664488', thickness: 3, radius: 16 });
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 32px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText(data.eventName, cx, y + 60);
+    drawGlowText(ctx, data.eventName, cx, y + 60, {
+        color: '#ffd700',
+        glowColor: '#b8860b',
+        glowBlur: 12,
+        font: 'bold 32px Microsoft YaHei',
+        align: 'center'
+    });
 
     ctx.fillStyle = '#aaa';
     ctx.font = '18px Microsoft YaHei';
@@ -936,17 +983,12 @@ export function drawEvent(renderer, ctx, state) {
         const bx = btnStartX + i * (btnW + btnGap);
         const isHover = state.data.hoverEventOption === i;
 
-        ctx.fillStyle = isHover ? 'rgba(60,50,80,0.95)' : 'rgba(50,40,70,0.9)';
-        ctx.strokeStyle = isHover ? '#aa77cc' : '#664488';
-        ctx.lineWidth = isHover ? 3 : 2;
-        roundRect(ctx, bx, btnY, btnW, btnH, 10);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = isHover ? '#ffcc88' : '#ccc';
-        ctx.font = 'bold 18px Microsoft YaHei';
-        ctx.textAlign = 'center';
-        ctx.fillText(options[i], bx + btnW / 2, btnY + 33);
+        drawButton(ctx, bx, btnY, btnW, btnH, options[i], {
+            hover: isHover,
+            primary: i === 0,
+            radius: 10,
+            fontSize: 18
+        });
 
         state.data.eventOptionRects.push({ x: bx, y: btnY, w: btnW, h: btnH, index: i, text: options[i] });
     }

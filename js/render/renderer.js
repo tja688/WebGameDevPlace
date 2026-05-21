@@ -11,6 +11,7 @@ import {
     drawEvent, drawTreasure, drawActTransition, drawVictory,
     drawGameOver, drawMessages
 } from './screens.js';
+import { FX } from './fx.js';
 
 export const Renderer = {
     canvas: null,
@@ -42,6 +43,9 @@ export const Renderer = {
         this.animTime += 0.016;
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.width, this.height);
+        
+        FX.update();
+        FX.screenShake.apply(ctx);
 
         switch (state.screen) {
             case 'title': drawTitle(this, ctx, state); break;
@@ -60,6 +64,8 @@ export const Renderer = {
             case 'game_over': drawGameOver(this, ctx, state); break;
         }
 
+        FX.screenShake.restore(ctx);
+        FX.drawPost(ctx);
         drawMessages(ctx, state, this.width, this.height);
     }
 };

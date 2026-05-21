@@ -5,7 +5,7 @@
 }
 
 body {
-    background: #1a1a2e;
+    background: #0a0610;
     color: #eee;
     font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
     overflow: hidden;
@@ -27,7 +27,7 @@ body {
 
 #gameCanvas {
     background: #0d0d1a;
-    box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    box-shadow: 0 0 60px rgba(0,0,0,0.9);
 }
 
 #ui-overlay {
@@ -47,36 +47,39 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     font-size: 20px;
-    background: rgba(30,30,50,0.9);
+    background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2a 100%);
     border: 2px solid #555;
-    border-radius: 8px;
+    border-radius: 10px;
     color: #fff;
     cursor: pointer;
     z-index: 100;
     transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 #btn-toggle-debug:hover {
-    background: rgba(50,50,80,0.95);
+    background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
     border-color: #888;
+    box-shadow: 0 4px 16px rgba(255,255,255,0.1);
 }
 
 #debug-panel {
     position: absolute;
-    top: 60px;
+    top: 64px;
     right: 10px;
-    width: 320px;
+    width: 340px;
     max-height: 80vh;
     overflow-y: auto;
-    background: rgba(15,15,30,0.95);
-    border: 2px solid #444;
-    border-radius: 12px;
-    padding: 16px;
+    background: rgba(15,12,20,0.95);
+    border: 2px solid #443322;
+    border-radius: 14px;
+    padding: 18px;
     z-index: 99;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
 
 #debug-panel.hidden {
@@ -84,74 +87,81 @@ body {
 }
 
 #debug-panel h3 {
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     color: #ffd700;
     font-size: 16px;
-    border-bottom: 1px solid #444;
-    padding-bottom: 8px;
+    border-bottom: 1px solid #443322;
+    padding-bottom: 10px;
+    text-shadow: 0 0 8px rgba(255,215,0,0.2);
 }
 
 .debug-section {
-    margin-bottom: 14px;
+    margin-bottom: 16px;
 }
 
 .debug-section label {
     display: block;
     font-size: 12px;
-    color: #aaa;
-    margin-bottom: 6px;
+    color: #998866;
+    margin-bottom: 8px;
+    font-weight: bold;
 }
 
 .debug-section button {
-    background: #2a2a4a;
-    border: 1px solid #555;
+    background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2a 100%);
+    border: 1px solid #554433;
     color: #ddd;
-    padding: 6px 12px;
-    margin: 2px;
-    border-radius: 6px;
+    padding: 7px 14px;
+    margin: 3px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 12px;
     transition: all 0.15s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 .debug-section button:hover {
-    background: #3a3a6a;
-    border-color: #888;
+    background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+    border-color: #887766;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
 }
 
 .debug-section input[type="number"] {
-    width: 50px;
+    width: 55px;
     background: #1a1a2e;
-    border: 1px solid #555;
+    border: 1px solid #554433;
     color: #fff;
-    padding: 4px 8px;
-    border-radius: 4px;
-    margin: 2px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    margin: 3px;
+    font-size: 13px;
 }
 
 #debug-log {
-    background: #0a0a15;
+    background: rgba(5,5,10,0.8);
     border: 1px solid #333;
-    border-radius: 6px;
-    padding: 8px;
+    border-radius: 8px;
+    padding: 10px;
     font-size: 11px;
     color: #888;
     max-height: 120px;
     overflow-y: auto;
     white-space: pre-wrap;
+    font-family: 'Consolas', monospace;
 }
 
 #tooltip {
     position: absolute;
-    background: rgba(20,20,40,0.95);
-    border: 2px solid #666;
-    border-radius: 10px;
-    padding: 12px 16px;
-    max-width: 280px;
+    background: rgba(35,28,18,0.96);
+    border: 2px solid #887755;
+    border-radius: 12px;
+    padding: 14px 18px;
+    max-width: 300px;
     pointer-events: none;
     z-index: 200;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-    backdrop-filter: blur(4px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(255,200,50,0.1);
+    backdrop-filter: blur(8px);
 }
 
 #tooltip.hidden {
@@ -160,25 +170,27 @@ body {
 
 #tooltip h4 {
     color: #ffd700;
-    margin-bottom: 6px;
-    font-size: 15px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    text-shadow: 0 0 6px rgba(255,215,0,0.2);
 }
 
 #tooltip p {
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #ccc;
 }
 
 #tooltip .keyword-tag {
     display: inline-block;
-    background: #3a2a1a;
+    background: rgba(60,45,25,0.8);
     border: 1px solid #886644;
     color: #ffcc88;
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: 5px;
     font-size: 12px;
-    margin: 2px 4px 2px 0;
+    margin: 3px 5px 3px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 #modal-overlay {
@@ -192,7 +204,7 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 300;
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(8px);
 }
 
 #modal-overlay.hidden {
@@ -200,20 +212,20 @@ body {
 }
 
 #modal-content {
-    background: linear-gradient(180deg, #1a1a3e 0%, #0d0d20 100%);
-    border: 3px solid #555;
-    border-radius: 20px;
-    padding: 40px 50px;
+    background: linear-gradient(180deg, #1a1520 0%, #0d0a12 100%);
+    border: 3px solid #554433;
+    border-radius: 24px;
+    padding: 50px 60px;
     text-align: center;
-    max-width: 500px;
-    box-shadow: 0 10px 60px rgba(0,0,0,0.8);
+    max-width: 520px;
+    box-shadow: 0 16px 60px rgba(0,0,0,0.8), 0 0 40px rgba(255,200,50,0.08);
 }
 
 #modal-title {
     font-size: 32px;
     margin-bottom: 16px;
     color: #ffd700;
-    text-shadow: 0 2px 10px rgba(255,215,0,0.3);
+    text-shadow: 0 2px 12px rgba(255,215,0,0.3);
 }
 
 #modal-text {
@@ -224,7 +236,7 @@ body {
 }
 
 #modal-buttons button {
-    background: linear-gradient(180deg, #3a3a6a 0%, #2a2a4a 100%);
+    background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
     border: 2px solid #666;
     color: #fff;
     padding: 14px 36px;
@@ -234,12 +246,14 @@ body {
     margin: 0 8px;
     transition: all 0.2s;
     font-family: inherit;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
 #modal-buttons button:hover {
-    background: linear-gradient(180deg, #4a4a8a 0%, #3a3a6a 100%);
+    background: linear-gradient(180deg, #4a4a7a 0%, #3a3a6a 100%);
     border-color: #888;
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
 #modal-buttons button.primary {
@@ -344,10 +358,12 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     font-family: inherit;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
 }
 
 #btn-start:hover {
     background: linear-gradient(180deg, #8a4a4a 0%, #6a3a3a 100%);
     border-color: #cc8888;
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
