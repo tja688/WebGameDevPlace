@@ -41,38 +41,29 @@
             </div>
         </div>
         <canvas id="gameCanvas"></canvas>
+        <!-- BGM 音频 -->
+        <audio id="bgm-normal" src="Airship Serenity.ogg" preload="auto" loop></audio>
+        <audio id="bgm-boss" src="Pixel Peeker Polka - slower.ogg" preload="auto" loop></audio>
+
         <div id="ui-overlay">
-            <div id="debug-panel" class="hidden">
-                <h3>🛠️ 调试/自动测试</h3>
-                <div class="debug-section">
-                    <label>自动操作:</label>
-                    <button id="btn-auto-play">自动打出最优解</button>
-                    <button id="btn-auto-end">自动结束回合</button>
-                </div>
-                <div class="debug-section">
-                    <label>手牌作弊:</label>
-                    <button id="btn-cheat-hand">指定手牌</button>
-                    <button id="btn-refill-deck">补满牌库</button>
-                </div>
-                <div class="debug-section">
-                    <label>数值调整:</label>
-                    <button id="btn-kill-monster">秒杀怪物</button>
-                    <button id="btn-heal-player">回满生命</button>
-                    <button id="btn-reset-battle">重置战斗</button>
-                </div>
-                <div class="debug-section">
-                    <label>倍率调整:</label>
-                    <input type="number" id="slot0-mul" value="1" min="1" max="10">
-                    <input type="number" id="slot1-mul" value="2" min="1" max="10">
-                    <input type="number" id="slot2-mul" value="1" min="1" max="10">
-                    <button id="btn-set-mul">设置倍率</button>
-                </div>
-                <div class="debug-section">
-                    <label>日志:</label>
-                    <div id="debug-log"></div>
+            <div id="keyword-panel" class="hidden">
+                <h3>📖 词条说明书</h3>
+                <div id="keyword-list"></div>
+                <div class="volume-section">
+                    <h4>🔊 音量控制</h4>
+                    <div class="volume-row">
+                        <label>背景音乐</label>
+                        <input type="range" id="bgm-volume" min="0" max="100" value="50">
+                        <span id="bgm-volume-val">50%</span>
+                    </div>
+                    <div class="volume-row">
+                        <label>游戏音效</label>
+                        <input type="range" id="sfx-volume" min="0" max="100" value="70">
+                        <span id="sfx-volume-val">70%</span>
+                    </div>
                 </div>
             </div>
-            <button id="btn-toggle-debug" title="调试面板">🛠️</button>
+            <button id="btn-toggle-keyword" title="词条说明书">📖</button>
         </div>
         <div id="tooltip" class="hidden"></div>
         <div id="modal-overlay" class="hidden">

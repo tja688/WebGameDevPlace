@@ -9,6 +9,7 @@ import { Renderer } from './render/renderer.js';
 import { initBattleFromRun } from './systems/battle.js';
 import { GameAudio } from './audio.js';
 import { FX as RenderFX } from './render/fx.js';
+import { KEYWORDS } from './data/index.js';
 
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
@@ -18,11 +19,14 @@ window.RenderFX = RenderFX;
 import './effects/index.js';
 
 window.gameState = null;
+let _lastScreen = null;
 
 function init() {
     Renderer.init('gameCanvas');
     GameAudio.init();
+    initKeywordPanel();
     bindKeys();
+    bindVolumeControls();
 
     window.gameState = createGameState('title');
     Input.init(window.gameState, Renderer);
@@ -34,12 +38,25 @@ function init() {
     requestAnimationFrame(gameLoop);
 }
 
+function initKeywordPanel() {
+    const list = document.getElementById('keyword-list');
+    if (!list) return;
+    let html = '';
+    for (const [key, data] of Object.entries(KEYWORDS)) {
+        html += `<div class="keyword-entry" style="border-left-color:${data.color}">`;
+        html += `<h5 style="color:${data.color}">${data.name}</h5>`;
+        html += `<p>${data.desc}</p>`;
+        html += `</div>`;
+    }
+    list.innerHTML = html;
+}
+
 function bindKeys() {
     document.addEventListener('keydown', e => {
         if (!window.gameState) return;
 
         if (e.key === 'd' || e.key === 'D') {
-            document.getElementById('debug-panel').classList.toggle('hidden');
+            document.getElementById('keyword-panel').classList.toggle('hidden');
         }
 
         if (window.gameState.screen === 'battle') {
@@ -67,8 +84,47 @@ function bindKeys() {
     });
 }
 
+function bindVolumeControls() {
+    const bgmSlider = document.getElementById('bgm-volume');
+    const sfxSlider = document.getElementById('sfx-volume');
+    const bgmVal = document.getElementById('bgm-volume-val');
+    const sfxVal = document.getElementById('sfx-volume-val');
+
+    if (bgmSlider) {
+        bgmSlider.addEventListener('input', e => {
+            const val = parseInt(e.target.value);
+            if (bgmVal) bgmVal.textContent = val + '%';
+            if (typeof GameAudio !== 'undefined') GameAudio.setBGMVolume(val / 100);
+        });
+    }
+    if (sfxSlider) {
+        sfxSlider.addEventListener('input', e => {
+            const val = parseInt(e.target.value);
+            if (sfxVal) sfxVal.textContent = val + '%';
+            if (typeof GameAudio !== 'undefined') GameAudio.setSFXVolume(val / 100);
+        });
+    }
+
+    // 书本按钮切换词条面板
+    const btn = document.getElementById('btn-toggle-keyword');
+    const panel = document.getElementById('keyword-panel');
+    if (btn && panel) {
+        btn.addEventListener('click', () => {
+            panel.classList.toggle('hidden');
+        });
+    }
+}
+
 function gameLoop() {
     if (window.gameState) {
+        // BGM 自动切换：非战斗界面播放平时音乐
+        if (window.gameState.screen !== _lastScreen) {
+            if (window.gameState.screen !== 'battle' && typeof GameAudio !== 'undefined') {
+                GameAudio.playBGM('normal');
+            }
+            _lastScreen = window.gameState.screen;
+        }
+
         Renderer.render(window.gameState);
 
         if (window.gameState.messageTimer > 0) {

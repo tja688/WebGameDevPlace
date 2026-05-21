@@ -1,21 +1,50 @@
 /**
- * 卡牌地下城 - 增强音效系统（Web Audio API）
+ * 卡牌地下城 - 增强音效系统（Web Audio API + BGM）
  */
 
 export const GameAudio = {
     ctx: null,
     enabled: true,
     masterGain: null,
+    sfxGain: null,
+    bgmGain: null,
+    sfxVolume: 0.7,
+    bgmVolume: 0.5,
+
+    // BGM 元素
+    bgmNormal: null,
+    bgmBoss: null,
+    currentBGM: null,
 
     init() {
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.masterGain = this.ctx.createGain();
-            this.masterGain.gain.value = 0.7;
+            this.masterGain.gain.value = 1.0;
             this.masterGain.connect(this.ctx.destination);
+
+            this.sfxGain = this.ctx.createGain();
+            this.sfxGain.gain.value = this.sfxVolume;
+            this.sfxGain.connect(this.masterGain);
+
+            this.bgmGain = this.ctx.createGain();
+            this.bgmGain.gain.value = this.bgmVolume;
+            this.bgmGain.connect(this.masterGain);
         } catch (e) {
             console.warn('Web Audio API not supported');
             this.enabled = false;
+        }
+
+        // 绑定 BGM 音频元素
+        this.bgmNormal = document.getElementById('bgm-normal');
+        this.bgmBoss = document.getElementById('bgm-boss');
+        if (this.bgmNormal) {
+            this.bgmNormal.loop = true;
+            this.bgmNormal.volume = this.bgmVolume;
+        }
+        if (this.bgmBoss) {
+            this.bgmBoss.loop = true;
+            this.bgmBoss.volume = this.bgmVolume;
         }
     },
 
@@ -25,6 +54,66 @@ export const GameAudio = {
         }
     },
 
+    // ===== 音量控制 =====
+    setSFXVolume(val) {
+        this.sfxVolume = Math.max(0, Math.min(1, val));
+        if (this.sfxGain) {
+            this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+        }
+    },
+
+    setBGMVolume(val) {
+        this.bgmVolume = Math.max(0, Math.min(1, val));
+        if (this.bgmNormal) this.bgmNormal.volume = this.bgmVolume;
+        if (this.bgmBoss) this.bgmBoss.volume = this.bgmVolume;
+    },
+
+    // ===== BGM 播放 =====
+    playBGM(type) {
+        if (!this.enabled) return;
+        const target = type === 'boss' ? this.bgmBoss : this.bgmNormal;
+        const other = type === 'boss' ? this.bgmNormal : this.bgmBoss;
+        if (!target) return;
+
+        // 淡出其他音乐
+        if (other && !other.paused) {
+            this._fadeOut(other, 800);
+        }
+
+        // 播放目标音乐
+        if (target.paused || this.currentBGM !== target) {
+            target.currentTime = 0;
+            target.volume = this.bgmVolume;
+            const playPromise = target.play();
+            if (playPromise) playPromise.catch(() => {});
+            this.currentBGM = target;
+        }
+    },
+
+    stopBGM() {
+        if (this.bgmNormal) { this.bgmNormal.pause(); this.bgmNormal.currentTime = 0; }
+        if (this.bgmBoss) { this.bgmBoss.pause(); this.bgmBoss.currentTime = 0; }
+        this.currentBGM = null;
+    },
+
+    _fadeOut(audioEl, duration) {
+        if (!audioEl || audioEl.paused) return;
+        const startVol = audioEl.volume;
+        const steps = 20;
+        const stepTime = duration / steps;
+        let step = 0;
+        const interval = setInterval(() => {
+            step++;
+            audioEl.volume = Math.max(0, startVol * (1 - step / steps));
+            if (step >= steps) {
+                clearInterval(interval);
+                audioEl.pause();
+                audioEl.volume = startVol;
+            }
+        }, stepTime);
+    },
+
+    // ===== 核心播放 =====
     playTone(freq, duration, type = 'sine', vol = 0.08, delay = 0) {
         if (!this.enabled || !this.ctx) return;
         this.resume();
@@ -33,19 +122,34 @@ export const GameAudio = {
         const gain = this.ctx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(vol, t);
+        const effectiveVol = vol * this.sfxVolume;
+        gain.gain.setValueAtTime(effectiveVol, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
         osc.connect(gain);
-        gain.connect(this.masterGain || this.ctx.destination);
+        gain.connect(this.sfxGain || this.masterGain || this.ctx.destination);
         osc.start(t);
         osc.stop(t + duration);
     },
 
-    // 和弦播放
     playChord(freqs, duration, type = 'sine', vol = 0.06) {
         freqs.forEach((f, i) => {
             this.playTone(f, duration, type, vol, i * 0.02);
         });
+    },
+
+    // ===== 堆叠递进音效 =====
+    playStackSound(stackCount) {
+        // stackCount: 放置后该格的总卡牌数
+        // 音调随堆叠数递增，带来满足感
+        const baseFreq = 440;
+        const step = 60; // 每多一张音高提升
+        const freq = baseFreq + (stackCount - 1) * step;
+        const vol = Math.min(0.12, 0.06 + stackCount * 0.01);
+
+        // 播放一个明亮向上的琶音
+        this.playTone(freq, 0.12, 'sine', vol, 0);
+        this.playTone(freq * 1.25, 0.1, 'sine', vol * 0.7, 0.04);
+        this.playTone(freq * 1.5, 0.14, 'sine', vol * 0.5, 0.08);
     },
 
     playCardPlace() {

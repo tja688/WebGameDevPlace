@@ -167,6 +167,7 @@ export const Input = {
         state.data.hoverTransitionBtn = false;
         state.data.hoverRestartBtn = false;
         state.data.hoverBack = false;
+        state.data.hoverRelic = null;
     },
 
     hitTest(pos, rect) {
@@ -885,11 +886,22 @@ export const Input = {
                 this.updatePlayerTooltip(pos.x, pos.y);
                 this._playHoverSound();
             } else {
-                this.state.selectedCard = null;
-                this.state.hoveredMonster = false;
-                this.state.hoveredEndTurn = false;
-                this.canvas.style.cursor = 'default';
-                this.hideTooltip();
+                // 检测遗物悬停
+                const relicHover = this._checkRelicHover(pos);
+                if (relicHover) {
+                    this.state.selectedCard = null;
+                    this.state.hoveredMonster = false;
+                    this.state.hoveredEndTurn = false;
+                    this.canvas.style.cursor = 'help';
+                    this.updateRelicTooltip(relicHover.relic, pos.x, pos.y);
+                    this._playHoverSound();
+                } else {
+                    this.state.selectedCard = null;
+                    this.state.hoveredMonster = false;
+                    this.state.hoveredEndTurn = false;
+                    this.canvas.style.cursor = 'default';
+                    this.hideTooltip();
+                }
             }
         }
     },
@@ -1063,6 +1075,35 @@ export const Input = {
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 300);
         const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    _checkRelicHover(pos) {
+        const relicRects = this.state.data && this.state.data.relicRects;
+        if (!relicRects) return null;
+        for (const rect of relicRects) {
+            if (this.hitTest(pos, rect)) {
+                this.state.data.hoverRelic = rect.index;
+                return rect;
+            }
+        }
+        this.state.data.hoverRelic = null;
+        return null;
+    },
+
+    updateRelicTooltip(relic, clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        if (!relic) {
+            tooltip.classList.add('hidden');
+            return;
+        }
+        let html = `<h4>${relic.name}</h4>`;
+        html += `<p style="color:#ccc">${relic.desc || relic.description || ''}</p>`;
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 320);
+        const y = Math.min(clientY + 20, window.innerHeight - 250);
         tooltip.style.left = x + 'px';
         tooltip.style.top = y + 'px';
     },

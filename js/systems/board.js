@@ -134,7 +134,11 @@ export function playCardToSlot(card, slotIndex, state) {
     }
 
     if (typeof GameAudio !== 'undefined') {
-        if (card.rarity === 'gold') {
+        const stackCount = slot.cards.length;
+        if (stackCount > 1) {
+            // 堆叠递进音效
+            GameAudio.playStackSound(stackCount);
+        } else if (card.rarity === 'gold') {
             GameAudio.playRareCard();
         } else if (card.rarity === 'blue') {
             GameAudio.playGoldSparkle();

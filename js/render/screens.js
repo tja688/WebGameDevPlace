@@ -890,7 +890,7 @@ export function drawBlacksmith(renderer, ctx, state) {
         type: 'enchant',
         name: kwData ? `附魔【${kwData.name}】` : '附魔词条',
         cost: enchantCost,
-        subText: kwData ? `选定一张卡牌添加【${kwData.name}】` : '选定卡牌添加词条'
+        subText: kwData ? `效果：${kwData.desc}` : '选定卡牌添加词条'
     });
     columns[2].items.push({
         type: 'refresh',

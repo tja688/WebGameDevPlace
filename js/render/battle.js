@@ -22,6 +22,7 @@ export function drawBattle(renderer, ctx, state) {
     FX.draw(ctx, renderer.width, renderer.height);
     drawMonsterArea(renderer, ctx, state);
     drawPlayerArea(renderer, ctx, state);
+    drawRelicsBar(renderer, ctx, state);
     drawBoardArea(renderer, ctx, state);
     drawHandArea(renderer, ctx, state);
     drawUI(renderer, ctx, state);
@@ -651,6 +652,53 @@ function drawPlayerArea(renderer, ctx, state) {
     ctx.fillStyle = '#777';
     ctx.font = '12px Microsoft YaHei';
     ctx.fillText(`牌库: ${state.deck.length} | 弃牌: ${state.discard.length}`, infoX, infoY + 66);
+}
+
+// ============================================================
+// 遗物栏（右上角，类似杀戮尖塔）
+// ============================================================
+
+function drawRelicsBar(renderer, ctx, state) {
+    const runData = state.runDataRef;
+    if (!runData || !runData.relics || runData.relics.length === 0) return;
+
+    const relics = runData.relics;
+    const iconSize = 36;
+    const gap = 6;
+    const startX = renderer.width - 20 - iconSize;
+    const startY = 20;
+
+    state.data = state.data || {};
+    state.data.relicRects = [];
+
+    for (let i = 0; i < relics.length; i++) {
+        const relic = relics[i];
+        const x = startX;
+        const y = startY + i * (iconSize + gap);
+        const isHovered = state.data.hoverRelic === i;
+
+        // 背景
+        ctx.fillStyle = isHovered ? 'rgba(80,60,30,0.95)' : 'rgba(50,40,20,0.85)';
+        roundRect(ctx, x, y, iconSize, iconSize, 6);
+        ctx.fill();
+
+        // 边框
+        ctx.strokeStyle = isHovered ? '#ffd700' : '#b8860b';
+        ctx.lineWidth = isHovered ? 2 : 1;
+        roundRect(ctx, x, y, iconSize, iconSize, 6);
+        ctx.stroke();
+
+        // 图标文字（取名字第一个字符）
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 16px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const displayChar = relic.name ? relic.name.charAt(0) : '?';
+        ctx.fillText(displayChar, x + iconSize / 2, y + iconSize / 2 + 1);
+        ctx.textBaseline = 'alphabetic';
+
+        state.data.relicRects.push({ x, y, w: iconSize, h: iconSize, index: i, relic });
+    }
 }
 
 // ============================================================

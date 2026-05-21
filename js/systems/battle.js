@@ -83,6 +83,13 @@ export function initBattleFromRun(runData) {
     };
 
     drawCards(state, 4);
+
+    // 播放对应BGM
+    if (typeof GameAudio !== 'undefined') {
+        const bgmType = monsterDef.type === 'boss' ? 'boss' : 'normal';
+        GameAudio.playBGM(bgmType);
+    }
+
     return state;
 }
 
@@ -118,6 +125,11 @@ export function endTurn(state) {
             const mx = 640;
             const my = 120;
             window.RenderFX.spawnDamage(mx, my, totalDmg, totalDmg >= state.monster.maxHp * 0.3);
+            // 屏幕晃动：溢出越多晃动越大
+            const overflow = Math.max(0, totalDmg - state.monster.hp);
+            const intensity = Math.min(18, 3 + overflow * 0.15);
+            const decay = Math.max(0.75, 0.92 - overflow * 0.002);
+            window.RenderFX.screenShake.trigger(intensity, decay);
         }
     }
 
