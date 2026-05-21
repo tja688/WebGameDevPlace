@@ -146,6 +146,8 @@ export const Input = {
 
         this.state.selectedCard = null;
         this.state.hoveredSlot = null;
+        this.state.hoveredMonster = false;
+        this.state.hoveredEndTurn = false;
     },
 
     clearAllHovers(state) {
@@ -823,6 +825,8 @@ export const Input = {
         if (this.state.phase !== 'playing') {
             this.state.selectedCard = null;
             this.state.hoveredSlot = null;
+            this.state.hoveredMonster = false;
+            this.state.hoveredEndTurn = false;
             this.canvas.style.cursor = 'default';
             this.hideTooltip();
             return;
@@ -834,22 +838,68 @@ export const Input = {
             this.state.hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
             this.canvas.style.cursor = 'grabbing';
             this.hideTooltip();
+            this.state.hoveredMonster = false;
+            this.state.hoveredEndTurn = false;
         } else {
-            this.state.hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+            const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+            this.state.hoveredSlot = slotIdx;
             const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
+            const endTurnRect = getEndTurnButtonRect(this.renderer);
+            const isOverEndTurn = this.hitTest(pos, endTurnRect);
+            const isOverMonster = pos.x >= this.renderer.width * 0.5 - 150 && pos.x <= this.renderer.width * 0.5 + 150 && pos.y >= 0 && pos.y <= 220;
+            const isOverPlayer = pos.x >= 0 && pos.x <= 200 && pos.y >= 40 && pos.y <= 240;
+
             if (handIdx !== null) {
                 this.state.selectedCard = this.state.hand[handIdx];
+                this.state.hoveredMonster = false;
+                this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'grab';
                 this.updateTooltip(this.state.hand[handIdx], pos.x, pos.y);
-            } else if (this.hitTest(pos, getEndTurnButtonRect(this.renderer))) {
+                this._playHoverSound();
+            } else if (isOverEndTurn) {
                 this.state.selectedCard = null;
+                this.state.hoveredMonster = false;
+                this.state.hoveredEndTurn = true;
                 this.canvas.style.cursor = 'pointer';
-                this.hideTooltip();
+                this.updateEndTurnTooltip(pos.x, pos.y);
+                this._playHoverSound();
+            } else if (isOverMonster) {
+                this.state.selectedCard = null;
+                this.state.hoveredMonster = true;
+                this.state.hoveredEndTurn = false;
+                this.canvas.style.cursor = 'help';
+                this.updateMonsterTooltip(pos.x, pos.y);
+                this._playHoverSound();
+            } else if (slotIdx !== null) {
+                this.state.selectedCard = null;
+                this.state.hoveredMonster = false;
+                this.state.hoveredEndTurn = false;
+                this.canvas.style.cursor = 'pointer';
+                this.updateSlotTooltip(slotIdx, pos.x, pos.y);
+                this._playHoverSound();
+            } else if (isOverPlayer) {
+                this.state.selectedCard = null;
+                this.state.hoveredMonster = false;
+                this.state.hoveredEndTurn = false;
+                this.canvas.style.cursor = 'help';
+                this.updatePlayerTooltip(pos.x, pos.y);
+                this._playHoverSound();
             } else {
                 this.state.selectedCard = null;
+                this.state.hoveredMonster = false;
+                this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'default';
                 this.hideTooltip();
             }
+        }
+    },
+
+    _lastHoverSoundTime: 0,
+    _playHoverSound() {
+        const now = Date.now();
+        if (now - this._lastHoverSoundTime > 120) {
+            this._lastHoverSoundTime = now;
+            if (typeof GameAudio !== 'undefined') GameAudio.playTooltip();
         }
     },
 
@@ -902,29 +952,119 @@ export const Input = {
             return;
         }
 
-        let html = `<h4>${card.name}</h4>`;
+        const rarityLabels = { white: '普通', blue: '稀有', gold: '传说' };
+        const rarityColors = { white: '#ccc', blue: '#4488ff', gold: '#ffd700' };
+        const rLabel = rarityLabels[card.rarity] || '';
+        const rColor = rarityColors[card.rarity] || '#ccc';
+
+        let html = `<h4>${card.name} <span style="color:${rColor};font-size:13px;font-weight:normal">[${rLabel}]</span></h4>`;
         html += `<p>基础点数: <b>${getCardBaseValue(card)}</b> | 尺寸: ${card.size}格</p>`;
-        html += `<p>${card.description}</p>`;
-        html += '<div style="margin-top:8px">';
-        for (const kw of card.keywords) {
-            const data = KEYWORDS[kw];
-            if (data) {
-                html += `<span class="keyword-tag" style="border-color:${data.color};color:${data.color};background:${data.color}22">${data.name}</span>`;
+        html += `<p style="color:#ddd">${card.description}</p>`;
+        if (card.keywords && card.keywords.length > 0) {
+            html += '<div style="margin-top:10px;border-top:1px solid #443322;padding-top:8px">';
+            html += '<p style="font-size:12px;color:#998866;margin-bottom:6px">📖 词条说明</p>';
+            for (const kw of card.keywords) {
+                const data = KEYWORDS[kw];
+                if (data) {
+                    html += `<div style="margin-bottom:6px">`;
+                    html += `<span class="keyword-tag" style="border-color:${data.color};color:${data.color};background:${data.color}22">${data.name}</span>`;
+                    html += `<span style="color:#aaa;font-size:12px;margin-left:6px">${data.desc}</span>`;
+                    html += `</div>`;
+                }
             }
+            html += '</div>';
         }
-        html += '</div>';
 
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
 
-        const x = Math.min(clientX + 20, window.innerWidth - 300);
-        const y = Math.min(clientY + 20, window.innerHeight - 200);
+        const x = Math.min(clientX + 20, window.innerWidth - 320);
+        const y = Math.min(clientY + 20, window.innerHeight - 250);
         tooltip.style.left = x + 'px';
         tooltip.style.top = y + 'px';
     },
 
     hideTooltip() {
         document.getElementById('tooltip').classList.add('hidden');
+    },
+
+    updateMonsterTooltip(clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        const monster = this.state.monster;
+        let html = `<h4>${monster.name}</h4>`;
+        html += `<p>类型: ${monster.type === 'boss' ? 'BOSS' : monster.type === 'elite' ? '精英' : '普通'} | HP: ${monster.hp}/${monster.maxHp}</p>`;
+        html += `<p>${monster.description}</p>`;
+        if (monster.keywordDesc) {
+            html += `<p style="color:#ffaaaa;margin-top:6px;">☠️ ${monster.keywordDesc}</p>`;
+        }
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 300);
+        const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    updateSlotTooltip(slotIdx, clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        const slot = this.state.slots[slotIdx];
+        let html = `<h4>倍率格 ${slotIdx + 1}</h4>`;
+        html += `<p>当前倍率: <b style="color:#ffd700">${slot.multiplier}X</b></p>`;
+        if (!slot.available) {
+            html += `<p style="color:#ff6666">🔒 未解锁（击败BOSS后开放）</p>`;
+        } else if (slot.locked) {
+            html += `<p style="color:#ff6666">🔒 已锁定（本回合无法继续放置）</p>`;
+        } else if (slot.isStacking) {
+            html += `<p style="color:#2ecc71">📚 可堆叠（可以继续往上放牌）</p>`;
+        } else {
+            html += `<p style="color:#4ecdc4">✋ 空位（拖拽卡牌至此）</p>`;
+        }
+        if (slot.cards.length > 0) {
+            const top = slot.cards[slot.cards.length - 1];
+            html += `<p style="margin-top:6px">顶部卡牌: <b>${top.name}</b> (${top.baseValue + top.permanentBonus}点)</p>`;
+        }
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 300);
+        const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    updateEndTurnTooltip(clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        const state = this.state;
+        const totalDmg = state.turnDamage;
+        const remaining = Math.max(0, state.monster.hp - totalDmg);
+        let html = `<h4>结束回合</h4>`;
+        if (totalDmg >= state.monster.hp) {
+            html += `<p style="color:#2ecc71">💀 伤害足够击杀怪物！</p>`;
+        } else {
+            html += `<p>本回合伤害: <b>${totalDmg}</b></p>`;
+            html += `<p>怪物剩余: <b style="color:#ff6666">${remaining}</b> HP</p>`;
+            html += `<p style="color:#ff6666;margin-top:4px">⚠️ 未击杀将扣除 1 颗心</p>`;
+        }
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 300);
+        const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    updatePlayerTooltip(clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        const player = this.state.player;
+        let html = `<h4>${player.name}</h4>`;
+        html += `<p>❤️ 生命: ${player.hearts}/${player.maxHearts}</p>`;
+        html += `<p>🏛️ 遗物: <b style="color:#cc9955">${player.relic.name}</b></p>`;
+        html += `<p style="color:#aaa;font-size:12px;margin-top:4px">${player.relic.description || ''}</p>`;
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 300);
+        const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
     },
 
     updateBlacksmithTooltip(item, clientX, clientY) {

@@ -77,7 +77,9 @@ export function initBattleFromRun(runData) {
         combatLog: [],
         runDataRef: runData,
         stageKey: stageKey,
-        heartsLost: 0
+        heartsLost: 0,
+        pendingPlaceEffects: [],
+        pendingGrowthEffects: []
     };
 
     drawCards(state, 4);
@@ -111,6 +113,12 @@ export function endTurn(state) {
     if (totalDmg > 0) {
         state.monsterFlash = 15;
         if (typeof GameAudio !== 'undefined') GameAudio.playDamage();
+        // 伤害飘字特效
+        if (typeof window !== 'undefined' && window.RenderFX) {
+            const mx = 640;
+            const my = 120;
+            window.RenderFX.spawnDamage(mx, my, totalDmg, totalDmg >= state.monster.maxHp * 0.3);
+        }
     }
 
     logCombat(state, `第${state.turn}回合造成 ${totalDmg} 伤害，怪物剩余 ${state.monster.hp} HP`);
@@ -118,6 +126,10 @@ export function endTurn(state) {
     if (state.monster.hp <= 0) {
         state.phase = 'ended';
         state.result = 'win';
+        if (typeof window !== 'undefined' && window.RenderFX) {
+            window.RenderFX.spawnVictory(640, 120);
+        }
+        if (typeof GameAudio !== 'undefined') GameAudio.playMonsterDeath();
         return;
     }
 
@@ -125,6 +137,11 @@ export function endTurn(state) {
     state.player.hearts -= 1;
     state.heartsLost += 1;
     if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
+    // 心损失视觉特效
+    if (typeof window !== 'undefined' && window.RenderFX) {
+        const heartX = 50 + (state.player.hearts) * 36 + 15;
+        window.RenderFX.spawnHeartBreak(heartX, 155);
+    }
     logCombat(state, `失去 1 颗心！剩余 ${state.player.hearts} 颗`);
 
     if (state.player.hearts <= 0) {

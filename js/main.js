@@ -8,9 +8,11 @@ import { Input } from './input/index.js';
 import { Renderer } from './render/renderer.js';
 import { initBattleFromRun } from './systems/battle.js';
 import { GameAudio } from './audio.js';
+import { FX as RenderFX } from './render/fx.js';
 
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
+window.RenderFX = RenderFX;
 
 // 必须导入以触发效果注册副作用
 import './effects/index.js';

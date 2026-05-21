@@ -823,20 +823,54 @@ function drawHandArea(renderer, ctx, state) {
 
     const layout = getHandLayout(renderer, hand.length);
 
-    // 抽卡动画
+    // 抽卡动画（美化版：ease-out 缓动、旋转、缩放曲线、拖尾粒子）
     if (state.drawAnimations && state.drawAnimations.length > 0) {
         for (let i = state.drawAnimations.length - 1; i >= 0; i--) {
             const anim = state.drawAnimations[i];
+            if (anim.delay > 0) {
+                anim.delay -= 1;
+                continue;
+            }
             anim.timer -= 1;
-            const progress = 1 - (anim.timer / anim.maxTimer);
+            const rawProgress = 1 - (anim.timer / anim.maxTimer);
+            // ease-out cubic
+            const progress = 1 - Math.pow(1 - rawProgress, 3);
             const deckX = renderer.width - 100;
             const deckY = renderer.height - 100;
             const targetX = layout.startX + anim.handIndex * (layout.cardW + layout.gap);
             const targetY = layout.startY;
             const curX = deckX + (targetX - deckX) * progress;
             const curY = deckY + (targetY - deckY) * progress;
-            const scale = 0.5 + 0.5 * progress;
-            drawCard(ctx, anim.card, curX - layout.cardW * scale / 2 + layout.cardW / 2, curY - layout.cardH * scale / 2 + layout.cardH / 2, layout.cardW * scale, layout.cardH * scale, state);
+            // 弹性缩放：先大后小再稳定
+            const scale = 0.4 + 0.7 * progress + 0.15 * Math.sin(progress * Math.PI);
+            // 旋转：从随机角度到 0
+            const rot = anim.rotation * (1 - progress);
+
+            // 拖尾粒子（飞行中段）
+            if (rawProgress > 0.2 && rawProgress < 0.8 && anim.timer % 3 === 0) {
+                FX.particles.emit({
+                    x: curX + layout.cardW / 2,
+                    y: curY + layout.cardH / 2,
+                    count: 2,
+                    type: 'spark',
+                    color: '#ffd700',
+                    speed: 1,
+                    speedVar: 0.5,
+                    life: 12,
+                    size: 1.5,
+                    gravity: 0,
+                    spread: Math.PI * 2,
+                    glow: true
+                });
+            }
+
+            ctx.save();
+            ctx.translate(curX + layout.cardW / 2, curY + layout.cardH / 2);
+            ctx.rotate(rot);
+            ctx.translate(-layout.cardW * scale / 2, -layout.cardH * scale / 2);
+            drawCard(ctx, anim.card, 0, 0, layout.cardW * scale, layout.cardH * scale, state);
+            ctx.restore();
+
             if (anim.timer <= 0) {
                 state.drawAnimations.splice(i, 1);
             }
@@ -1166,6 +1200,24 @@ function drawDragCard(renderer, ctx, state) {
 }
 
 function drawSlotFlashes(renderer, ctx, state) {
+    // 处理待生成的放置特效
+    if (state.pendingPlaceEffects && state.pendingPlaceEffects.length > 0) {
+        for (const eff of state.pendingPlaceEffects) {
+            const r = getSlotRect(renderer, eff.slotIndex, state.slots.length);
+            FX.spawnCardPlace(r.x + r.w / 2, r.y + r.h / 2, eff.color);
+        }
+        state.pendingPlaceEffects = [];
+    }
+
+    // 处理待生成的生长特效
+    if (state.pendingGrowthEffects && state.pendingGrowthEffects.length > 0) {
+        for (const eff of state.pendingGrowthEffects) {
+            const r = getSlotRect(renderer, eff.slotIndex, state.slots.length);
+            FX.spawnGrowth(r.x + r.w / 2, r.y + r.h / 2);
+        }
+        state.pendingGrowthEffects = [];
+    }
+
     for (let i = state.slotFlashes.length - 1; i >= 0; i--) {
         const flash = state.slotFlashes[i];
         const r = getSlotRect(renderer, flash.slotIndex, state.slots.length);

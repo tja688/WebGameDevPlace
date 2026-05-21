@@ -105,5 +105,32 @@ export const GameAudio = {
 
     playGoldSparkle() {
         this.playChord([1200, 1500, 1800], 0.1, 'sine', 0.03);
+    },
+
+    playGrow() {
+        this.playTone(600, 0.08, 'sine', 0.05);
+        setTimeout(() => this.playTone(800, 0.1, 'sine', 0.04), 60);
+        setTimeout(() => this.playTone(1000, 0.12, 'sine', 0.03), 120);
+    },
+
+    playSlotUpgrade() {
+        this.playTone(400, 0.1, 'sine', 0.06);
+        setTimeout(() => this.playTone(600, 0.1, 'sine', 0.05), 80);
+        setTimeout(() => this.playTone(900, 0.15, 'sine', 0.04), 160);
+    },
+
+    playRareCard() {
+        this.playChord([523, 659, 784], 0.2, 'sine', 0.05);
+        setTimeout(() => this.playChord([659, 784, 1047], 0.3, 'sine', 0.06), 150);
+    },
+
+    playTooltip() {
+        this.playTone(1200, 0.02, 'sine', 0.015);
+    },
+
+    playShuffle() {
+        this.playTone(300, 0.06, 'sawtooth', 0.03);
+        setTimeout(() => this.playTone(250, 0.06, 'sawtooth', 0.03), 40);
+        setTimeout(() => this.playTone(350, 0.06, 'sawtooth', 0.03), 80);
     }
 };

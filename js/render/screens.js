@@ -42,12 +42,12 @@ export function drawTitle(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(255,215,0,0.4)';
     ctx.shadowBlur = 20;
-    ctx.fillText('⚔️ 卡牌地下城', cx, cy - 60);
+    ctx.fillText('⚔️ 卡牌地下城（暂定）', cx, cy - 60);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = '#aaa';
-    ctx.font = '24px Microsoft YaHei';
-    ctx.fillText('v0.5 重构版', cx, cy - 10);
+    ctx.font = '18px Microsoft YaHei';
+    ctx.fillText('按任意处开始', cx, cy - 10);
 
     const btnW = 280;
     const btnH = 60;

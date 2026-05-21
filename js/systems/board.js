@@ -122,7 +122,26 @@ export function playCardToSlot(card, slotIndex, state) {
 
     card.hasBeenPlayed = true;
     state.slotFlashes.push({ slotIndex, timer: 20 });
-    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+
+    // 视觉特效：卡牌放置火花
+    if (typeof FX !== 'undefined') {
+        const slot = state.slots[slotIndex];
+        const sx = slot.index * 240 + 120 + 140; // 近似屏幕坐标，由渲染层处理实际位置
+        // 由于坐标系不一致，我们在渲染层根据 slotFlashes 来生成粒子
+        // 这里先标记需要生成粒子
+        if (!state.pendingPlaceEffects) state.pendingPlaceEffects = [];
+        state.pendingPlaceEffects.push({ slotIndex, color: card.accentColor || '#ffd700' });
+    }
+
+    if (typeof GameAudio !== 'undefined') {
+        if (card.rarity === 'gold') {
+            GameAudio.playRareCard();
+        } else if (card.rarity === 'blue') {
+            GameAudio.playGoldSparkle();
+        } else {
+            GameAudio.playCardPlace();
+        }
+    }
     return true;
 }
 

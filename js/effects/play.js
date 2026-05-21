@@ -84,6 +84,11 @@ FX.register(new EffectHandler({
         const amount = calculateGrowAmount(ctx.card, ctx.slotIndex, ctx.state);
         ctx.card.permanentBonus += amount;
         ctx.log(`${ctx.card.name} 生长了！永久点数+${amount}`);
+        // 视觉与音效反馈
+        if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
+        // 通过渲染层的 slotFlash 来间接定位，这里先记录待生成
+        if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
+        ctx.state.pendingGrowthEffects.push({ slotIndex: ctx.slotIndex });
     }
 }));
 
