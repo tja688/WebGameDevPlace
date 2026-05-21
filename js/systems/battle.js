@@ -128,18 +128,14 @@ export function endTurn(state) {
         return;
     }
 
-    // 扣心
+    // 扣心（每回合均扣1心，含第1回合）
     const isEliteOrBoss = state.monster.type === 'elite' || state.monster.type === 'boss';
-    let baseHeartLoss = state.turn === 1 ? 0 : 1;
+    let baseHeartLoss = 1;
     let heartLoss = baseHeartLoss + (isEliteOrBoss ? 0 : state.monster.virusPenalty);
     state.player.hearts -= heartLoss;
     state.heartsLost += heartLoss;
     if (heartLoss > 0 && typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
-    if (heartLoss > 0) {
-        logCombat(state, `失去 ${heartLoss} 颗心！剩余 ${state.player.hearts} 颗`);
-    } else {
-        logCombat(state, `第1回合不扣心，剩余 ${state.player.hearts} 颗`);
-    }
+    logCombat(state, `失去 ${heartLoss} 颗心！剩余 ${state.player.hearts} 颗`);
 
     // 病毒之源
     if (!isEliteOrBoss && baseHeartLoss > 0) {
