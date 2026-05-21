@@ -20,6 +20,7 @@ window.gameState = null;
 
 function init() {
     Renderer.init('gameCanvas');
+    GameAudio.init();
     bindKeys();
 
     window.gameState = createGameState('title');

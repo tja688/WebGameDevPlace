@@ -9,7 +9,7 @@ import { KEYWORDS } from './keywords.js';
 
 export function createShopStock() {
     const cards = [];
-    const excludedIds = ['wild_strike', 'shield_bash'];
+    const excludedIds = ['wild_strike'];
     const cardIds = Object.keys(CARD_DEFS).filter(id => !excludedIds.includes(id));
     for (let i = 0; i < 4; i++) {
         const defId = cardIds[Math.floor(Math.random() * cardIds.length)];

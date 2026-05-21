@@ -5,7 +5,7 @@
  *       shop, blacksmith, event, treasure, act_transition, victory, game_over
  */
 
-import { roundRect, wrapText, darkenColor, drawBackButton } from './core.js';
+import { roundRect, wrapText, darkenColor, drawBackButton, drawBackground } from './core.js';
 import { CLASS_DEFS, STAGE_CONFIG, KEYWORDS, CARD_DEFS, RELIC_DEFS } from '../data/index.js';
 import { getCurrentStageKey } from '../core/state.js';
 import { getAvailableSlotIndices } from '../core/utils.js';
@@ -1185,36 +1185,4 @@ export function drawMessages(ctx, state, width, height) {
         ctx.textAlign = 'center';
         ctx.fillText(state.message, width / 2, height / 2 + 8);
     }
-}
-
-function drawBackground(ctx, width, height, animTime) {
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, '#1a1520');
-    grad.addColorStop(0.5, '#0d0b12');
-    grad.addColorStop(1, '#1a1520');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth = 1;
-    const brickW = 80;
-    const brickH = 40;
-    for (let y = 0; y < height; y += brickH) {
-        const offset = (y / brickH) % 2 === 0 ? 0 : brickW / 2;
-        for (let x = -brickW; x < width + brickW; x += brickW) {
-            ctx.strokeRect(x + offset, y, brickW, brickH);
-        }
-    }
-
-    const torchGlow = ctx.createRadialGradient(width * 0.3, 80, 0, width * 0.3, 80, 200);
-    torchGlow.addColorStop(0, 'rgba(255,160,50,0.08)');
-    torchGlow.addColorStop(1, 'rgba(255,160,50,0)');
-    ctx.fillStyle = torchGlow;
-    ctx.fillRect(0, 0, width, height);
-
-    const torchGlow2 = ctx.createRadialGradient(width * 0.7, 80, 0, width * 0.7, 80, 200);
-    torchGlow2.addColorStop(0, 'rgba(255,160,50,0.06)');
-    torchGlow2.addColorStop(1, 'rgba(255,160,50,0)');
-    ctx.fillStyle = torchGlow2;
-    ctx.fillRect(0, 0, width, height);
 }

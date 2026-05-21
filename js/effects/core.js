@@ -203,5 +203,34 @@ export class EffectSystem {
     }
 }
 
+/**
+ * 计算生长牌的最终生长数值（含30小时训练、训练激素的加成）
+ * @param {object} card - 卡牌实例
+ * @param {number} slotIndex - 所在格子索引
+ * @param {object} state - 游戏状态
+ * @returns {number}
+ */
+export function calculateGrowAmount(card, slotIndex, state) {
+    let amount = card.growAmount || 1;
+    const slot = state.slots[slotIndex];
+    // 30小时训练：同一格生长效果触发两次
+    for (const c of slot.cards) {
+        if (c.defId === 'thirty_hour_training' && c.uuid !== card.uuid) {
+            amount += card.growAmount || 1;
+        }
+    }
+    // 训练激素：相邻格生长效果触发两次
+    for (const s of state.slots) {
+        if (Math.abs(s.index - slotIndex) === 1) {
+            for (const c of s.cards) {
+                if (c.defId === 'training_hormone') {
+                    amount += card.growAmount || 1;
+                }
+            }
+        }
+    }
+    return amount;
+}
+
 /** 全局效果系统实例 */
 export const FX = new EffectSystem();

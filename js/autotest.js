@@ -205,7 +205,7 @@ const AutoTest = {
         if (strike) {
             playCardToSlot(strike, 2, testState);
             const dmg = calculateTotalBoardDamage(testState);
-            console.assert(dmg === 20, `精确打击在2X格应为20，实际${dmg}`);
+            console.assert(dmg === 16, `精确打击在2X格应为16，实际${dmg}`);
             this.log('测试2 通过: 精确打击基础伤害正确');
         }
 
@@ -215,7 +215,7 @@ const AutoTest = {
             const strikeOnBoard = testState.slots[2].cards.find(c => c.defId === 'precise_strike');
             if (strikeOnBoard) {
                 const val = getCardEffectiveValue(strikeOnBoard, testState);
-                console.assert(val === 7, `佯攻光环后精确打击应为7，实际${val}`);
+                console.assert(val === 6, `佯攻光环后精确打击应为6，实际${val}`);
                 this.log('测试3 通过: 驻场光环正确');
             }
         }

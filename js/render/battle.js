@@ -2,7 +2,7 @@
  * 卡牌地下城 - 战斗界面渲染
  */
 
-import { roundRect, darkenColor, wrapText } from './core.js';
+import { roundRect, darkenColor, wrapText, drawBackground } from './core.js';
 import { KEYWORDS } from '../data/index.js';
 import { getCardBaseValue, getCardFinalValue, buildCardSlotMap, canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview } from '../systems/board.js';
 import { calculateTotalBoardDamage } from '../systems/board.js';
@@ -19,38 +19,6 @@ export function drawBattle(renderer, ctx, state) {
     drawSlotFlashes(renderer, ctx, state);
     drawMonsterFlash(renderer, ctx, state);
     drawPreview(renderer, ctx, state);
-}
-
-function drawBackground(ctx, width, height, animTime) {
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, '#1a1520');
-    grad.addColorStop(0.5, '#0d0b12');
-    grad.addColorStop(1, '#1a1520');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth = 1;
-    const brickW = 80;
-    const brickH = 40;
-    for (let y = 0; y < height; y += brickH) {
-        const offset = (y / brickH) % 2 === 0 ? 0 : brickW / 2;
-        for (let x = -brickW; x < width + brickW; x += brickW) {
-            ctx.strokeRect(x + offset, y, brickW, brickH);
-        }
-    }
-
-    const torchGlow = ctx.createRadialGradient(width * 0.3, 80, 0, width * 0.3, 80, 200);
-    torchGlow.addColorStop(0, 'rgba(255,160,50,0.08)');
-    torchGlow.addColorStop(1, 'rgba(255,160,50,0)');
-    ctx.fillStyle = torchGlow;
-    ctx.fillRect(0, 0, width, height);
-
-    const torchGlow2 = ctx.createRadialGradient(width * 0.7, 80, 0, width * 0.7, 80, 200);
-    torchGlow2.addColorStop(0, 'rgba(255,160,50,0.06)');
-    torchGlow2.addColorStop(1, 'rgba(255,160,50,0)');
-    ctx.fillStyle = torchGlow2;
-    ctx.fillRect(0, 0, width, height);
 }
 
 function drawMonsterArea(renderer, ctx, state) {

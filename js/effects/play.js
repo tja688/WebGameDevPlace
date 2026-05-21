@@ -11,7 +11,7 @@
  * 4. 调用 FX.register(handler) 注册
  */
 
-import { EffectHandler, FX } from './core.js';
+import { EffectHandler, FX, calculateGrowAmount } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { drawCards } from '../core/battle-core.js';
 
@@ -81,26 +81,7 @@ FX.register(new EffectHandler({
     priority: Priority.GROW,
     condition: (ctx) => ctx.card.keywords.includes('grow'),
     execute: (ctx) => {
-        let amount = ctx.card.growAmount || 1;
-        const slot = ctx.state.slots[ctx.slotIndex];
-        
-        // 30小时训练：同一格生长效果触发两次
-        for (const c of slot.cards) {
-            if (c.defId === 'thirty_hour_training' && c.uuid !== ctx.card.uuid) {
-                amount += ctx.card.growAmount || 1;
-            }
-        }
-        // 训练激素：相邻格生长效果触发两次
-        for (const s of ctx.state.slots) {
-            if (Math.abs(s.index - ctx.slotIndex) === 1) {
-                for (const c of s.cards) {
-                    if (c.defId === 'training_hormone') {
-                        amount += ctx.card.growAmount || 1;
-                    }
-                }
-            }
-        }
-        
+        const amount = calculateGrowAmount(ctx.card, ctx.slotIndex, ctx.state);
         ctx.card.permanentBonus += amount;
         ctx.log(`${ctx.card.name} 生长了！永久点数+${amount}`);
     }
@@ -124,18 +105,10 @@ FX.register(new EffectHandler({
                     ctx.log(`${ctx.card.name} 触发连锁！从牌组打出 ${t.name}`);
                     
                     if (t.keywords.includes('grow')) {
-                        let tAmount = t.growAmount || 1;
+                        let tAmount = calculateGrowAmount(t, ctx.slotIndex, ctx.state);
                         const slot = ctx.state.slots[ctx.slotIndex];
                         for (const c of slot.cards) {
                             if (c.defId === 'proper_training' && c.uuid !== t.uuid) tAmount += 1;
-                            if (c.defId === 'thirty_hour_training' && c.uuid !== t.uuid) tAmount += t.growAmount || 1;
-                        }
-                        for (const s of ctx.state.slots) {
-                            if (Math.abs(s.index - ctx.slotIndex) === 1) {
-                                for (const c of s.cards) {
-                                    if (c.defId === 'training_hormone') tAmount += t.growAmount || 1;
-                                }
-                            }
                         }
                         t.permanentBonus += tAmount;
                         ctx.log(`${t.name} 生长了！永久点数+${tAmount}`);

@@ -17,6 +17,35 @@ export function createGameState(screen) {
     };
 }
 
+/**
+ * 创建战斗格子（供 createInitialState 和 initBattleFromRun 共享）
+ */
+export function createBattleSlots({ slotCount, unlockedSlots, classRelic, slotUpgrades = {} }) {
+    const availableIndices = getAvailableSlotIndices(slotCount, unlockedSlots);
+    const slots = [];
+    for (let i = 0; i < slotCount; i++) {
+        const isAvailable = availableIndices.includes(i);
+        let mul = isAvailable ? 1 : 0;
+        if (isAvailable && classRelic.effect.type === 'slot_multiplier' && classRelic.effect.slotIndex === i) {
+            mul += classRelic.effect.bonus;
+        }
+        const upgradeCount = slotUpgrades[i] || 0;
+        mul += upgradeCount;
+        slots.push({
+            index: i,
+            multiplier: mul,
+            baseMultiplier: mul - upgradeCount,
+            cards: [],
+            locked: false,
+            isStacking: false,
+            available: isAvailable,
+            nextCardBonus: 0,
+            roundMultiplierBonus: 0
+        });
+    }
+    return slots;
+}
+
 export function switchScreen(state, newScreen, data) {
     state.screen = newScreen;
     state.data = data || {};
@@ -70,27 +99,11 @@ export function createInitialState() {
     const deck = shuffleArray(createDeck(cls));
     const monster = MONSTER_DEFS.lone_rat;
 
-    const availableIndices = getAvailableSlotIndices(SLOT_COUNT, MAX_UNLOCKED_SLOTS);
-
-    const slots = [];
-    for (let i = 0; i < SLOT_COUNT; i++) {
-        const isAvailable = availableIndices.includes(i);
-        let mul = isAvailable ? 1 : 0;
-        if (isAvailable && cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
-            mul += cls.relic.effect.bonus;
-        }
-        slots.push({
-            index: i,
-            multiplier: mul,
-            baseMultiplier: mul,
-            cards: [],
-            locked: false,
-            isStacking: false,
-            available: isAvailable,
-            nextCardBonus: 0,
-            roundMultiplierBonus: 0
-        });
-    }
+    const slots = createBattleSlots({
+        slotCount: SLOT_COUNT,
+        unlockedSlots: MAX_UNLOCKED_SLOTS,
+        classRelic: cls.relic
+    });
 
     return {
         screen: 'battle',

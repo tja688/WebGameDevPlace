@@ -7,12 +7,13 @@
  * 3. 战斗日志
  */
 
-import { shuffleArray, pickRandom, getAvailableSlotIndices } from '../core/utils.js';
+import { shuffleArray, pickRandom } from '../core/utils.js';
 import { logCombat, drawCards } from '../core/battle-core.js';
-import { SLOT_COUNT, MAX_UNLOCKED_SLOTS } from '../core/constants.js';
 import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS } from '../data/index.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger } from '../core/constants.js';
+import { calculateTotalBoardDamage } from './board.js';
+import { createBattleSlots } from '../core/state.js';
 
 export { logCombat, drawCards } from '../core/battle-core.js';
 
@@ -25,29 +26,12 @@ export function initBattleFromRun(runData) {
     const monsterDefId = pickRandom(config.monsterPool);
     const monsterDef = MONSTER_DEFS[monsterDefId];
 
-    const availableIndices = getAvailableSlotIndices(runData.slotCount, runData.unlockedSlots);
-
-    const slots = [];
-    for (let i = 0; i < runData.slotCount; i++) {
-        const isAvailable = availableIndices.includes(i);
-        let mul = isAvailable ? 1 : 0;
-        if (isAvailable && cls.relic.effect.type === 'slot_multiplier' && cls.relic.effect.slotIndex === i) {
-            mul += cls.relic.effect.bonus;
-        }
-        const upgradeCount = runData.slotUpgrades[i] || 0;
-        mul += upgradeCount;
-        slots.push({
-            index: i,
-            multiplier: mul,
-            baseMultiplier: mul - upgradeCount,
-            cards: [],
-            locked: false,
-            isStacking: false,
-            available: isAvailable,
-            nextCardBonus: 0,
-            roundMultiplierBonus: 0
-        });
-    }
+    const slots = createBattleSlots({
+        slotCount: runData.slotCount,
+        unlockedSlots: runData.unlockedSlots,
+        classRelic: cls.relic,
+        slotUpgrades: runData.slotUpgrades
+    });
 
     const deck = [...runData.deck];
     shuffleArray(deck);
@@ -194,41 +178,4 @@ export function endTurn(state) {
     state.turnDamage = 0;
 }
 
-// 需要从board导入calculateTotalBoardDamage，为避免循环依赖，这里动态计算
-function calculateTotalBoardDamage(state) {
-    let total = 0;
-    for (const slot of state.slots) {
-        for (const card of slot.cards) {
-            const val = getCardFinalValue(card, state);
-            const mul = getSlotEffectiveMultiplier(slot, state);
-            total += val * mul;
-        }
-    }
-    return total;
-}
 
-// 内联引用以避免循环依赖
-function getCardBaseValue(card) {
-    return card.baseValue + card.permanentBonus + (card.tempBonus || 0);
-}
-
-function getCardEffectiveValue(card, state) {
-    let val = getCardBaseValue(card);
-    const ctx = new EffectContext({ state, trigger: Trigger.ON_CALC_VALUE, card, value: val });
-    FX.fire(Trigger.ON_CALC_VALUE, ctx);
-    return ctx.value;
-}
-
-function getCardFinalValue(card, state) {
-    let val = getCardEffectiveValue(card, state);
-    const ctx = new EffectContext({ state, trigger: Trigger.ON_CALC_FINAL, card, value: val });
-    FX.fire(Trigger.ON_CALC_FINAL, ctx);
-    return ctx.value;
-}
-
-function getSlotEffectiveMultiplier(slot, state) {
-    let mul = slot.multiplier + (slot.roundMultiplierBonus || 0);
-    const ctx = new EffectContext({ state, trigger: Trigger.ON_SLOT_CALC, slotIndex: slot.index, value: mul });
-    FX.fire(Trigger.ON_SLOT_CALC, ctx);
-    return ctx.value;
-}

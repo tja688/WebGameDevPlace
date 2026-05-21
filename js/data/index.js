@@ -32,6 +32,7 @@ export function createCardInstance(defId) {
         currentValue: def.baseValue,
         size: def.size,
         keywords: [...def.keywords],
+        extraEffects: def.extraEffects ? [...def.extraEffects] : [],
         description: def.description,
         name: def.name,
         color: def.color,

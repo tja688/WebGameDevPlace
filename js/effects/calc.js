@@ -114,18 +114,19 @@ FX.register(new EffectHandler({
     id: 'mighty',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_MIGHTY,
-    condition: (ctx) => ctx.card.keywords.includes('mighty') && !ctx.state._mightyComparing,
+    condition: (ctx) => ctx.card.keywords.includes('mighty') && !ctx.extra?.mightyComparing,
     execute: (ctx) => {
         const myVal = ctx.value; // 当前已计算到有效值（经过 ON_CALC_VALUE）
         const boardCards = ctx.getBoardCards();
         let hasLarger = false;
-        // 临时设置标志，避免递归触发mighty
-        ctx.state._mightyComparing = true;
         for (const bc of boardCards) {
             if (bc.uuid === ctx.card.uuid) continue;
             // 计算其他牌的最终值（触发 ON_CALC_FINAL，但mighty会跳过）
             let bcVal = getCardEffectiveValue(bc, ctx.state);
-            const bcCtx = new EffectContext({ state: ctx.state, trigger: Trigger.ON_CALC_FINAL, card: bc, value: bcVal });
+            const bcCtx = new EffectContext({
+                state: ctx.state, trigger: Trigger.ON_CALC_FINAL, card: bc, value: bcVal,
+                extra: { mightyComparing: true }
+            });
             FX.fire(Trigger.ON_CALC_FINAL, bcCtx);
             bcVal = bcCtx.value;
             if (bcVal > myVal) {
@@ -133,7 +134,6 @@ FX.register(new EffectHandler({
                 break;
             }
         }
-        delete ctx.state._mightyComparing;
         if (!hasLarger) {
             ctx.value *= 2;
         }
