@@ -1,11 +1,13 @@
 {
   "name": "card-dungeon",
-  "version": "0.6.0",
-  "description": "卡牌地下城 - 重构版 v0.6",
+  "version": "0.7.0",
+  "description": "卡牌地下城 - 重构版 v0.7",
   "type": "module",
   "scripts": {
     "start": "node serve.js",
-    "test": "node test_engine.js",
+    "test": "node test_engine.js && node test_render_screens.js",
+    "test:engine": "node test_engine.js",
+    "test:render": "node test_render_screens.js",
     "simulate": "node test_simulate.js"
   },
   "keywords": ["game", "card", "roguelike"],

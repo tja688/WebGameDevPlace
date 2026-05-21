@@ -1,4 +1,4 @@
-# 卡牌地下城 - 重构版 v0.6
+# 卡牌地下城 - 重构版 v0.7
 
 > 纯前端网页游戏 | 卡牌构筑 + 倍率牌桌（类Balatro）+ Rogue-lite爬塔
 
@@ -15,6 +15,8 @@
 由于项目使用 ES6 Modules，`index.html` 必须通过 **HTTP 服务器** 访问，不能直接 `file://` 打开。
 
 **Windows 用户可直接双击 `dev.bat` 一键启动（含服务器、测试、模拟选项）**
+
+`dev.bat` 会自动切换到项目目录、检查 Node.js、检测 8080 端口占用；如果本地服务器已在运行，会直接打开 `http://localhost:8080`。
 
 ```bash
 # 方式1：使用项目自带的 Node.js 服务器
@@ -33,10 +35,14 @@ python -m http.server 8080
 ### 测试
 
 ```bash
-# 运行单元测试（35个断言）
+# 运行完整测试（引擎断言 + 渲染回归）
 npm test
-# 或
-node test_engine.js
+
+# 单独运行引擎测试
+npm run test:engine
+
+# 单独运行非战斗界面渲染回归测试
+npm run test:render
 
 # 运行胜率模拟
 npm run simulate
@@ -52,9 +58,11 @@ node test_simulate.js
 WebGameDevPlace/
 ├── index.html              # 入口：DOM容器、Canvas、调试面板
 ├── css/style.css           # 暗色主题、UI覆盖层
-├── serve.js                # Node.js 静态文件服务器
+├── serve.js                # Node.js 静态文件服务器（绑定 127.0.0.1，支持查询串 URL）
+├── dev.bat                 # Windows 本地开发菜单（服务器、测试、模拟）
 ├── package.json            # 项目配置（type: module）
-├── test_engine.js          # 引擎单元测试（35个断言）
+├── test_engine.js          # 引擎单元测试
+├── test_render_screens.js  # 非战斗界面渲染回归测试
 ├── test_simulate.js        # 自动战斗胜率模拟
 ├── js/
 │   ├── main.js             # 主入口、游戏循环、快捷键
@@ -490,6 +498,7 @@ js/render/
 | v0.3 | 2026-05 | 大规模重构：ES6 Modules、效果系统解耦、目录重组 |
 | v0.5 | 2026-05 | 设计对齐与Bug修复：数值调整、伟力结算修正、单回合倍率、手牌溢出、抽卡动画、铁匠铺词条选定、扣心规则改为每回合固定-1 |
 | **v0.6** | **2026-05-21** | **全面视觉升级：暗黑地牢风格、粒子特效、浮动文字、屏幕震动、动态光照、材质质感、交互反馈增强** |
+| **v0.7** | **2026-05-21** | **修复战后奖励界面黑屏：补齐视觉 helper 导入；新增非战斗界面渲染回归测试；修复 Windows 一键启动脚本换行与端口占用处理** |
 
 ---
 

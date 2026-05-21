@@ -5,7 +5,19 @@
  *       shop, blacksmith, event, treasure, act_transition, victory, game_over
  */
 
-import { roundRect, wrapText, darkenColor, drawBackButton, drawBackground } from './core.js';
+import {
+    roundRect,
+    wrapText,
+    darkenColor,
+    drawBackButton,
+    drawBackground,
+    drawStoneTile,
+    drawMetalFrame,
+    drawParchment,
+    drawGlowText,
+    drawButton,
+    drawSoulIcon
+} from './core.js';
 import { CLASS_DEFS, STAGE_CONFIG, KEYWORDS, CARD_DEFS, RELIC_DEFS } from '../data/index.js';
 import { getCurrentStageKey } from '../core/state.js';
 import { getAvailableSlotIndices } from '../core/utils.js';

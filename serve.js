@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 
 const PORT = process.argv[2] || 8080;
+const HOST = '127.0.0.1';
 
 const MIME_TYPES = {
     '.html': 'text/html',
@@ -24,7 +25,8 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-    let filePath = '.' + req.url;
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    let filePath = '.' + decodeURIComponent(url.pathname);
     if (filePath === './') filePath = './index.html';
 
     const extname = String(path.extname(filePath)).toLowerCase();
@@ -46,6 +48,16 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => {
+server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. If the game is already open, visit http://localhost:${PORT}/`);
+        process.exit(1);
+    }
+
+    console.error(`Server failed to start: ${error.code || error.message}`);
+    process.exit(1);
+});
+
+server.listen(PORT, HOST, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
 });
