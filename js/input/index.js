@@ -314,6 +314,24 @@ export const Input = {
                         return;
                     }
 
+                    if (data.selectMode === 'blacksmith_enchant') {
+                        const keyword = data.enchantKeyword;
+                        const cost = data.enchantCost;
+                        runData.souls -= cost;
+                        if (keyword && !card.keywords.includes(keyword)) {
+                            card.keywords.push(keyword);
+                            const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
+                            showPlaceholderToast(`${card.name} 获得【${kwName}】！`);
+                        } else {
+                            showPlaceholderToast('该卡牌已有相同词条');
+                        }
+                        runData.blacksmithEnchantCost += 1;
+                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                        data.processing = false;
+                        switchScreen(this.state, 'blacksmith', data.returnData || { runData });
+                        return;
+                    }
+
                     data.processing = false;
                     return;
                 }
@@ -614,19 +632,15 @@ export const Input = {
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'enchant') {
                         if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
-                        runData.souls -= rect.item.cost;
                         const stock = data.stock || getOrCreateBlacksmithStock(runData);
                         const keyword = stock.enchantKeyword;
-                        const target = runData.deck[Math.floor(Math.random() * runData.deck.length)];
-                        if (keyword && !target.keywords.includes(keyword)) {
-                            target.keywords.push(keyword);
-                            const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
-                            showPlaceholderToast(`${target.name} 获得【${kwName}】！`);
-                        } else {
-                            showPlaceholderToast('附魔完成！（已有相同词条）');
-                        }
-                        runData.blacksmithEnchantCost += 1;
-                        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                        const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
+                        switchScreen(this.state, 'card_select', {
+                            runData, title: `✨ 附魔【${kwName}】`, desc: '选择牌组内一张卡牌，为其添加词条',
+                            cards: runData.deck, backText: '取消', selectMode: 'blacksmith_enchant',
+                            returnScreen: 'blacksmith', returnData: data,
+                            enchantKeyword: keyword, enchantCost: rect.item.cost
+                        });
                     } else if (rect.item.type === 'refresh') {
                         if (runData.firstBlacksmithRefreshFree) {
                             runData.firstBlacksmithRefreshFree = false;

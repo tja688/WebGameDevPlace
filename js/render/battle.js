@@ -414,23 +414,39 @@ function drawHandArea(renderer, ctx, state) {
     const hand = state.hand;
     if (hand.length === 0) return;
 
-    const cardW = 140;
-    const cardH = 200;
-    const totalW = hand.length * cardW + (hand.length - 1) * 16;
-    const startX = (renderer.width - totalW) / 2;
-    const startY = 480;
+    const layout = getHandLayout(renderer, hand.length);
+
+    // 绘制抽卡动画
+    if (state.drawAnimations && state.drawAnimations.length > 0) {
+        for (let i = state.drawAnimations.length - 1; i >= 0; i--) {
+            const anim = state.drawAnimations[i];
+            anim.timer -= 1;
+            const progress = 1 - (anim.timer / anim.maxTimer);
+            const deckX = renderer.width - 100;
+            const deckY = renderer.height - 100;
+            const targetX = layout.startX + anim.handIndex * (layout.cardW + layout.gap);
+            const targetY = layout.startY;
+            const curX = deckX + (targetX - deckX) * progress;
+            const curY = deckY + (targetY - deckY) * progress;
+            const scale = 0.5 + 0.5 * progress;
+            drawCard(ctx, anim.card, curX - layout.cardW * scale / 2 + layout.cardW / 2, curY - layout.cardH * scale / 2 + layout.cardH / 2, layout.cardW * scale, layout.cardH * scale, state);
+            if (anim.timer <= 0) {
+                state.drawAnimations.splice(i, 1);
+            }
+        }
+    }
 
     for (let i = 0; i < hand.length; i++) {
         const card = hand[i];
-        const x = startX + i * (cardW + 16);
-        const y = startY;
+        const x = layout.startX + i * (layout.cardW + layout.gap);
+        const y = layout.startY;
 
         const isSelected = state.selectedCard && state.selectedCard.uuid === card.uuid;
         const isDragged = state.draggedCard && state.draggedCard.uuid === card.uuid;
         if (isDragged) continue;
 
         const hoverOffset = isSelected ? -20 : 0;
-        drawCard(ctx, card, x, y + hoverOffset, cardW, cardH, state);
+        drawCard(ctx, card, x, y + hoverOffset, layout.cardW, layout.cardH, state);
     }
 }
 
@@ -712,17 +728,29 @@ export function getEndTurnButtonRect(renderer) {
     return { x: renderer.width - 160, y: renderer.height - 90, w: 140, h: 50 };
 }
 
-export function getHandCardRect(renderer, index, total) {
+function getHandLayout(renderer, total) {
     const cardW = 140;
     const cardH = 200;
-    const totalW = total * cardW + (total - 1) * 16;
-    const startX = (renderer.width - totalW) / 2;
+    const maxWidth = renderer.width - 40;
+    const defaultGap = 16;
+    const totalW = total * cardW + (total - 1) * defaultGap;
+    let gap = defaultGap;
+    let startX = (renderer.width - totalW) / 2;
+    if (totalW > maxWidth) {
+        gap = (maxWidth - total * cardW) / Math.max(1, total - 1);
+        startX = 20;
+    }
     const startY = 480;
+    return { cardW, cardH, gap, startX, startY };
+}
+
+export function getHandCardRect(renderer, index, total) {
+    const layout = getHandLayout(renderer, total);
     return {
-        x: startX + index * (cardW + 16),
-        y: startY,
-        w: cardW,
-        h: cardH
+        x: layout.startX + index * (layout.cardW + layout.gap),
+        y: layout.startY,
+        w: layout.cardW,
+        h: layout.cardH
     };
 }
 
@@ -752,9 +780,11 @@ export function getSlotIndexAt(renderer, px, py, slotCount) {
 }
 
 export function getHandCardIndexAt(renderer, px, py, handLength) {
+    const layout = getHandLayout(renderer, handLength);
     for (let i = 0; i < handLength; i++) {
-        const r = getHandCardRect(renderer, i, handLength);
-        if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) {
+        const x = layout.startX + i * (layout.cardW + layout.gap);
+        const y = layout.startY;
+        if (px >= x && px <= x + layout.cardW && py >= y && py <= y + layout.cardH) {
             return i;
         }
     }

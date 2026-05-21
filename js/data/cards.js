@@ -10,7 +10,7 @@ export const CARD_DEFS = {
     precise_strike: {
         id: 'precise_strike',
         name: '精确打击',
-        baseValue: 5,
+        baseValue: 4,
         size: 1,
         keywords: ['mighty'],
         rarity: 'white',
@@ -22,7 +22,7 @@ export const CARD_DEFS = {
     feint: {
         id: 'feint',
         name: '佯攻',
-        baseValue: 3,
+        baseValue: 4,
         size: 1,
         keywords: ['field'],
         rarity: 'white',

@@ -87,7 +87,8 @@ export function createInitialState() {
             locked: false,
             isStacking: false,
             available: isAvailable,
-            nextCardBonus: 0
+            nextCardBonus: 0,
+            roundMultiplierBonus: 0
         });
     }
 

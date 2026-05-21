@@ -35,7 +35,7 @@ export function drawTitle(renderer, ctx, state) {
 
     ctx.fillStyle = '#aaa';
     ctx.font = '24px Microsoft YaHei';
-    ctx.fillText('v0.3 重构版', cx, cy - 10);
+    ctx.fillText('v0.5 重构版', cx, cy - 10);
 
     const btnW = 280;
     const btnH = 60;
@@ -829,7 +829,7 @@ export function drawBlacksmith(renderer, ctx, state) {
         type: 'enchant',
         name: kwData ? `附魔【${kwData.name}】` : '附魔词条',
         cost: enchantCost,
-        subText: kwData ? `给随机卡牌添加【${kwData.name}】` : '随机词条附魔'
+        subText: kwData ? `选定一张卡牌添加【${kwData.name}】` : '选定卡牌添加词条'
     });
     columns[2].items.push({
         type: 'refresh',

@@ -240,7 +240,7 @@ FX.register(new EffectHandler({
     }
 }));
 
-// ===== 10. 保养装备（maintain_gear）：格子倍率+1 =====
+// ===== 10. 保养装备（maintain_gear）：格子倍率+1（单回合）=====
 FX.register(new EffectHandler({
     id: 'maintain_gear',
     triggers: Trigger.ON_PLAY,
@@ -248,8 +248,8 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'maintain_gear',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        slot.multiplier += 1;
-        ctx.log(`保养装备提升了第${ctx.slotIndex + 1}格倍率至 ${slot.multiplier}X`);
+        slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
+        ctx.log(`保养装备提升了第${ctx.slotIndex + 1}格倍率至 ${slot.multiplier + slot.roundMultiplierBonus}X（单回合）`);
     }
 }));
 

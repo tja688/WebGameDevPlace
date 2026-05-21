@@ -44,7 +44,8 @@ export function initBattleFromRun(runData) {
             locked: false,
             isStacking: false,
             available: isAvailable,
-            nextCardBonus: 0
+            nextCardBonus: 0,
+            roundMultiplierBonus: 0
         });
     }
 
@@ -181,6 +182,7 @@ export function endTurn(state) {
         slot.locked = remaining.length > 0 && !remaining[remaining.length - 1].keywords.includes('stack');
         slot.isStacking = remaining.length > 0 && remaining[remaining.length - 1].keywords.includes('stack');
         slot.nextCardBonus = 0;
+        slot.roundMultiplierBonus = 0;
     }
 
     // 清空所有卡牌的临时加成
@@ -236,7 +238,7 @@ function getCardFinalValue(card, state) {
 }
 
 function getSlotEffectiveMultiplier(slot, state) {
-    let mul = slot.multiplier;
+    let mul = slot.multiplier + (slot.roundMultiplierBonus || 0);
     const ctx = new EffectContext({ state, trigger: Trigger.ON_SLOT_CALC, slotIndex: slot.index, value: mul });
     FX.fire(Trigger.ON_SLOT_CALC, ctx);
     return ctx.value;

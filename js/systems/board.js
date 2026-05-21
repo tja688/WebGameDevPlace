@@ -51,7 +51,7 @@ export function getCardFinalValue(card, state) {
 }
 
 export function getSlotEffectiveMultiplier(slot, state) {
-    let mul = slot.multiplier;
+    let mul = slot.multiplier + (slot.roundMultiplierBonus || 0);
     const ctx = new EffectContext({
         state, trigger: Trigger.ON_SLOT_CALC,
         slotIndex: slot.index, value: mul

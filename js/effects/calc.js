@@ -5,7 +5,7 @@
  * 这些效果通过修改 ctx.value 来影响最终计算结果
  */
 
-import { EffectHandler, FX } from './core.js';
+import { EffectHandler, FX, EffectContext } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { getCardEffectiveValue } from '../systems/board.js';
 
@@ -114,20 +114,26 @@ FX.register(new EffectHandler({
     id: 'mighty',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_MIGHTY,
-    condition: (ctx) => ctx.card.keywords.includes('mighty'),
+    condition: (ctx) => ctx.card.keywords.includes('mighty') && !ctx.state._mightyComparing,
     execute: (ctx) => {
         const myVal = ctx.value; // 当前已计算到有效值（经过 ON_CALC_VALUE）
         const boardCards = ctx.getBoardCards();
         let hasLarger = false;
+        // 临时设置标志，避免递归触发mighty
+        ctx.state._mightyComparing = true;
         for (const bc of boardCards) {
             if (bc.uuid === ctx.card.uuid) continue;
-            // 计算其他牌的有效值（触发 ON_CALC_VALUE，但不触发 ON_CALC_FINAL 避免递归）
-            const bcVal = getCardEffectiveValue(bc, ctx.state);
+            // 计算其他牌的最终值（触发 ON_CALC_FINAL，但mighty会跳过）
+            let bcVal = getCardEffectiveValue(bc, ctx.state);
+            const bcCtx = new EffectContext({ state: ctx.state, trigger: Trigger.ON_CALC_FINAL, card: bc, value: bcVal });
+            FX.fire(Trigger.ON_CALC_FINAL, bcCtx);
+            bcVal = bcCtx.value;
             if (bcVal > myVal) {
                 hasLarger = true;
                 break;
             }
         }
+        delete ctx.state._mightyComparing;
         if (!hasLarger) {
             ctx.value *= 2;
         }

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { createInitialState, startBattle } from './js/core/state.js';
 import { drawCards, endTurn } from './js/systems/battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard } from './js/systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier } from './js/systems/board.js';
 import { createCardInstance } from './js/data/index.js';
 
 // 必须导入以触发效果注册
@@ -41,7 +41,7 @@ assert(s.hand.length === 4, '初始手牌4张');
 const s2 = makeTestState(['precise_strike']);
 playCardToSlot(s2.hand[0], 2, s2);
 let dmg = calculateTotalBoardDamage(s2);
-assert(dmg === 20, `精确打击(5)伟力翻倍(10)在2X格应为20，实际${dmg}`);
+assert(dmg === 16, `精确打击(4)伟力翻倍(8)在2X格应为16，实际${dmg}`);
 
 // Test 3: 佯攻给临近+2
 const s3 = makeTestState(['precise_strike', 'feint']);
@@ -51,7 +51,7 @@ playCardToSlot(s3strike, 2, s3);
 playCardToSlot(s3feint, 1, s3);
 const strikeOnBoard = s3.slots[2].cards[0];
 const effVal = getCardEffectiveValue(strikeOnBoard, s3);
-assert(effVal === 7, `佯攻光环后精确打击应为7，实际${effVal}`);
+assert(effVal === 6, `佯攻光环后精确打击应为6，实际${effVal}`);
 
 // Test 4: 伟力不触发（场上有更大点数）
 const s4 = makeTestState(['precise_strike', 'precise_strike', 'feint']);
@@ -61,22 +61,22 @@ const s4feint = s4.hand[2];
 playCardToSlot(s4strike1, 2, s4);
 playCardToSlot(s4strike2, 3, s4);
 const fv4a = getCardFinalValue(s4.slots[3].cards[0], s4);
-assert(fv4a === 10, `空场精确打击2伟力应翻倍为10，实际${fv4a}`);
+assert(fv4a === 8, `空场精确打击2伟力应翻倍为8，实际${fv4a}`);
 playCardToSlot(s4feint, 1, s4);
 const fv4b = getCardFinalValue(s4.slots[2].cards[0], s4);
-assert(fv4b === 14, `佯攻光环后精确打击1应为7*2=14，实际${fv4b}`);
+assert(fv4b === 12, `佯攻光环后精确打击1应为6*2=12，实际${fv4b}`);
 const fv4c = getCardFinalValue(s4.slots[3].cards[0], s4);
-assert(fv4c === 5, `精确打击2旁边无佯攻，且场上有14点牌，伟力不应触发，实际${fv4c}`);
+assert(fv4c === 4, `精确打击2旁边无佯攻，且场上有12点牌，伟力不应触发，实际${fv4c}`);
 
 // Test 5: 保养装备提升倍率 + 精确打击吃倍率
 const s5 = makeTestState(['maintain_gear', 'feint']);
 const s5gear = s5.hand[0];
 const s5feint = s5.hand[1];
 playCardToSlot(s5gear, 3, s5);
-assert(s5.slots[3].multiplier === 2, '保养装备提升倍率+1');
+assert(s5.slots[3].roundMultiplierBonus === 1, '保养装备提升roundMultiplierBonus+1');
 playCardToSlot(s5feint, 3, s5);
 const dmg5 = calculateTotalBoardDamage(s5);
-assert(dmg5 === 6, `佯攻(3)在2X格(保养后)应为6，实际${dmg5}`);
+assert(dmg5 === 8, `佯攻(4)在2X格(保养后)应为8，实际${dmg5}`);
 
 // Test 6: 堆叠规则 - 普通牌封口后不能再堆叠
 const s6 = makeTestState(['maintain_gear', 'precise_strike', 'maintain_gear']);
@@ -112,7 +112,7 @@ const s9 = makeTestState(['maintain_gear']);
 playCardToSlot(s9.hand[0], 2, s9);
 const dmg9 = calculateTotalBoardDamage(s9);
 assert(dmg9 === 0, `保养装备基础0点，在2X格应为0伤害，实际${dmg9}`);
-assert(s9.slots[2].multiplier === 3, '保养装备提升中间格到3X');
+assert(getSlotEffectiveMultiplier(s9.slots[2], s9) === 3, '保养装备提升中间格有效倍率到3X');
 
 // Test 10: 一场战斗不洗牌
 const s10 = createInitialState();
@@ -141,25 +141,25 @@ s12.monster.keywords.push('hard_skin');
 s12.monster.keywordDesc = '硬质皮肤：最左最右格-1';
 playCardToSlot(s12.hand[0], 1, s12);
 const dmg12a = calculateTotalBoardDamage(s12);
-assert(dmg12a === 2, `佯攻(3)在最左可用格受硬质皮肤(3-1=2)*1=2，实际${dmg12a}`);
+assert(dmg12a === 3, `佯攻(4)在最左可用格受硬质皮肤(4-1=3)*1=3，实际${dmg12a}`);
 
 const s12b = makeTestState(['feint']);
 s12b.monster.keywords.push('hard_skin');
 playCardToSlot(s12b.hand[0], 3, s12b);
 const dmg12b = calculateTotalBoardDamage(s12b);
-assert(dmg12b === 2, `佯攻(3)在最右可用格受硬质皮肤(3-1=2)*1=2，实际${dmg12b}`);
+assert(dmg12b === 3, `佯攻(4)在最右可用格受硬质皮肤(4-1=3)*1=3，实际${dmg12b}`);
 
 const s12c = makeTestState(['precise_strike']);
 s12c.monster.keywords.push('hard_skin');
 playCardToSlot(s12c.hand[0], 1, s12c);
 const dmg12c = calculateTotalBoardDamage(s12c);
-assert(dmg12c === 9, `精确打击(5)伟力翻倍10再-1=9*1=9，实际${dmg12c}`);
+assert(dmg12c === 7, `精确打击(4)伟力翻倍8再-1=7*1=7，实际${dmg12c}`);
 
 const s12d = makeTestState(['precise_strike']);
 s12d.monster.keywords.push('hard_skin');
 playCardToSlot(s12d.hand[0], 2, s12d);
 const dmg12d = calculateTotalBoardDamage(s12d);
-assert(dmg12d === 20, `精确打击(5)在中间格不受硬质皮肤影响，伟力翻倍10*2=20，实际${dmg12d}`);
+assert(dmg12d === 16, `精确打击(4)在中间格不受硬质皮肤影响，伟力翻倍8*2=16，实际${dmg12d}`);
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);

@@ -18,9 +18,18 @@ export function logCombat(state, msg) {
  */
 export function drawCards(state, count) {
     let drawn = 0;
+    if (!state.drawAnimations) state.drawAnimations = [];
     for (let i = 0; i < count; i++) {
         if (state.deck.length === 0) break;
-        state.hand.push(state.deck.pop());
+        const card = state.deck.pop();
+        state.hand.push(card);
+        // 添加抽卡动画
+        state.drawAnimations.push({
+            card: card,
+            handIndex: state.hand.length - 1,
+            timer: 12,
+            maxTimer: 12
+        });
         drawn++;
     }
     if (drawn > 0) {
