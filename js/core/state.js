@@ -110,6 +110,7 @@ export function createInitialState() {
             keywordDesc: monster.keywordDesc,
             theme: monster.theme,
             type: monster.type,
+            shape: monster.shape,
             virusPenalty: 0
         },
         slots: slots,

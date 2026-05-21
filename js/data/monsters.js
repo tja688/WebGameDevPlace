@@ -37,6 +37,27 @@ export const MONSTER_COLOR_THEMES = {
         pupil: '#5A5A5A', nose: '#999999', whiskers: '#887766',
         teeth: '#DDDDDD', tail: '#6B5335', claws: '#5A4535',
         shadow: 'rgba(0,0,0,0.3)'
+    },
+    bat: {
+        body: '#4A3A5A', bodyHighlight: '#6A5A7A', head: '#3A2A4A',
+        ears: '#2A1A3A', earInner: '#8877AA', eyes: '#ffcccc',
+        pupil: '#cc3333', nose: '#aa7777', whiskers: '#665566',
+        teeth: '#ffaaaa', tail: '#2A1A3A', claws: '#1A0A2A',
+        shadow: 'rgba(20,0,40,0.5)'
+    },
+    slime: {
+        body: '#4A6B3A', bodyHighlight: '#6A9B5A', head: '#3A5B2A',
+        ears: '#2A4B1A', earInner: '#88BB77', eyes: '#ccffcc',
+        pupil: '#226622', nose: '#66aa66', whiskers: '#558855',
+        teeth: '#aaffaa', tail: '#2A4B1A', claws: '#1A3B0A',
+        shadow: 'rgba(0,40,0,0.4)'
+    },
+    flower: {
+        body: '#6B4A3A', bodyHighlight: '#8B6A5A', head: '#5B3A2A',
+        ears: '#4B2A1A', earInner: '#BB9988', eyes: '#ffddcc',
+        pupil: '#cc6633', nose: '#dd9988', whiskers: '#997766',
+        teeth: '#ffccbb', tail: '#4B2A1A', claws: '#3B1A0A',
+        shadow: 'rgba(60,20,0,0.4)'
     }
 };
 
@@ -49,7 +70,8 @@ export const MONSTER_DEFS = {
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
         theme: 'normal',
-        type: 'normal'
+        type: 'normal',
+        shape: 'rat'
     },
     rotten_rat: {
         id: 'rotten_rat',
@@ -59,7 +81,8 @@ export const MONSTER_DEFS = {
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
         theme: 'normal',
-        type: 'normal'
+        type: 'normal',
+        shape: 'rat'
     },
     gluttony_swarm: {
         id: 'gluttony_swarm',
@@ -69,7 +92,8 @@ export const MONSTER_DEFS = {
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
         theme: 'normal',
-        type: 'normal'
+        type: 'normal',
+        shape: 'rat'
     },
     cave_bat: {
         id: 'cave_bat',
@@ -78,8 +102,9 @@ export const MONSTER_DEFS = {
         description: '在地下城深处栖息的蝙蝠',
         keywords: [],
         keywordDesc: '',
-        theme: 'normal',
-        type: 'normal'
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
     },
     mud_slime: {
         id: 'mud_slime',
@@ -88,8 +113,9 @@ export const MONSTER_DEFS = {
         description: '被污染的泥浆凝聚而成的怪物',
         keywords: [],
         keywordDesc: '',
-        theme: 'normal',
-        type: 'normal'
+        theme: 'slime',
+        type: 'normal',
+        shape: 'slime'
     },
     polluted_flower: {
         id: 'polluted_flower',
@@ -98,8 +124,9 @@ export const MONSTER_DEFS = {
         description: '被地下城气息侵蚀的食人花',
         keywords: [],
         keywordDesc: '',
-        theme: 'normal',
-        type: 'normal'
+        theme: 'flower',
+        type: 'normal',
+        shape: 'flower'
     },
     stone_guard: {
         id: 'stone_guard',
@@ -109,7 +136,8 @@ export const MONSTER_DEFS = {
         keywords: ['hard_skin'],
         keywordDesc: '硬质皮肤：放在最左和最右倍率格子上的卡牌数值减少1',
         theme: 'stone',
-        type: 'normal'
+        type: 'normal',
+        shape: 'golem'
     },
     elite_guard: {
         id: 'elite_guard',
@@ -119,7 +147,8 @@ export const MONSTER_DEFS = {
         keywords: [],
         keywordDesc: '',
         theme: 'elite',
-        type: 'elite'
+        type: 'elite',
+        shape: 'rat'
     },
     rat_king: {
         id: 'rat_king',
@@ -129,7 +158,8 @@ export const MONSTER_DEFS = {
         keywords: [],
         keywordDesc: '',
         theme: 'boss',
-        type: 'boss'
+        type: 'boss',
+        shape: 'rat'
     },
     training_dummy: {
         id: 'training_dummy',
@@ -139,6 +169,7 @@ export const MONSTER_DEFS = {
         keywords: [],
         keywordDesc: '',
         theme: 'dummy',
-        type: 'normal'
+        type: 'normal',
+        shape: 'rat'
     }
 };

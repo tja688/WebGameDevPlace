@@ -70,6 +70,7 @@ export function initBattleFromRun(runData) {
             keywordDesc: monsterDef.keywordDesc,
             theme: monsterDef.theme,
             type: monsterDef.type,
+            shape: monsterDef.shape,
             virusPenalty: 0
         },
         slots: slots,

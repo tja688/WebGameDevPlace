@@ -2,7 +2,7 @@
  * 卡牌地下城 - 战斗界面渲染
  */
 
-import { roundRect, darkenColor } from './core.js';
+import { roundRect, darkenColor, wrapText } from './core.js';
 import { KEYWORDS } from '../data/index.js';
 import { getCardBaseValue, getCardFinalValue, buildCardSlotMap, canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview } from '../systems/board.js';
 import { calculateTotalBoardDamage } from '../systems/board.js';
@@ -69,17 +69,13 @@ function drawMonsterArea(renderer, ctx, state) {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 20px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText(monster.name, mx, my - 70);
-
-    ctx.fillStyle = '#aaa';
-    ctx.font = '13px Microsoft YaHei';
-    ctx.fillText(monster.description, mx, my - 50);
+    ctx.fillText(monster.name, mx, my - 78);
 
     const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
     const typeColors = { normal: '#8B4513', elite: '#8B008B', boss: '#8B0000' };
     ctx.fillStyle = typeColors[monster.type] || '#555';
     ctx.font = 'bold 12px Microsoft YaHei';
-    ctx.fillText(`[${typeLabels[monster.type] || ''}]`, mx, my - 35);
+    ctx.fillText(`[${typeLabels[monster.type] || ''}]`, mx, my + 82);
 
     const barW = 240;
     const barH = 24;
@@ -103,25 +99,63 @@ function drawMonsterArea(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.fillText(`${Math.max(0, monster.hp)} / ${monster.maxHp}`, mx, barY + 17);
 
-    if (monster.keywords.length > 0) {
-        const tagX = mx + 90;
-        const tagY = my + 20;
-        ctx.fillStyle = '#8B0000';
+    ctx.fillStyle = '#aaa';
+    ctx.font = '13px Microsoft YaHei';
+    ctx.fillText(monster.description, mx, my - 58);
+
+    if (monster.keywords.length > 0 && monster.keywordDesc) {
+        const tagW = 420;
+        const tagX = mx - tagW / 2;
+        const tagY = my - 42;
+        ctx.font = 'bold 12px Microsoft YaHei';
+        ctx.textAlign = 'left';
+        const lineHeight = 16;
+        const maxWidth = tagW - 20;
+        const lines = estimateLines(ctx, monster.keywordDesc, maxWidth);
+        const tagH = 10 + lines * lineHeight;
+
+        ctx.fillStyle = 'rgba(100,10,10,0.85)';
         ctx.strokeStyle = '#cc4444';
         ctx.lineWidth = 1;
-        const tagW = 280;
-        const tagH = 36;
-        ctx.fillRect(tagX, tagY - tagH / 2, tagW, tagH);
-        ctx.strokeRect(tagX, tagY - tagH / 2, tagW, tagH);
+        roundRect(ctx, tagX, tagY, tagW, tagH, 6);
+        ctx.fill();
+        ctx.stroke();
+
         ctx.fillStyle = '#ffaaaa';
-        ctx.font = '13px Microsoft YaHei';
-        ctx.textAlign = 'left';
-        ctx.fillText(monster.keywordDesc, tagX + 10, tagY + 5);
+        wrapText(ctx, monster.keywordDesc, tagX + 10, tagY + 18, maxWidth, lineHeight);
         ctx.textAlign = 'center';
     }
 }
 
+function estimateLines(ctx, text, maxWidth) {
+    const words = text.split('');
+    let line = '';
+    let lines = 1;
+    for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i];
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && line !== '') {
+            line = words[i];
+            lines++;
+        } else {
+            line = testLine;
+        }
+    }
+    return lines;
+}
+
 function drawMonster(ctx, monster, x, y, colors, t) {
+    const shape = monster.shape || 'rat';
+    switch (shape) {
+        case 'bat': drawMonsterBat(ctx, x, y, colors, t); break;
+        case 'slime': drawMonsterSlime(ctx, x, y, colors, t); break;
+        case 'flower': drawMonsterFlower(ctx, x, y, colors, t); break;
+        case 'golem': drawMonsterGolem(ctx, x, y, colors, t); break;
+        default: drawMonsterRat(ctx, x, y, colors, t); break;
+    }
+}
+
+function drawMonsterRat(ctx, x, y, colors, t) {
     ctx.fillStyle = colors.body;
     ctx.beginPath();
     ctx.ellipse(x, y + 20, 55, 45, 0, 0, Math.PI * 2);
@@ -214,6 +248,334 @@ function drawMonster(ctx, monster, x, y, colors, t) {
     ctx.beginPath();
     ctx.ellipse(x + 30, y + 55, 10, 6, 0, 0, Math.PI * 2);
     ctx.fill();
+}
+
+function drawMonsterBat(ctx, x, y, colors, t) {
+    const floatY = Math.sin(t * 2) * 6;
+    const wingFlap = Math.sin(t * 5) * 0.4;
+    const by = y + floatY;
+
+    // 翅膀（后层）
+    ctx.fillStyle = colors.ears;
+    ctx.beginPath();
+    ctx.moveTo(x - 20, by + 5);
+    ctx.quadraticCurveTo(x - 70, by - 30 + wingFlap * 30, x - 60, by + 25);
+    ctx.quadraticCurveTo(x - 40, by + 10, x - 20, by + 15);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 20, by + 5);
+    ctx.quadraticCurveTo(x + 70, by - 30 + wingFlap * 30, x + 60, by + 25);
+    ctx.quadraticCurveTo(x + 40, by + 10, x + 20, by + 15);
+    ctx.fill();
+
+    // 身体
+    ctx.fillStyle = colors.body;
+    ctx.beginPath();
+    ctx.ellipse(x, by + 15, 35, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = colors.bodyHighlight;
+    ctx.beginPath();
+    ctx.ellipse(x - 8, by + 8, 18, 16, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 头
+    ctx.fillStyle = colors.head;
+    ctx.beginPath();
+    ctx.ellipse(x, by - 12, 28, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 耳朵（尖大）
+    ctx.fillStyle = colors.ears;
+    ctx.beginPath();
+    ctx.moveTo(x - 18, by - 22);
+    ctx.lineTo(x - 32, by - 55);
+    ctx.lineTo(x - 8, by - 28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 18, by - 22);
+    ctx.lineTo(x + 32, by - 55);
+    ctx.lineTo(x + 8, by - 28);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = colors.earInner;
+    ctx.beginPath();
+    ctx.moveTo(x - 16, by - 24);
+    ctx.lineTo(x - 26, by - 46);
+    ctx.lineTo(x - 10, by - 28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 16, by - 24);
+    ctx.lineTo(x + 26, by - 46);
+    ctx.lineTo(x + 10, by - 28);
+    ctx.closePath();
+    ctx.fill();
+
+    // 眼睛（发红光）
+    const eyeGlow = Math.sin(t * 3) * 0.3 + 0.7;
+    ctx.fillStyle = colors.eyes;
+    ctx.globalAlpha = eyeGlow;
+    ctx.beginPath();
+    ctx.ellipse(x - 10, by - 14, 7, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + 10, by - 14, 7, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = colors.pupil;
+    ctx.beginPath();
+    ctx.arc(x - 8, by - 14, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 12, by - 14, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 鼻子
+    ctx.fillStyle = colors.nose;
+    ctx.beginPath();
+    ctx.moveTo(x, by - 4);
+    ctx.lineTo(x - 4, by + 2);
+    ctx.lineTo(x + 4, by + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // 尖牙
+    ctx.fillStyle = colors.teeth;
+    ctx.beginPath();
+    ctx.moveTo(x - 5, by + 2);
+    ctx.lineTo(x - 3, by + 14);
+    ctx.lineTo(x - 1, by + 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 1, by + 2);
+    ctx.lineTo(x + 3, by + 14);
+    ctx.lineTo(x + 5, by + 2);
+    ctx.fill();
+
+    // 脚（爪子）
+    ctx.fillStyle = colors.claws;
+    ctx.beginPath();
+    ctx.ellipse(x - 15, by + 38, 6, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + 15, by + 38, 6, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawMonsterSlime(ctx, x, y, colors, t) {
+    const pulse = Math.sin(t * 2) * 0.05;
+    const bounce = Math.sin(t * 1.5) * 4;
+    const sy = y + bounce;
+
+    // 身体（blob）
+    ctx.fillStyle = colors.body;
+    ctx.beginPath();
+    ctx.ellipse(x, sy + 10, 50 * (1 + pulse), 42 * (1 - pulse), 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = colors.bodyHighlight;
+    ctx.beginPath();
+    ctx.ellipse(x - 12, sy - 5, 22, 18, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 小气泡
+    ctx.fillStyle = colors.bodyHighlight;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(x + 25, sy + 5, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x - 20, sy + 20, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // 眼睛（在身体上）
+    const eyeBounce = Math.sin(t * 4) * 1.5;
+    ctx.fillStyle = colors.eyes;
+    ctx.beginPath();
+    ctx.ellipse(x - 14, sy - 8 + eyeBounce, 9, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + 14, sy - 8 + eyeBounce, 9, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = colors.pupil;
+    ctx.beginPath();
+    ctx.arc(x - 12, sy - 8 + eyeBounce, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 16, sy - 8 + eyeBounce, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 高光
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(x - 16, sy - 12 + eyeBounce, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 12, sy - 12 + eyeBounce, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 嘴巴（小波浪）
+    ctx.strokeStyle = colors.nose;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 8, sy + 8);
+    ctx.quadraticCurveTo(x, sy + 14, x + 8, sy + 8);
+    ctx.stroke();
+}
+
+function drawMonsterFlower(ctx, x, y, colors, t) {
+    const sway = Math.sin(t * 1.2) * 3;
+    const petalBreath = Math.sin(t * 2) * 0.1;
+
+    // 茎
+    ctx.strokeStyle = '#4A6B2A';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(x, y + 70);
+    ctx.quadraticCurveTo(x + sway, y + 30, x + sway * 0.5, y - 10);
+    ctx.stroke();
+
+    // 叶子
+    ctx.fillStyle = '#558822';
+    ctx.beginPath();
+    ctx.ellipse(x - 18 + sway * 0.7, y + 40, 16, 7, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + 18 + sway * 0.7, y + 25, 14, 6, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 花瓣（后层）
+    const petalCount = 6;
+    ctx.fillStyle = colors.body;
+    for (let i = 0; i < petalCount; i++) {
+        const angle = (i / petalCount) * Math.PI * 2 + t * 0.3;
+        const px = x + Math.cos(angle) * (28 + petalBreath * 10);
+        const py = y - 10 + Math.sin(angle) * (28 + petalBreath * 10);
+        ctx.beginPath();
+        ctx.ellipse(px + sway * 0.5, py, 14, 22, angle + Math.PI / 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 花盘（头）
+    ctx.fillStyle = colors.head;
+    ctx.beginPath();
+    ctx.ellipse(x + sway * 0.5, y - 10, 28, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 花盘纹理
+    ctx.fillStyle = colors.bodyHighlight;
+    ctx.beginPath();
+    ctx.ellipse(x + sway * 0.5 - 5, y - 15, 10, 8, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 眼睛
+    const blink = Math.sin(t * 2.5) > 0.9 ? 0.2 : 1;
+    ctx.fillStyle = colors.eyes;
+    ctx.beginPath();
+    ctx.ellipse(x + sway * 0.5 - 10, y - 12, 7 * blink, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + sway * 0.5 + 10, y - 12, 7 * blink, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = colors.pupil;
+    ctx.beginPath();
+    ctx.arc(x + sway * 0.5 - 8, y - 12, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + sway * 0.5 + 12, y - 12, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 嘴巴（锯齿状）
+    ctx.fillStyle = colors.teeth;
+    ctx.beginPath();
+    ctx.moveTo(x + sway * 0.5 - 10, y + 2);
+    ctx.lineTo(x + sway * 0.5 - 6, y - 4);
+    ctx.lineTo(x + sway * 0.5 - 2, y + 2);
+    ctx.lineTo(x + sway * 0.5 + 2, y - 4);
+    ctx.lineTo(x + sway * 0.5 + 6, y + 2);
+    ctx.lineTo(x + sway * 0.5 + 10, y - 4);
+    ctx.lineTo(x + sway * 0.5 + 10, y + 2);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawMonsterGolem(ctx, x, y, colors, t) {
+    const heavyBounce = Math.sin(t * 1) * 2;
+    const gy = y + heavyBounce;
+    const eyeGlow = Math.sin(t * 1.5) * 0.3 + 0.7;
+
+    // 腿
+    ctx.fillStyle = colors.claws;
+    ctx.fillRect(x - 28, gy + 45, 20, 22);
+    ctx.fillRect(x + 8, gy + 45, 20, 22);
+
+    // 身体（方壮）
+    ctx.fillStyle = colors.body;
+    roundRect(ctx, x - 45, gy - 10, 90, 60, 8);
+    ctx.fill();
+
+    // 身体高光
+    ctx.fillStyle = colors.bodyHighlight;
+    roundRect(ctx, x - 38, gy - 5, 30, 20, 4);
+    ctx.fill();
+
+    // 裂缝纹理
+    ctx.strokeStyle = colors.claws;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 20, gy + 10);
+    ctx.lineTo(x - 10, gy + 20);
+    ctx.lineTo(x - 5, gy + 15);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 15, gy + 5);
+    ctx.lineTo(x + 25, gy + 15);
+    ctx.stroke();
+
+    // 手臂
+    ctx.fillStyle = colors.claws;
+    roundRect(ctx, x - 58, gy + 5, 16, 35, 5);
+    ctx.fill();
+    roundRect(ctx, x + 42, gy + 5, 16, 35, 5);
+    ctx.fill();
+
+    // 头（方）
+    ctx.fillStyle = colors.head;
+    ctx.fillRect(x - 28, gy - 42, 56, 36);
+
+    // 头高光
+    ctx.fillStyle = colors.bodyHighlight;
+    ctx.fillRect(x - 22, gy - 38, 18, 10);
+
+    // 眼睛（发光矩形）
+    ctx.fillStyle = colors.eyes;
+    ctx.globalAlpha = eyeGlow;
+    ctx.fillRect(x - 16, gy - 30, 10, 8);
+    ctx.fillRect(x + 6, gy - 30, 10, 8);
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = colors.pupil;
+    ctx.fillRect(x - 13, gy - 28, 4, 4);
+    ctx.fillRect(x + 9, gy - 28, 4, 4);
+
+    // 鼻子
+    ctx.fillStyle = colors.nose;
+    ctx.fillRect(x - 3, gy - 18, 6, 5);
+
+    // 嘴巴（横线）
+    ctx.strokeStyle = colors.teeth;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 10, gy - 8);
+    ctx.lineTo(x + 10, gy - 8);
+    ctx.stroke();
 }
 
 function drawPlayerArea(renderer, ctx, state) {
