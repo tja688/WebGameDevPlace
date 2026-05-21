@@ -95,7 +95,15 @@ export function endTurn(state) {
         state, trigger: Trigger.ON_TURN_END
     }));
 
-    const totalDmg = calculateTotalBoardDamage(state);
+    let totalDmg = calculateTotalBoardDamage(state);
+    if (state.monster.keywords.includes('dodge')) {
+        const dodgeAmt = 2;
+        const origDmg = totalDmg;
+        totalDmg = Math.max(0, totalDmg - dodgeAmt);
+        if (origDmg !== totalDmg) {
+            logCombat(state, `蝙蝠闪避了 ${origDmg - totalDmg} 点伤害`);
+        }
+    }
     state.turnDamage = totalDmg;
     state.totalDamage += totalDmg;
     state.monster.hp = Math.max(0, state.monster.hp - totalDmg);

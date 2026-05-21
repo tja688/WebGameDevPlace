@@ -62,6 +62,14 @@ export const Renderer = {
             case 'act_transition': drawActTransition(this, ctx, state); break;
             case 'victory': drawVictory(this, ctx, state); break;
             case 'game_over': drawGameOver(this, ctx, state); break;
+            default:
+                ctx.fillStyle = '#0f0a14';
+                ctx.fillRect(0, 0, this.width, this.height);
+                ctx.fillStyle = '#ff4444';
+                ctx.font = 'bold 20px Microsoft YaHei';
+                ctx.textAlign = 'center';
+                ctx.fillText(`未知界面: ${state.screen}`, this.width / 2, this.height / 2);
+                break;
         }
 
         FX.screenShake.restore(ctx);

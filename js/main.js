@@ -2,9 +2,8 @@
  * 卡牌地下城 - 主入口
  */
 
-import { createGameState, switchScreen, startBattle } from './core/state.js';
+import { createGameState, startBattle } from './core/state.js';
 import { endTurn } from './systems/battle.js';
-import { calculateTotalBoardDamage } from './systems/board.js';
 import { Input } from './input/index.js';
 import { Renderer } from './render/renderer.js';
 import { initBattleFromRun } from './systems/battle.js';
@@ -77,18 +76,7 @@ function gameLoop() {
             }
         }
 
-        if (window.gameState.screen === 'battle' && window.gameState.phase === 'playing') {
-            const totalDmg = calculateTotalBoardDamage(window.gameState);
-            if (totalDmg >= window.gameState.monster.hp) {
-                if (!window.gameState.message || window.gameState.messageTimer === 0) {
-                    window.gameState.message = '伤害已达标！按 E 或点击结束回合';
-                    window.gameState.messageTimer = -1;
-                }
-            } else if (window.gameState.message && window.gameState.messageTimer === -1) {
-                window.gameState.message = null;
-                window.gameState.messageTimer = 0;
-            }
-        }
+        // 伤害达标消息提醒已移除
     }
     requestAnimationFrame(gameLoop);
 }

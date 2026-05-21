@@ -865,6 +865,9 @@ export const Input = {
             }
 
             setTimeout(() => {
+                if (this.state.phase !== 'ended' || this.state.result !== (isWin ? 'win' : 'lose')) {
+                    return;
+                }
                 if (isWin) {
                     const result = resolveBattleEnd(this.state);
                     const runData = this.state.runDataRef;

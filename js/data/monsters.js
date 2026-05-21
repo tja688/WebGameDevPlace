@@ -100,8 +100,8 @@ export const MONSTER_DEFS = {
         name: '洞穴蝙蝠',
         hp: 55,
         description: '在地下城深处栖息的蝙蝠',
-        keywords: [],
-        keywordDesc: '',
+        keywords: ['dodge'],
+        keywordDesc: '闪避：每回合受到的前2点伤害无效',
         theme: 'bat',
         type: 'normal',
         shape: 'bat'

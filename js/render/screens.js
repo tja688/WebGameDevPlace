@@ -477,6 +477,7 @@ export function drawCardPick(renderer, ctx, state) {
     for (let i = 0; i < options.length; i++) {
         const defId = options[i];
         const def = CARD_DEFS[defId];
+        if (!def) continue;
         const x = startX + i * (cardW + gap);
         const y = startY;
         const isHover = state.data.hoverOption === i;

@@ -103,9 +103,9 @@ function drawMonsterArea(renderer, ctx, state) {
 
     // 关键词面板
     if (monster.keywords.length > 0 && monster.keywordDesc) {
-        const tagW = 460;
-        const tagX = mx - tagW / 2;
-        const tagY = my - 48;
+        const tagW = 340;
+        const tagX = mx + 75;
+        const tagY = my - 30;
         ctx.font = 'bold 12px Microsoft YaHei';
         ctx.textAlign = 'left';
         const lineHeight = 18;
@@ -1099,7 +1099,7 @@ function drawUI(renderer, ctx, state) {
     const btnW = 150;
     const btnH = 55;
 
-    const btnText = canKill ? '✓ 结束回合（击杀）' : '结束回合';
+    const btnText = '结束回合';
     const btnOptions = {
         hover: false,
         primary: canKill,
@@ -1111,32 +1111,7 @@ function drawUI(renderer, ctx, state) {
 
     drawButton(ctx, btnX, btnY, btnW, btnH, btnText, btnOptions);
 
-    // 伤害预览面板
-    if (state.phase === 'playing') {
-        const panelW = 320;
-        const panelH = 50;
-        const panelX = renderer.width / 2 - panelW / 2;
-        const panelY = renderer.height - 55;
-
-        if (canKill) {
-            drawParchment(ctx, panelX, panelY, panelW, panelH, { alpha: 0.8, radius: 8 });
-            drawMetalFrame(ctx, panelX, panelY, panelW, panelH, { color: '#2ecc71', glowColor: '#2ecc71', radius: 8 });
-
-            ctx.fillStyle = '#2ecc71';
-            ctx.font = 'bold 16px Microsoft YaHei';
-            ctx.textAlign = 'center';
-            ctx.fillText('✓ 已达成目标！点击结束回合', renderer.width / 2, panelY + 30);
-        } else {
-            const need = state.monster.hp - totalDmg;
-            drawParchment(ctx, panelX, panelY, panelW, panelH, { alpha: 0.6, radius: 8 });
-            drawMetalFrame(ctx, panelX, panelY, panelW, panelH, { color: '#554433', radius: 8 });
-
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = '14px Microsoft YaHei';
-            ctx.textAlign = 'center';
-            ctx.fillText(`还需 ${need} 伤害`, renderer.width / 2, panelY + 30);
-        }
-    }
+    // 伤害预览面板已移除
 }
 
 // ============================================================
@@ -1235,17 +1210,7 @@ function drawPreview(renderer, ctx, state) {
     ctx.fillStyle = preview.willKill ? '#2ecc71' : '#ffd700';
     ctx.font = 'bold 15px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText(`预计伤害: ${preview.cardOutput} | 总计: ${preview.totalDamage}`, mx, my);
-
-    if (preview.willKill) {
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = 'bold 14px Microsoft YaHei';
-        ctx.fillText('☠️ 这将击杀怪物！', mx, my + 20);
-    } else {
-        ctx.fillStyle = '#ff8888';
-        ctx.font = '13px Microsoft YaHei';
-        ctx.fillText(`怪物剩余: ${preview.monsterRemaining}`, mx, my + 20);
-    }
+    ctx.fillText(`预计: ${preview.cardOutput} | 总计: ${preview.totalDamage}`, mx, my);
 }
 
 // ============================================================
