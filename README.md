@@ -14,7 +14,7 @@
 
 由于项目使用 ES6 Modules，`index.html` 必须通过 **HTTP 服务器** 访问，不能直接 `file://` 打开。
 
-**Windows 用户可直接双击 `start.bat` 一键启动（含服务器、测试、模拟选项）**
+**Windows 用户可直接双击 `dev.bat` 一键启动（含服务器、测试、模拟选项）**
 
 ```bash
 # 方式1：使用项目自带的 Node.js 服务器
