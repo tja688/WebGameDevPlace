@@ -8,8 +8,10 @@ export const GameAudio = {
     masterGain: null,
     sfxGain: null,
     bgmGain: null,
-    sfxVolume: 0.7,
+    sfxVolume: 0.5,
     bgmVolume: 0.5,
+    sfxBaseVolume: 0.8,
+    bgmBaseVolume: 0.1,
 
     // BGM 元素
     bgmNormal: null,
@@ -24,11 +26,11 @@ export const GameAudio = {
             this.masterGain.connect(this.ctx.destination);
 
             this.sfxGain = this.ctx.createGain();
-            this.sfxGain.gain.value = this.sfxVolume;
+            this.sfxGain.gain.value = this.sfxBaseVolume * (this.sfxVolume / 0.5);
             this.sfxGain.connect(this.masterGain);
 
             this.bgmGain = this.ctx.createGain();
-            this.bgmGain.gain.value = this.bgmVolume;
+            this.bgmGain.gain.value = this.bgmBaseVolume * (this.bgmVolume / 0.5);
             this.bgmGain.connect(this.masterGain);
         } catch (e) {
             console.warn('Web Audio API not supported');
@@ -40,11 +42,11 @@ export const GameAudio = {
         this.bgmBoss = document.getElementById('bgm-boss');
         if (this.bgmNormal) {
             this.bgmNormal.loop = true;
-            this.bgmNormal.volume = this.bgmVolume;
+            this.bgmNormal.volume = this.bgmBaseVolume * (this.bgmVolume / 0.5);
         }
         if (this.bgmBoss) {
             this.bgmBoss.loop = true;
-            this.bgmBoss.volume = this.bgmVolume;
+            this.bgmBoss.volume = this.bgmBaseVolume * (this.bgmVolume / 0.5);
         }
     },
 
@@ -55,17 +57,26 @@ export const GameAudio = {
     },
 
     // ===== 音量控制 =====
+    _effectiveSFX() {
+        return Math.min(1, this.sfxBaseVolume * (this.sfxVolume / 0.5));
+    },
+
+    _effectiveBGM() {
+        return Math.min(1, this.bgmBaseVolume * (this.bgmVolume / 0.5));
+    },
+
     setSFXVolume(val) {
         this.sfxVolume = Math.max(0, Math.min(1, val));
         if (this.sfxGain) {
-            this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+            this.sfxGain.gain.setValueAtTime(this._effectiveSFX(), this.ctx.currentTime);
         }
     },
 
     setBGMVolume(val) {
         this.bgmVolume = Math.max(0, Math.min(1, val));
-        if (this.bgmNormal) this.bgmNormal.volume = this.bgmVolume;
-        if (this.bgmBoss) this.bgmBoss.volume = this.bgmVolume;
+        const effective = this._effectiveBGM();
+        if (this.bgmNormal) this.bgmNormal.volume = effective;
+        if (this.bgmBoss) this.bgmBoss.volume = effective;
     },
 
     // ===== BGM 播放 =====
@@ -83,7 +94,7 @@ export const GameAudio = {
         // 播放目标音乐
         if (target.paused || this.currentBGM !== target) {
             target.currentTime = 0;
-            target.volume = this.bgmVolume;
+            target.volume = this._effectiveBGM();
             const playPromise = target.play();
             if (playPromise) playPromise.catch(() => {});
             this.currentBGM = target;
@@ -122,7 +133,7 @@ export const GameAudio = {
         const gain = this.ctx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, t);
-        const effectiveVol = vol * this.sfxVolume;
+        const effectiveVol = vol * this._effectiveSFX();
         gain.gain.setValueAtTime(effectiveVol, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
         osc.connect(gain);
