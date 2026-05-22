@@ -802,6 +802,28 @@ export const Input = {
             return;
         }
 
+        // 处理忆往昔的弃牌堆选择
+        if (this.state.pendingRecall) {
+            const rects = this.state.pendingRecall.cardRects;
+            if (rects) {
+                for (const rect of rects) {
+                    if (this.hitTest(pos, rect)) {
+                        const card = rect.card;
+                        const discardIdx = this.state.discard.findIndex(c => c.uuid === card.uuid);
+                        if (discardIdx !== -1) {
+                            const recalled = this.state.discard.splice(discardIdx, 1)[0];
+                            this.state.hand.push(recalled);
+                            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                        }
+                        this.state.pendingRecall = null;
+                        this.canvas.style.cursor = 'default';
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+
         const btnRect = getEndTurnButtonRect(this.renderer);
         if (this.hitTest(pos, btnRect)) {
             endTurn(this.state);
@@ -830,6 +852,29 @@ export const Input = {
             this.state.hoveredEndTurn = false;
             this.canvas.style.cursor = 'default';
             this.hideTooltip();
+            return;
+        }
+
+        // 处理忆往昔的弃牌堆选择悬停
+        if (this.state.pendingRecall) {
+            const rects = this.state.pendingRecall.cardRects;
+            if (rects) {
+                let found = false;
+                for (const rect of rects) {
+                    if (this.hitTest(pos, rect)) {
+                        this.state.pendingRecall.hoverIndex = rect.index;
+                        this.canvas.style.cursor = 'pointer';
+                        this.updateTooltip(rect.card, pos.x, pos.y);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    this.state.pendingRecall.hoverIndex = -1;
+                    this.canvas.style.cursor = 'default';
+                    this.hideTooltip();
+                }
+            }
             return;
         }
 

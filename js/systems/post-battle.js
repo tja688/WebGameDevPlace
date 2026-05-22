@@ -27,6 +27,10 @@ export function resolveBattleEnd(battleState) {
                 ...battleState.discard,
                 ...battleState.slots.flatMap(s => s.cards)
             ];
+            // 清空所有卡牌的临时加成（防止跨战斗保留伪永久数值）
+            for (const c of allCards) {
+                c.tempBonus = 0;
+            }
             runData.deck = allCards;
         }
 

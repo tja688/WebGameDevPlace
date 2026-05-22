@@ -7,7 +7,7 @@
 import { EffectHandler, FX } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 
-// 再训练（re_training）：离场时相邻生长牌获得复用
+// 再训练（re_training）：离场时相邻卡牌获得复用
 FX.register(new EffectHandler({
     id: 're_training_exit',
     triggers: Trigger.ON_EXIT,
@@ -18,16 +18,14 @@ FX.register(new EffectHandler({
         for (const s of ctx.state.slots) {
             if (Math.abs(s.index - ctx.slotIndex) === 1 && s.cards.length > 0) {
                 const target = s.cards[s.cards.length - 1];
-                if (target.keywords.includes('grow')) {
-                    target.reuse = true;
-                    ctx.log(`${target.name} 获得复用！`);
-                }
+                target.reuse = true;
+                ctx.log(`${target.name} 获得复用！`);
             }
         }
     }
 }));
 
-// 加练（extra_training）：离场时相邻生长牌获得留场
+// 持续训练（extra_training）：离场时相邻卡牌获得留场
 FX.register(new EffectHandler({
     id: 'extra_training_exit',
     triggers: Trigger.ON_EXIT,
@@ -38,7 +36,7 @@ FX.register(new EffectHandler({
         for (const s of ctx.state.slots) {
             if (Math.abs(s.index - ctx.slotIndex) === 1 && s.cards.length > 0) {
                 const target = s.cards[s.cards.length - 1];
-                if (target.keywords.includes('grow') && !target.keywords.includes('remain')) {
+                if (!target.keywords.includes('remain')) {
                     target.keywords.push('remain');
                     ctx.log(`${target.name} 获得留场！`);
                 }

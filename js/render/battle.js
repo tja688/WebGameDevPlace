@@ -30,6 +30,7 @@ export function drawBattle(renderer, ctx, state) {
     drawSlotFlashes(renderer, ctx, state);
     drawMonsterFlash(renderer, ctx, state);
     drawPreview(renderer, ctx, state);
+    drawPendingRecall(renderer, ctx, state);
 }
 
 // ============================================================
@@ -1382,6 +1383,85 @@ export function getHandCardIndexAt(renderer, px, py, handLength) {
         }
     }
     return null;
+}
+
+function drawPendingRecall(renderer, ctx, state) {
+    if (!state.pendingRecall) return;
+
+    const w = renderer.width;
+    const h = renderer.height;
+
+    // 暗色遮罩
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, w, h);
+
+    const title = state.pendingRecall.message || '请选择弃牌堆中的一张卡牌';
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 24px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, w / 2, 80);
+
+    const cards = state.pendingRecall.cards;
+    const cardW = 140;
+    const cardH = 200;
+    const gap = 20;
+    const totalW = cards.length * cardW + (cards.length - 1) * gap;
+    let startX = (w - totalW) / 2;
+    const startY = 120;
+
+    state.pendingRecall.cardRects = [];
+
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const x = startX + i * (cardW + gap);
+        const y = startY;
+
+        const isHover = state.pendingRecall.hoverIndex === i;
+
+        // 卡牌背景
+        ctx.fillStyle = card.color || '#444';
+        roundRect(ctx, x, y, cardW, cardH, 8);
+        ctx.fill();
+        ctx.strokeStyle = isHover ? '#fff' : (card.accentColor || '#888');
+        ctx.lineWidth = isHover ? 3 : 2;
+        ctx.stroke();
+
+        // 卡牌名称
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(card.name, x + cardW / 2, y + 22);
+
+        // 点数
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 18px Microsoft YaHei';
+        ctx.fillText((card.baseValue + card.permanentBonus + (card.tempBonus || 0)), x + cardW / 2, y + 50);
+
+        // 关键词标签
+        let tagY = y + 72;
+        for (const kw of card.keywords.slice(0, 3)) {
+            const kwData = KEYWORDS[kw];
+            if (!kwData) continue;
+            const tagW = ctx.measureText(kwData.name).width + 8;
+            const tagX = x + (cardW - tagW) / 2;
+            ctx.fillStyle = kwData.color + '33';
+            ctx.strokeStyle = kwData.color;
+            ctx.lineWidth = 1;
+            ctx.fillRect(tagX, tagY, tagW, 14);
+            ctx.strokeRect(tagX, tagY, tagW, 14);
+            ctx.fillStyle = kwData.color;
+            ctx.font = '9px Microsoft YaHei';
+            ctx.fillText(kwData.name, x + cardW / 2, tagY + 11);
+            tagY += 18;
+        }
+
+        // 点击提示
+        ctx.fillStyle = isHover ? '#ffcc88' : '#888';
+        ctx.font = '11px Microsoft YaHei';
+        ctx.fillText('点击选择', x + cardW / 2, y + cardH - 12);
+
+        state.pendingRecall.cardRects.push({ x, y, w: cardW, h: cardH, index: i, card });
+    }
 }
 
 function hexToRgb(hex) {

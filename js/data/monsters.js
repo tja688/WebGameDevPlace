@@ -65,7 +65,7 @@ export const MONSTER_DEFS = {
     lone_rat: {
         id: 'lone_rat',
         name: '离群硕鼠',
-        hp: 65,
+        hp: 75,
         description: '大一点落单耗子',
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
@@ -76,7 +76,7 @@ export const MONSTER_DEFS = {
     rotten_rat: {
         id: 'rotten_rat',
         name: '腐化田鼠',
-        hp: 70,
+        hp: 80,
         description: '被污染农田里钻出的病鼠',
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
@@ -87,7 +87,7 @@ export const MONSTER_DEFS = {
     gluttony_swarm: {
         id: 'gluttony_swarm',
         name: '暴食鼠群',
-        hp: 75,
+        hp: 90,
         description: '成群结队觅食的硕鼠',
         keywords: ['virus_source'],
         keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
@@ -98,7 +98,7 @@ export const MONSTER_DEFS = {
     cave_bat: {
         id: 'cave_bat',
         name: '洞穴蝙蝠',
-        hp: 55,
+        hp: 70,
         description: '在地下城深处栖息的蝙蝠',
         keywords: ['dodge'],
         keywordDesc: '闪避：每回合受到的前2点伤害无效',
@@ -109,7 +109,7 @@ export const MONSTER_DEFS = {
     mud_slime: {
         id: 'mud_slime',
         name: '泥浆软泥怪',
-        hp: 80,
+        hp: 110,
         description: '被污染的泥浆凝聚而成的怪物',
         keywords: [],
         keywordDesc: '',
@@ -120,7 +120,7 @@ export const MONSTER_DEFS = {
     polluted_flower: {
         id: 'polluted_flower',
         name: '污染之花',
-        hp: 90,
+        hp: 120,
         description: '被地下城气息侵蚀的食人花',
         keywords: [],
         keywordDesc: '',
@@ -141,8 +141,8 @@ export const MONSTER_DEFS = {
     },
     elite_guard: {
         id: 'elite_guard',
-        name: '鼠王近卫',
-        hp: 140,
+        name: '虎哥',
+        hp: 200,
         description: '守护鼠王的精锐战士',
         keywords: [],
         keywordDesc: '',
@@ -152,14 +152,58 @@ export const MONSTER_DEFS = {
     },
     rat_king: {
         id: 'rat_king',
-        name: '鼠疫之王',
-        hp: 200,
+        name: '牛头人',
+        hp: 400,
         description: '地下城鼠群的统治者',
         keywords: [],
         keywordDesc: '',
         theme: 'boss',
         type: 'boss',
         shape: 'rat'
+    },
+    blade_bro: {
+        id: 'blade_bro',
+        name: '刀哥',
+        hp: 125,
+        description: '需要快速击杀的小怪',
+        keywords: ['strong_heal'],
+        keywordDesc: '强力回复：每回合开始，提高自身血量20',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    vest_sage: {
+        id: 'vest_sage',
+        name: '背心尊者',
+        hp: 200,
+        description: '可承受3回合的测试用靶子',
+        keywords: ['crash'],
+        keywordDesc: '猛撞：放在最左倍率格子上的卡牌数值-4',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    small_gate: {
+        id: 'small_gate',
+        name: '小门',
+        hp: 250,
+        description: '可承受3回合的测试用靶子',
+        keywords: ['courage'],
+        keywordDesc: '勇气：数值最高的倍率格点数-1',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'golem'
+    },
+    soul_thief: {
+        id: 'soul_thief',
+        name: '偷子',
+        hp: 300,
+        description: '可承受3回合的测试用靶子',
+        keywords: ['soul_steal'],
+        keywordDesc: '窃魂：每造成一次伤害减少玩家1魂',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'bat'
     },
     training_dummy: {
         id: 'training_dummy',

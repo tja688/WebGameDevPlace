@@ -40,13 +40,13 @@ FX.register(new EffectHandler({
     }
 }));
 
-// 磨练技巧（hone_skill）：相邻生长牌+4
+// 训练技巧（hone_skill）：相邻两侧倍率格卡牌点数+3
 FX.register(new EffectHandler({
     id: 'hone_skill_aura',
     triggers: Trigger.ON_CALC_VALUE,
     priority: Priority.VALUE_AURA + 1,
     condition: (ctx) => {
-        if (!ctx.card || !ctx.card.keywords.includes('grow')) return false;
+        if (!ctx.card) return false;
         const targetSlot = ctx.getCardSlotIndex(ctx.card);
         if (targetSlot < 0) return false;
         for (const slot of ctx.state.slots) {
@@ -61,51 +61,14 @@ FX.register(new EffectHandler({
         for (const slot of ctx.state.slots) {
             if (Math.abs(slot.index - targetSlot) === 1) {
                 if (slot.cards.some(c => c.defId === 'hone_skill')) {
-                    ctx.value += 4;
+                    ctx.value += 3;
                 }
             }
         }
     }
 }));
 
-// 训练纲领（training_program）：相邻生长牌+训练牌数量
-FX.register(new EffectHandler({
-    id: 'training_program_aura',
-    triggers: Trigger.ON_CALC_VALUE,
-    priority: Priority.VALUE_AURA + 2,
-    condition: (ctx) => {
-        if (!ctx.card || !ctx.card.keywords.includes('grow')) return false;
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        if (targetSlot < 0) return false;
-        for (const slot of ctx.state.slots) {
-            if (Math.abs(slot.index - targetSlot) === 1) {
-                if (slot.cards.some(c => c.defId === 'training_program')) return true;
-            }
-        }
-        return false;
-    },
-    execute: (ctx) => {
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        let hasProgram = false;
-        for (const slot of ctx.state.slots) {
-            if (Math.abs(slot.index - targetSlot) === 1) {
-                if (slot.cards.some(c => c.defId === 'training_program')) {
-                    hasProgram = true;
-                    break;
-                }
-            }
-        }
-        if (hasProgram) {
-            // 统计所有训练牌
-            const allCards = [
-                ...ctx.state.deck, ...ctx.state.hand, ...ctx.state.discard,
-                ...ctx.state.slots.flatMap(s => s.cards)
-            ];
-            const count = allCards.filter(c => c.name.includes('训练')).length;
-            ctx.value += count;
-        }
-    }
-}));
+// （训练纲领的光环效果已移除，改为打出时效果）
 
 // ===== ON_CALC_FINAL：计算最终点数（翻倍、惩罚阶段）=====
 

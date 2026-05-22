@@ -61,6 +61,7 @@ export function createRunData(classId) {
         souls: 0,
         heartsLostInStage: 0,
         deck: shuffleArray(createDeck(cls)),
+        startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
         relics: [cls.relic],
         slotCount: SLOT_COUNT,
         unlockedSlots: MAX_UNLOCKED_SLOTS,

@@ -7,7 +7,7 @@
 import { EffectHandler, FX } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 
-// 完美境界（perfect_state）：相邻格倍率+1
+// 豪华装备（perfect_state）：相邻格倍率+1（可叠加）
 FX.register(new EffectHandler({
     id: 'perfect_state_slot',
     triggers: Trigger.ON_SLOT_CALC,
@@ -18,9 +18,8 @@ FX.register(new EffectHandler({
         let bonus = 0;
         for (const s of ctx.state.slots) {
             if (Math.abs(s.index - slot.index) === 1) {
-                if (s.cards.some(c => c.defId === 'perfect_state')) {
-                    bonus += 1;
-                }
+                const count = s.cards.filter(c => c.defId === 'perfect_state').length;
+                bonus += count;
             }
         }
         ctx.value += bonus;
