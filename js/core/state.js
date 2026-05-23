@@ -20,9 +20,10 @@ export function createGameState(screen) {
 /**
  * 创建战斗格子（供 createInitialState 和 initBattleFromRun 共享）
  */
-export function createBattleSlots({ classRelic, slotUpgrades = {} }) {
+export function createBattleSlots({ classRelic, slotUpgrades = {}, act = 1 }) {
     const slots = [];
-    for (let i = 0; i < SLOT_COUNT; i++) {
+    const slotCount = Math.min(5, 3 + (act - 1));
+    for (let i = 0; i < slotCount; i++) {
         let mul = 1;
         if (classRelic.effect.type === 'slot_multiplier' && classRelic.effect.slotIndex === i) {
             mul += classRelic.effect.bonus;
@@ -94,7 +95,8 @@ export function createInitialState() {
     const monster = MONSTER_DEFS.lone_rat;
 
     const slots = createBattleSlots({
-        classRelic: cls.relic
+        classRelic: cls.relic,
+        act: 1
     });
 
     return {

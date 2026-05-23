@@ -171,10 +171,11 @@ export function drawMap(renderer, ctx, state) {
     ctx.lineTo(renderer.width, 70);
     ctx.stroke();
 
+    const actNames = ['', '第一大关：被污染的农田', '第二大关：幽暗矿洞', '第三大关：鼠王巢穴'];
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 22px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText(`第一大关：被污染的农田`, 30, 45);
+    ctx.fillText(actNames[runData.act] || `第${runData.act}大关`, 30, 45);
 
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
@@ -200,7 +201,10 @@ export function drawMap(renderer, ctx, state) {
     ctx.setLineDash([]);
 
     state.data.nodeRects = [];
-    const stageKeys = ['1-1','1-2','1-3','1-4','1-5','1-6'];
+    const stageKeys = [];
+    for (let i = 1; i <= 6; i++) {
+        stageKeys.push(`${runData.act}-${i}`);
+    }
     const typeIcons = { normal: '👹', elite: '👺', boss: '👿' };
     const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
 
@@ -274,7 +278,8 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 个 | 倍率格: 3格`, 30, renderer.height - 60);
+    const slotCount = 3 + (runData.act - 1);
+    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 个 | 倍率格: ${slotCount}格`, 30, renderer.height - 60);
 
     if (runData.stageIndex < 6) {
         const curKey = getCurrentStageKey(runData);
@@ -283,6 +288,78 @@ export function drawMap(renderer, ctx, state) {
         ctx.font = '18px Microsoft YaHei';
         ctx.textAlign = 'center';
         ctx.fillText(`点击节点进入 ${curKey} - ${typeLabels[curConfig.type]}战斗`, cx, renderer.height - 30);
+    }
+}
+
+export function drawBossRelic(renderer, ctx, state) {
+    drawBackground(ctx, renderer.width, renderer.height, renderer.animTime);
+    const data = state.data;
+    const cx = renderer.width / 2;
+
+    drawGlowText(ctx, 'BOSS遗物 - 选择一项奖励', cx, 100, {
+        color: '#ffd700',
+        glowColor: '#b8860b',
+        glowBlur: 15,
+        font: 'bold 34px Microsoft YaHei',
+        align: 'center'
+    });
+
+    if (data.soulsGained !== undefined) {
+        drawSoulIcon(ctx, cx - 80, 135, 18);
+        ctx.fillStyle = '#aaa';
+        ctx.font = '18px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(`获得 ${data.soulsGained} 魂 | 累计: ${data.runData.souls} 魂`, cx + 10, 140);
+    }
+
+    state.data.optionRects = [];
+    const options = data.relicOptions || [];
+    const cardW = 300;
+    const cardH = 380;
+    const gap = 40;
+    const totalW = options.length * cardW + (options.length - 1) * gap;
+    const startX = cx - totalW / 2;
+    const startY = 180;
+
+    for (let i = 0; i < options.length; i++) {
+        const relic = options[i];
+        const x = startX + i * (cardW + gap);
+        const y = startY;
+        const isHover = state.data.hoverOption === i;
+
+        const alpha = isHover ? 0.95 : 0.85;
+        ctx.globalAlpha = alpha;
+        const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+        grad.addColorStop(0, isHover ? '#3a2a1a' : '#2a1a0a');
+        grad.addColorStop(1, isHover ? '#1a0a05' : '#0d0505');
+        ctx.fillStyle = grad;
+        roundRect(ctx, x, y, cardW, cardH, 14);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.strokeStyle = isHover ? '#ffd700' : '#b8860b';
+        ctx.lineWidth = isHover ? 3 : 2;
+        roundRect(ctx, x, y, cardW, cardH, 14);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '60px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏆', x + cardW / 2, y + 80);
+
+        ctx.fillStyle = '#ffcc66';
+        ctx.font = 'bold 20px Microsoft YaHei';
+        ctx.fillText(relic.name, x + cardW / 2, y + 130);
+
+        ctx.fillStyle = '#aaa';
+        ctx.font = '15px Microsoft YaHei';
+        wrapText(ctx, relic.desc, x + cardW / 2, y + 170, cardW - 40, 24);
+
+        ctx.fillStyle = isHover ? '#ffcc88' : '#666';
+        ctx.font = '14px Microsoft YaHei';
+        ctx.fillText('点击选择', x + cardW / 2, y + cardH - 30);
+
+        state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, type: 'relic', data: relic });
     }
 }
 
@@ -875,11 +952,14 @@ export function drawBlacksmith(renderer, ctx, state) {
         columns[0].items.push({ type: 'buy_relic', name: item.name, cost: item.price, data: item, index: i });
     }
 
-    for (let i = 0; i < 3; i++) {
-        const cost = runData.blacksmithSlotCosts[i] || 2;
-        const upgradeCount = runData.slotUpgrades[i] || 0;
-        columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, subText: `当前+${upgradeCount}倍率` });
+    // 第二版：铁匠改为随机强化倍率格
+    const slotUpgradeCost = runData.blacksmithSlotCosts[0] || 2;
+    let totalSlotUpgrades = 0;
+    const maxSlots = Math.min(5, 3 + (runData.act - 1));
+    for (let i = 0; i < maxSlots; i++) {
+        totalSlotUpgrades += runData.slotUpgrades[i] || 0;
     }
+    columns[1].items.push({ type: 'upgrade_slot', name: '随机强化倍率格', cost: slotUpgradeCost, subText: `当前累计+${totalSlotUpgrades}倍率` });
 
     const enchantCost = runData.blacksmithEnchantCost;
     const refreshCost = runData.firstBlacksmithRefreshFree ? 0 : runData.blacksmithRefreshCost;
@@ -959,17 +1039,8 @@ export function drawEvent(renderer, ctx, state) {
     drawBackground(ctx, renderer.width, renderer.height, renderer.animTime);
     const data = state.data;
     const cx = renderer.width / 2;
-    const cy = renderer.height / 2;
 
-    const cardW = 600;
-    const cardH = 400;
-    const x = cx - cardW / 2;
-    const y = cy - cardH / 2 - 30;
-
-    drawParchment(ctx, x, y, cardW, cardH, { alpha: 0.95, radius: 16 });
-    drawMetalFrame(ctx, x, y, cardW, cardH, { color: '#664488', thickness: 3, radius: 16 });
-
-    drawGlowText(ctx, data.eventName, cx, y + 60, {
+    drawGlowText(ctx, '遭遇事件', cx, 80, {
         color: '#ffd700',
         glowColor: '#b8860b',
         glowBlur: 12,
@@ -977,32 +1048,81 @@ export function drawEvent(renderer, ctx, state) {
         align: 'center'
     });
 
-    ctx.fillStyle = '#aaa';
-    ctx.font = '18px Microsoft YaHei';
-    wrapText(ctx, data.eventDesc, cx, y + 120, cardW - 80, 30);
-
-    const btnW = 220;
-    const btnH = 50;
-    const btnGap = 30;
-    const options = ['接受', '离开'];
-    const totalBtnW = options.length * btnW + (options.length - 1) * btnGap;
-    const btnStartX = cx - totalBtnW / 2;
-    const btnY = y + cardH - 90;
-
-    state.data.eventOptionRects = [];
-    for (let i = 0; i < options.length; i++) {
-        const bx = btnStartX + i * (btnW + btnGap);
-        const isHover = state.data.hoverEventOption === i;
-
-        drawButton(ctx, bx, btnY, btnW, btnH, options[i], {
-            hover: isHover,
-            primary: i === 0,
-            radius: 10,
-            fontSize: 18
-        });
-
-        state.data.eventOptionRects.push({ x: bx, y: btnY, w: btnW, h: btnH, index: i, text: options[i] });
+    state.data.optionRects = [];
+    const options = data.options || [];
+    if (options.length === 0) {
+        ctx.fillStyle = '#aaa';
+        ctx.font = '18px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText('无事发生...', cx, 200);
+        return;
     }
+
+    const cardW = 320;
+    const cardH = 280;
+    const gap = 40;
+    const totalW = options.length * cardW + (options.length - 1) * gap;
+    const startX = cx - totalW / 2;
+    const startY = 140;
+
+    for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+        const x = startX + i * (cardW + gap);
+        const y = startY;
+        const isHover = state.data.hoverOption === i;
+
+        const alpha = isHover ? 0.95 : 0.85;
+        ctx.globalAlpha = alpha;
+        const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+        grad.addColorStop(0, isHover ? '#3a2a4a' : '#2a1a3a');
+        grad.addColorStop(1, isHover ? '#1a0a2a' : '#0d0515');
+        ctx.fillStyle = grad;
+        roundRect(ctx, x, y, cardW, cardH, 14);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.strokeStyle = isHover ? '#aa77cc' : '#664488';
+        ctx.lineWidth = isHover ? 3 : 2;
+        roundRect(ctx, x, y, cardW, cardH, 14);
+        ctx.stroke();
+
+        ctx.fillStyle = '#aa77cc';
+        ctx.font = '50px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🜂', x + cardW / 2, y + 70);
+
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 20px Microsoft YaHei';
+        ctx.fillText(opt.name, x + cardW / 2, y + 110);
+
+        ctx.fillStyle = '#aaa';
+        ctx.font = '14px Microsoft YaHei';
+        wrapText(ctx, opt.desc, x + cardW / 2, y + 140, cardW - 40, 22);
+
+        ctx.fillStyle = isHover ? '#ffcc88' : '#666';
+        ctx.font = '14px Microsoft YaHei';
+        ctx.fillText('点击选择', x + cardW / 2, y + cardH - 30);
+
+        state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, type: 'event', data: opt });
+    }
+
+    // 离开按钮
+    const btnW = 200;
+    const btnH = 45;
+    const btnX = cx - btnW / 2;
+    const btnY = startY + cardH + 30;
+    const skipHover = state.data.hoverSkip;
+    ctx.fillStyle = skipHover ? 'rgba(60,50,50,0.95)' : 'rgba(40,35,35,0.9)';
+    ctx.strokeStyle = skipHover ? '#aa6666' : '#554444';
+    ctx.lineWidth = skipHover ? 3 : 2;
+    roundRect(ctx, btnX, btnY, btnW, btnH, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = skipHover ? '#ffcccc' : '#aaa';
+    ctx.font = 'bold 16px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText('离开', cx, btnY + 29);
+    state.data.skipRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 }
 
 export function drawTreasure(renderer, ctx, state) {
@@ -1090,6 +1210,10 @@ export function drawActTransition(renderer, ctx, state) {
     const cx = renderer.width / 2;
     const cy = renderer.height / 2;
     const t = renderer.animTime;
+    const runData = data.runData;
+    const act = runData ? runData.act : 1;
+    const actNames = ['', '第一大关', '第二大关', '第三大关'];
+    const nextActNames = ['', '第二大关', '第三大关', '通关'];
 
     const alpha = Math.min(1, t * 0.5);
     ctx.fillStyle = `rgba(10,5,15,${alpha})`;
@@ -1100,7 +1224,7 @@ export function drawActTransition(renderer, ctx, state) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 48px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('第一大关 完成', cx, cy - 120);
+    ctx.fillText(`${actNames[act] || '第' + act + '大关'} 完成`, cx, cy - 120);
 
     ctx.strokeStyle = '#b8860b';
     ctx.lineWidth = 2;
@@ -1115,7 +1239,8 @@ export function drawActTransition(renderer, ctx, state) {
 
     ctx.fillStyle = '#aaa';
     ctx.font = '18px Microsoft YaHei';
-    ctx.fillText('倍率牌桌上限增加一格（3格 → 4格）', cx, cy - 5);
+    const nextSlotCount = 3 + act;
+    ctx.fillText(`倍率牌桌上限增加一格（${2 + act}格 → ${nextSlotCount}格）`, cx, cy - 5);
 
     const btnW = 260;
     const btnH = 55;
@@ -1133,7 +1258,7 @@ export function drawActTransition(renderer, ctx, state) {
     ctx.fillStyle = isHover ? '#ffcccc' : '#ffaaaa';
     ctx.font = 'bold 20px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('进入第二大关', cx, btnY + 35);
+    ctx.fillText(`进入${nextActNames[act] || '下一关'}`, cx, btnY + 35);
 
     state.data.transitionBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 }
@@ -1159,9 +1284,11 @@ export function drawVictory(renderer, ctx, state) {
     ctx.lineTo(cx + 200, cy - 90);
     ctx.stroke();
 
+    const actNames = ['', '被污染的农田', '幽暗矿洞', '鼠王巢穴'];
+    const act = runData ? runData.act : 1;
     ctx.fillStyle = '#aaa';
     ctx.font = '22px Microsoft YaHei';
-    ctx.fillText(`你成功清除了被污染的农田！`, cx, cy - 40);
+    ctx.fillText(`你成功清除了${actNames[act] || '地下城'}！`, cx, cy - 40);
 
     ctx.fillStyle = '#ffcc66';
     ctx.font = '20px Microsoft YaHei';

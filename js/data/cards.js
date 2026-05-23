@@ -26,7 +26,7 @@ export const CARD_DEFS = {
     feint: {
         id: 'feint',
         name: '佯攻',
-        baseValue: 10,
+        baseValue: 15,
         size: 1,
         keywords: [],
         rarity: 'white',
@@ -65,7 +65,7 @@ export const CARD_DEFS = {
     show_muscle: {
         id: 'show_muscle',
         name: '炫耀肌肉',
-        baseValue: 10,
+        baseValue: 8,
         size: 1,
         keywords: [],
         extraEffects: ['show_muscle_effect'],
@@ -289,7 +289,7 @@ export const CARD_DEFS = {
     echo_grow: {
         id: 'echo_grow',
         name: '回响生长',
-        baseValue: 10,
+        baseValue: 20,
         size: 1,
         keywords: ['grow', 'echo'],
         growAmount: 1,

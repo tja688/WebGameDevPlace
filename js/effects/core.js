@@ -182,6 +182,14 @@ export class EffectSystem {
             if (ctx.cancelled) break;
             h.execute(ctx);
         }
+        
+        // 回响：ON_PLAY 时，若卡牌有 echo 词条，效果再触发一次
+        if (trigger === Trigger.ON_PLAY && ctx.card && ctx.card.keywords.includes('echo')) {
+            for (const h of handlers) {
+                if (ctx.cancelled) break;
+                h.execute(ctx);
+            }
+        }
     }
 
     /** 获取某张卡牌应触发的所有效果ID（基于关键词和专属效果） */

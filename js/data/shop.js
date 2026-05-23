@@ -22,8 +22,10 @@ export function createShopStock() {
 
 export function createBlacksmithStock() {
     const relics = [];
+    // 第二版：铁匠只出售非BOSS遗物
+    const pool = RELIC_DEFS.filter(r => r.rarity !== 'boss');
     for (let i = 0; i < 2; i++) {
-        const relic = RELIC_DEFS[Math.floor(Math.random() * RELIC_DEFS.length)];
+        const relic = pool[Math.floor(Math.random() * pool.length)];
         const price = RARITY_PRICE[relic.rarity] || 1;
         relics.push({ ...relic, price, bought: false });
     }

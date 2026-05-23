@@ -28,7 +28,8 @@ export function initBattleFromRun(runData) {
 
     const slots = createBattleSlots({
         classRelic: cls.relic,
-        slotUpgrades: runData.slotUpgrades
+        slotUpgrades: runData.slotUpgrades,
+        act: runData.act
     });
 
     const deck = [...runData.deck];

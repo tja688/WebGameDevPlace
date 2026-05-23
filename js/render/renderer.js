@@ -9,7 +9,7 @@ import {
     drawTitle, drawClassSelect, drawMap, drawPostBattle,
     drawCardPick, drawCardSelect, drawShop, drawBlacksmith,
     drawEvent, drawTreasure, drawActTransition, drawVictory,
-    drawGameOver, drawMessages
+    drawGameOver, drawMessages, drawBossRelic
 } from './screens.js';
 import { FX } from './fx.js';
 
@@ -59,6 +59,7 @@ export const Renderer = {
             case 'blacksmith': drawBlacksmith(this, ctx, state); break;
             case 'event': drawEvent(this, ctx, state); break;
             case 'treasure': drawTreasure(this, ctx, state); break;
+            case 'boss_relic': drawBossRelic(this, ctx, state); break;
             case 'act_transition': drawActTransition(this, ctx, state); break;
             case 'victory': drawVictory(this, ctx, state); break;
             case 'game_over': drawGameOver(this, ctx, state); break;
