@@ -1,5 +1,7 @@
 /**
- * 卡牌地下城 - 遗物与事件数据
+ * 卡牌地下城 - 遗物与事件数据（第二版）
+ *
+ * 遗物稀有度：common(低级) / rare(中级) / epic(高级) / boss(BOSS)
  */
 
 export const EVENT_NAMES = [
@@ -14,11 +16,26 @@ export const EVENT_NAMES = [
 ];
 
 export const RELIC_DEFS = [
-    { id: 'relic_1', name: '锈迹徽章', desc: '一枚生锈的士兵徽章，似乎曾属于某位英雄。', rarity: 'white' },
-    { id: 'relic_2', name: '破损护符', desc: '裂成两半的魔法护符，仍残留着一丝魔力。', rarity: 'white' },
-    { id: 'relic_3', name: '鼠尾挂坠', desc: '用硕鼠尾巴编织成的奇怪饰品。', rarity: 'blue' },
-    { id: 'relic_4', name: '田鼠之牙', desc: '一颗巨大的硕鼠门牙，锋利无比。', rarity: 'blue' },
-    { id: 'relic_5', name: '腐蚀钱币', desc: '一枚被地下城腐蚀的古旧钱币，上面刻着不认识的文字。', rarity: 'gold' }
+    // 低级遗物（单回合收益~20，多回合~40）
+    { id: 'relic_starter_1', name: '先锋徽章', desc: '每次战斗第一张打出的卡牌点数+20', rarity: 'common' },
+    { id: 'relic_starter_2', name: '锻体护符', desc: '牌组里所有卡牌点数+2', rarity: 'common' },
+    { id: 'relic_starter_3', name: '成长种子', desc: '每场战斗第一张打出的卡牌点数永久+5', rarity: 'common' },
+    { id: 'relic_starter_4', name: '疾风卷轴', desc: '每场战斗第一回合多抽一张牌', rarity: 'common' },
+    { id: 'relic_starter_5', name: '焦点透镜', desc: '最中倍率格点数+2', rarity: 'common' },
+    { id: 'relic_econ', name: '折扣券', desc: '每场战斗后获得一次免费刷新次数', rarity: 'common' },
+
+    // 中级遗物（单回合收益~40，多回合~80）
+    { id: 'relic_core_1', name: '连击手套', desc: '每次战斗首次将倍率格填满，倍率格上每张卡牌点数+10', rarity: 'rare' },
+    { id: 'relic_core_2', name: '赏金袋', desc: '每次倍率格上卡牌点数超过50，获得一魂', rarity: 'rare' },
+    { id: 'relic_core_3', name: '拥挤雕像', desc: '倍率格上每有两张卡牌倍率点数+1', rarity: 'rare' },
+    { id: 'relic_exp_1', name: '首击放大器', desc: '每次战斗首回合，总伤害X2', rarity: 'rare' },
+
+    // 高级遗物（单回合收益~80，多回合~160）
+    { id: 'relic_ult_1', name: '三重共鸣', desc: '每个倍率格上都有三张卡牌时，总伤害X3', rarity: 'epic' },
+    { id: 'relic_ult_2', name: '镜像核心', desc: '一回合内，打出两张同名的卡牌，使两张卡牌点数翻倍', rarity: 'epic' },
+
+    // BOSS遗物（带负面，收益40~80）
+    { id: 'relic_boss_1', name: '巨鼠之牙', desc: '所有卡牌点数+5，但每回合开始时失去1心', rarity: 'boss' }
 ];
 
 export function pickRandomEvent() {

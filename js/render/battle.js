@@ -643,16 +643,13 @@ function drawPlayerArea(renderer, ctx, state) {
     ctx.textAlign = 'left';
     ctx.fillText(`第 ${state.turn} 回合`, infoX, infoY);
 
-    ctx.fillStyle = '#cc8877';
-    ctx.font = 'bold 14px Microsoft YaHei';
-    ctx.fillText(`累计: ${state.totalDamage + state.turnDamage}`, infoX, infoY + 22);
-
     ctx.fillStyle = '#ddaa66';
-    ctx.fillText(`本回合: ${state.turnDamage}`, infoX, infoY + 44);
+    ctx.font = 'bold 14px Microsoft YaHei';
+    ctx.fillText(`本回合: ${state.turnDamage}`, infoX, infoY + 22);
 
     ctx.fillStyle = '#777';
     ctx.font = '12px Microsoft YaHei';
-    ctx.fillText(`牌库: ${state.deck.length} | 弃牌: ${state.discard.length}`, infoX, infoY + 66);
+    ctx.fillText(`牌库: ${state.deck.length} | 弃牌: ${state.discard.length}`, infoX, infoY + 44);
 }
 
 // ============================================================
@@ -719,28 +716,6 @@ function drawBoardArea(renderer, ctx, state) {
         const x = startX + i * (slotW + gap);
         const y = startY;
 
-        if (!slot.available) {
-            // 未解锁格子
-            drawStoneTile(ctx, x, y - 40, slotW, 36, { locked: true });
-            ctx.fillStyle = '#444';
-            ctx.font = 'bold 14px Microsoft YaHei';
-            ctx.textAlign = 'center';
-            ctx.fillText('🔒', x + slotW / 2, y - 16);
-
-            drawStoneTile(ctx, x, y, slotW, slotH, { locked: true });
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([8, 8]);
-            ctx.strokeRect(x, y, slotW, slotH);
-            ctx.setLineDash([]);
-
-            ctx.fillStyle = '#3a3a4a';
-            ctx.font = 'bold 16px Microsoft YaHei';
-            ctx.textAlign = 'center';
-            ctx.fillText('未解锁', x + slotW / 2, y + slotH / 2 + 5);
-            continue;
-        }
-
         const effMul = getSlotEffectiveMultiplier(slot, state);
         const mulLabel = `${effMul}X`;
 
@@ -766,10 +741,6 @@ function drawBoardArea(renderer, ctx, state) {
             highlight: isHovered && canDrop,
             glowColor: isHovered && canDrop ? '#4ecdc4' : (isHovered ? '#ff6b6b' : null)
         };
-
-        if (!isHovered && slot.cards.length > 0 && !slot.cards[slot.cards.length - 1].keywords.includes('stack')) {
-            tileOptions.locked = true;
-        }
 
         drawStoneTile(ctx, x, y, slotW, slotH, tileOptions);
 
@@ -797,19 +768,7 @@ function drawBoardArea(renderer, ctx, state) {
             drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state, c);
         }
 
-        // 锁定提示
-        if (slot.cards.length > 0) {
-            const top = slot.cards[slot.cards.length - 1];
-            if (!top.keywords.includes('stack') && !top.keywords.includes('agile')) {
-                ctx.fillStyle = 'rgba(80,20,20,0.4)';
-                ctx.fillRect(x, y, slotW, slotH);
 
-                ctx.fillStyle = '#ff6666';
-                ctx.font = 'bold 13px Microsoft YaHei';
-                ctx.textAlign = 'center';
-                ctx.fillText('🔒 已锁定', x + slotW / 2, y + slotH - 12);
-            }
-        }
     }
 }
 

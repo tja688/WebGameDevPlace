@@ -5,6 +5,8 @@
  * 可供效果系统和战斗系统共同引用
  */
 
+import { HAND_LIMIT } from './constants.js';
+
 /**
  * 记录战斗日志
  */
@@ -19,7 +21,8 @@ export function logCombat(state, msg) {
 export function drawCards(state, count) {
     let drawn = 0;
     if (!state.drawAnimations) state.drawAnimations = [];
-    for (let i = 0; i < count; i++) {
+    const actualCount = Math.min(count, HAND_LIMIT - state.hand.length);
+    for (let i = 0; i < actualCount; i++) {
         if (state.deck.length === 0) break;
         const card = state.deck.pop();
         state.hand.push(card);
@@ -43,6 +46,24 @@ export function drawCards(state, count) {
 /**
  * 显示占位提示
  */
+
+/**
+ * 将弃牌堆洗牌回牌库
+ */
+export function shuffleDiscardToDeck(state) {
+    if (state.discard.length > 0) {
+        const shuffled = [];
+        const discard = [...state.discard];
+        for (let i = discard.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [discard[i], discard[j]] = [discard[j], discard[i]];
+        }
+        state.deck.push(...discard);
+        state.discard = [];
+        logCombat(state, `弃牌堆 ${discard.length} 张牌洗回牌库`);
+    }
+}
+
 export function showPlaceholderToast(msg) {
     if (window.gameState) {
         window.gameState.message = msg + '（占位）';

@@ -181,10 +181,10 @@ export function drawMap(renderer, ctx, state) {
     ctx.textAlign = 'right';
     ctx.fillText(`💀 ${runData.souls} 魂`, renderer.width - 30, 45);
 
-    const nodeW = 90;
-    const nodeH = 120;
-    const gap = 50;
-    const totalW = 8 * nodeW + 7 * gap;
+    const nodeW = 110;
+    const nodeH = 140;
+    const gap = 60;
+    const totalW = 6 * nodeW + 5 * gap;
     const startX = cx - totalW / 2;
     const nodeY = 200;
 
@@ -192,7 +192,7 @@ export function drawMap(renderer, ctx, state) {
     ctx.lineWidth = 3;
     ctx.setLineDash([8, 6]);
     ctx.beginPath();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) {
         ctx.moveTo(startX + i * (nodeW + gap) + nodeW, nodeY + nodeH / 2);
         ctx.lineTo(startX + (i + 1) * (nodeW + gap), nodeY + nodeH / 2);
     }
@@ -200,11 +200,11 @@ export function drawMap(renderer, ctx, state) {
     ctx.setLineDash([]);
 
     state.data.nodeRects = [];
-    const stageKeys = ['1-1','1-2','1-3','1-4','1-5','1-6','1-7','1-8'];
+    const stageKeys = ['1-1','1-2','1-3','1-4','1-5','1-6'];
     const typeIcons = { normal: '👹', elite: '👺', boss: '👿' };
     const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
         const key = stageKeys[i];
         const config = STAGE_CONFIG[key];
         const x = startX + i * (nodeW + gap);
@@ -274,9 +274,9 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 个 | 倍率格: ${runData.unlockedSlots}/${runData.slotCount} 格`, 30, renderer.height - 60);
+    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 个 | 倍率格: 3格`, 30, renderer.height - 60);
 
-    if (runData.stageIndex < 8) {
+    if (runData.stageIndex < 6) {
         const curKey = getCurrentStageKey(runData);
         const curConfig = STAGE_CONFIG[curKey];
         ctx.fillStyle = '#ffaa66';
@@ -875,9 +875,7 @@ export function drawBlacksmith(renderer, ctx, state) {
         columns[0].items.push({ type: 'buy_relic', name: item.name, cost: item.price, data: item, index: i });
     }
 
-    const availableIndices = getAvailableSlotIndices(runData.slotCount, runData.unlockedSlots);
-    for (let idx = 0; idx < availableIndices.length; idx++) {
-        const i = availableIndices[idx];
+    for (let i = 0; i < 3; i++) {
         const cost = runData.blacksmithSlotCosts[i] || 2;
         const upgradeCount = runData.slotUpgrades[i] || 0;
         columns[1].items.push({ type: 'upgrade_slot', name: `第${i + 1}格`, cost: cost, slotIndex: i, subText: `当前+${upgradeCount}倍率` });

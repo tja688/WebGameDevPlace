@@ -10,7 +10,7 @@
 import { switchScreen, getCurrentStageKey } from '../core/state.js';
 import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
-import { resolveBattleEnd } from '../systems/post-battle.js';
+import { resolveBattleEnd, generatePostBattleEvent } from '../systems/post-battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, KEYWORDS, CARD_DEFS } from '../data/index.js';
@@ -578,9 +578,17 @@ export const Input = {
         }
 
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
-            runData.stageIndex++;
             runData.shopStock = null;
-            switchScreen(this.state, 'map', { runData });
+            if (data.postBattle && runData.pendingEventPool) {
+                // 战后流程：商店结束后进入事件
+                const event = generatePostBattleEvent(runData);
+                switchScreen(this.state, 'event', {
+                    runData, eventName: event.name, eventDesc: event.desc, effect: event.effect, postBattle: true
+                });
+            } else {
+                runData.stageIndex++;
+                switchScreen(this.state, 'map', { runData });
+            }
         }
     },
 
@@ -662,9 +670,17 @@ export const Input = {
         }
 
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
-            runData.stageIndex++;
             runData.blacksmithStock = null;
-            switchScreen(this.state, 'map', { runData });
+            if (data.postBattle && runData.pendingEventPool) {
+                // 战后流程：铁匠结束后进入事件
+                const event = generatePostBattleEvent(runData);
+                switchScreen(this.state, 'event', {
+                    runData, eventName: event.name, eventDesc: event.desc, effect: event.effect, postBattle: true
+                });
+            } else {
+                runData.stageIndex++;
+                switchScreen(this.state, 'map', { runData });
+            }
         }
     },
 
@@ -692,6 +708,7 @@ export const Input = {
                 if (this.hitTest(pos, rect)) {
                     if (rect.text === '离开') {
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                        runData.pendingEventPool = null;
                         runData.stageIndex++;
                         switchScreen(this.state, 'map', { runData });
                         return;
@@ -702,7 +719,8 @@ export const Input = {
                         runData, title: data.eventName || '神秘力量',
                         desc: '选择牌组内一张卡牌，使其数值永久+2',
                         cards: runData.deck, backText: '离开', selectMode: 'event_buff',
-                        returnScreen: 'map', returnData: data
+                        returnScreen: data.postBattle ? 'map' : 'map',
+                        returnData: data
                     });
                     return;
                 }
@@ -767,9 +785,8 @@ export const Input = {
         if (data.transitionBtnRect && this.hitTest(pos, data.transitionBtnRect)) {
             data.processing = true;
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-            runData.unlockedSlots = Math.min(5, runData.unlockedSlots + 1);
             runData.stageIndex++;
-            if (runData.stageIndex >= 8) {
+            if (runData.stageIndex >= 6) {
                 switchScreen(this.state, 'victory', { runData });
             } else {
                 runData.act = 2;
@@ -978,19 +995,22 @@ export const Input = {
                 if (isWin) {
                     const result = resolveBattleEnd(this.state);
                     const runData = this.state.runDataRef;
-                    if (result.postBattleType === 'card_pick') {
-                        switchScreen(this.state, 'card_pick', {
-                            runData, soulsGained: result.soulsGained, options: result.postBattleData.options
+                    if (result.nextScreen === 'shop') {
+                        const stock = getOrCreateShopStock(runData);
+                        switchScreen(this.state, 'shop', { runData, stock, postBattle: true });
+                    } else if (result.nextScreen === 'blacksmith') {
+                        switchScreen(this.state, 'blacksmith', { runData, postBattle: true });
+                    } else if (result.nextScreen === 'boss_relic') {
+                        switchScreen(this.state, 'boss_relic', {
+                            runData, relicOptions: result.postBattleData.relicOptions, postBattle: true
                         });
-                    } else if (result.postBattleType === 'act_clear') {
+                    } else if (result.nextScreen === 'act_transition') {
                         switchScreen(this.state, 'act_transition', {
                             runData, reward: result.postBattleData.reward, desc: result.postBattleData.desc
                         });
                     } else {
-                        switchScreen(this.state, 'post_battle', {
-                            runData, type: result.postBattleType,
-                            soulsGained: result.soulsGained, postBattleData: result.postBattleData
-                        });
+                        runData.stageIndex++;
+                        switchScreen(this.state, 'map', { runData });
                     }
                 } else {
                     const runData = this.state.runDataRef;
@@ -1067,15 +1087,7 @@ export const Input = {
         const slot = this.state.slots[slotIdx];
         let html = `<h4>倍率格 ${slotIdx + 1}</h4>`;
         html += `<p>当前倍率: <b style="color:#ffd700">${slot.multiplier}X</b></p>`;
-        if (!slot.available) {
-            html += `<p style="color:#ff6666">🔒 未解锁（击败BOSS后开放）</p>`;
-        } else if (slot.locked) {
-            html += `<p style="color:#ff6666">🔒 已锁定（本回合无法继续放置）</p>`;
-        } else if (slot.isStacking) {
-            html += `<p style="color:#2ecc71">📚 可堆叠（可以继续往上放牌）</p>`;
-        } else {
-            html += `<p style="color:#4ecdc4">✋ 空位（拖拽卡牌至此）</p>`;
-        }
+        html += `<p style="color:#4ecdc4">✋ 拖拽卡牌至此</p>`;
         if (slot.cards.length > 0) {
             const top = slot.cards[slot.cards.length - 1];
             html += `<p style="margin-top:6px">顶部卡牌: <b>${top.name}</b> (${top.baseValue + top.permanentBonus}点)</p>`;

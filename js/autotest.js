@@ -62,7 +62,6 @@ const AutoTest = {
         document.getElementById('btn-kill-monster').addEventListener('click', () => {
             if (this.state.screen === 'battle') {
                 this.state.monster.hp = 0;
-                this.state.totalDamage += 999;
                 this.state.phase = 'ended';
                 this.state.result = 'win';
                 this.log('秒杀怪物');

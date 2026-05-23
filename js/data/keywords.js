@@ -1,22 +1,23 @@
 /**
- * 卡牌地下城 - 关键词定义
+ * 卡牌地下城 - 关键词定义（第二版）
  */
 
 export const KEYWORDS = {
-    agile: { name: '灵动', desc: '该卡牌放上倍率牌桌后不锁定，计算完数值后进入弃牌堆', color: '#4ECDC4' },
-    stack: { name: '堆叠', desc: '该卡牌放上倍率牌桌后，可以继续将带有堆叠词条的卡牌打在该位置，或者再打一张没有堆叠词条的卡牌', color: '#FFD93D' },
-    mighty: { name: '伟力', desc: '如果场上没有比该牌点数大的牌，触发效果', color: '#FF6B6B' },
-    devour: { name: '吞噬', desc: '将左右两侧卡牌的数值加在该卡牌数值上后，将两侧卡牌移入弃牌堆', color: '#9B59B6' },
-    exit: { name: '离场', desc: '当该卡牌离开倍率牌桌时，触发效果', color: '#E67E22' },
-    remain: { name: '留场', desc: '在新的回合开始后，该卡牌不会离开倍率牌桌', color: '#3498DB' },
-    field: { name: '驻场', desc: '当该卡牌已经在倍率牌桌上后，触发效果（持续光环）', color: '#1ABC9C' },
-    unity: { name: '团结', desc: '当同名卡牌已经在倍率牌桌上后，触发效果', color: '#F39C12' },
-    response: { name: '响应', desc: '当倍率牌桌数值已达到X，触发效果', color: '#E74C3C' },
-    grow: { name: '生长', desc: '每次打出后数值永久加一', color: '#2ECC71' },
-    echo: { name: '回响', desc: '本牌的其他词条效果触发时，再结算一次。回响不会触发自身', color: '#9B59B6' },
-    dedicate: { name: '奉献', desc: '若左侧相邻格有牌，将自身点数一半（向下取整）加至该牌上。自身点数保留', color: '#E67E22' },
-    levy: { name: '征收', desc: '从牌组中随机选择一张【堆叠】牌，将其打出到本牌所在格子', color: '#3498DB' },
-    stackjoy: { name: '叠叠乐', desc: '当本牌所在格子叠放超过3张牌时，触发卡面所述效果', color: '#F39C12' },
-    reinforce: { name: '救兵', desc: '结束回合时，若牌桌有空位，将本牌打出到空位上', color: '#6BCB77' },
-    reuse: { name: '复用', desc: '该卡牌离开倍率牌桌后回到牌组', color: '#00CED1' }
+    // 高级词条（5%出现概率）
+    mighty: { name: '伟力', desc: '打出时，将本牌点数翻倍', color: '#FF6B6B', tier: 'advanced' },
+    echo: { name: '回响', desc: '本牌的其他词条效果再触发一次（回响不触发自身）', color: '#9B59B6', tier: 'advanced' },
+
+    // 中级词条（35%出现概率）
+    reinforce: { name: '救兵', desc: '回合结束时，若本牌在牌组里，将本牌打出到任意倍率格', color: '#6BCB77', tier: 'medium' },
+    dedicate: { name: '奉献', desc: '在场上时：下一张打出在本牌所在倍率格的卡牌获得本牌一半的点数（向下取整）', color: '#E67E22', tier: 'medium' },
+    chain: { name: '连携', desc: '打出时，抽一张牌', color: '#3498DB', tier: 'medium' },
+    twin: { name: '双生', desc: '打出时，将一张本牌的复制加入手牌', color: '#1ABC9C', tier: 'medium' },
+
+    // 低级词条（60%出现概率）
+    remain: { name: '留场', desc: '回合结束时本牌不移入弃牌堆，保留在倍率格上', color: '#3498DB', tier: 'basic' },
+    spread: { name: '蔓延', desc: '打出时，将一张点数为0的【扩散】加入你的手牌', color: '#FFD93D', tier: 'basic' },
+    grow: { name: '生长', desc: '每次打出后永久+1点数（跨战斗保留）', color: '#2ECC71', tier: 'basic' },
+    retain: { name: '保留', desc: '回合结束时，本牌保留在手牌中不返回牌组', color: '#E74C3C', tier: 'basic' },
+    social: { name: '合群', desc: '在场上时：本牌相邻倍率格每有一张其他卡牌，则本牌点数+1', color: '#F39C12', tier: 'basic' },
+    unison: { name: '齐心', desc: '在场上时：本牌所在倍率格每有一张其他卡牌，则本牌点数+1', color: '#00CED1', tier: 'basic' }
 };

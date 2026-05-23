@@ -2,8 +2,10 @@
  * 卡牌地下城 - 全局常量
  */
 
-export const SLOT_COUNT = 5;
+export const SLOT_COUNT = 3;
 export const MAX_UNLOCKED_SLOTS = 3;
+export const HAND_LIMIT = 10;
+export const DRAW_COUNT = 5;
 export const RARITY_PRICE = { white: 1, blue: 2, gold: 3 };
 
 // 效果触发时机（钩子点）

@@ -2,8 +2,8 @@
  * 卡牌地下城 - 游戏状态管理
  */
 
-import { shuffleArray, getAvailableSlotIndices } from './utils.js';
-import { SLOT_COUNT, MAX_UNLOCKED_SLOTS } from './constants.js';
+import { shuffleArray } from './utils.js';
+import { SLOT_COUNT, MAX_UNLOCKED_SLOTS, DRAW_COUNT } from './constants.js';
 import { createDeck } from '../data/index.js';
 import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS } from '../data/index.js';
 
@@ -20,13 +20,11 @@ export function createGameState(screen) {
 /**
  * 创建战斗格子（供 createInitialState 和 initBattleFromRun 共享）
  */
-export function createBattleSlots({ slotCount, unlockedSlots, classRelic, slotUpgrades = {} }) {
-    const availableIndices = getAvailableSlotIndices(slotCount, unlockedSlots);
+export function createBattleSlots({ classRelic, slotUpgrades = {} }) {
     const slots = [];
-    for (let i = 0; i < slotCount; i++) {
-        const isAvailable = availableIndices.includes(i);
-        let mul = isAvailable ? 1 : 0;
-        if (isAvailable && classRelic.effect.type === 'slot_multiplier' && classRelic.effect.slotIndex === i) {
+    for (let i = 0; i < SLOT_COUNT; i++) {
+        let mul = 1;
+        if (classRelic.effect.type === 'slot_multiplier' && classRelic.effect.slotIndex === i) {
             mul += classRelic.effect.bonus;
         }
         const upgradeCount = slotUpgrades[i] || 0;
@@ -36,9 +34,6 @@ export function createBattleSlots({ slotCount, unlockedSlots, classRelic, slotUp
             multiplier: mul,
             baseMultiplier: mul - upgradeCount,
             cards: [],
-            locked: false,
-            isStacking: false,
-            available: isAvailable,
             nextCardBonus: 0,
             roundMultiplierBonus: 0
         });
@@ -63,14 +58,12 @@ export function createRunData(classId) {
         deck: shuffleArray(createDeck(cls)),
         startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
         relics: [cls.relic],
-        slotCount: SLOT_COUNT,
-        unlockedSlots: MAX_UNLOCKED_SLOTS,
         classId: classId,
         completedStages: [],
         shopStock: null,
         blacksmithStock: null,
         slotUpgrades: {},
-        blacksmithSlotCosts: [2, 2, 2, 2, 2],
+        blacksmithSlotCosts: [2, 2, 2],
         shopUpgradeCost: 1,
         shopRefreshCost: 1,
         blacksmithEnchantCost: 4,
@@ -91,7 +84,7 @@ export function getStageConfig(runData) {
 }
 
 export function isRunComplete(runData) {
-    return runData.stageIndex >= 8;
+    return runData.stageIndex >= 6;
 }
 
 // ===== 调试/测试用的初始状态 =====
@@ -101,8 +94,6 @@ export function createInitialState() {
     const monster = MONSTER_DEFS.lone_rat;
 
     const slots = createBattleSlots({
-        slotCount: SLOT_COUNT,
-        unlockedSlots: MAX_UNLOCKED_SLOTS,
         classRelic: cls.relic
     });
 
@@ -133,7 +124,6 @@ export function createInitialState() {
         discard: [],
         turn: 1,
         turnDamage: 0,
-        totalDamage: 0,
         selectedCard: null,
         hoveredSlot: null,
         draggedCard: null,

@@ -1,15 +1,12 @@
 /**
- * 卡牌地下城 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)
- * 
- * 所有"计算卡牌点数时"触发的效果定义
- * 这些效果通过修改 ctx.value 来影响最终计算结果
+ * 卡牌地下城 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（第二版）
  */
 
 import { EffectHandler, FX, EffectContext } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { getCardEffectiveValue } from '../systems/board.js';
 
-// ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段）=====
+// ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
 // 佯攻（feint）：相邻卡牌+2
 FX.register(new EffectHandler({
@@ -17,7 +14,6 @@ FX.register(new EffectHandler({
     triggers: Trigger.ON_CALC_VALUE,
     priority: Priority.VALUE_AURA,
     condition: (ctx) => {
-        // 当前计算的是目标卡牌，feint在相邻格时生效
         if (!ctx.card) return false;
         const targetSlot = ctx.getCardSlotIndex(ctx.card);
         if (targetSlot < 0) return false;
@@ -68,9 +64,57 @@ FX.register(new EffectHandler({
     }
 }));
 
-// （训练纲领的光环效果已移除，改为打出时效果）
+// 合群（social）：相邻格每有一张其他卡牌+1
+FX.register(new EffectHandler({
+    id: 'social_aura',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 2,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        if (!ctx.card.keywords.includes('social')) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return true;
+    },
+    execute: (ctx) => {
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        let bonus = 0;
+        for (const slot of ctx.state.slots) {
+            if (Math.abs(slot.index - targetSlot) === 1) {
+                // 只计算其他卡牌（不包括自己）
+                const others = slot.cards.filter(c => c.uuid !== ctx.card.uuid).length;
+                bonus += others;
+            }
+        }
+        if (bonus > 0) {
+            ctx.value += bonus;
+        }
+    }
+}));
 
-// ===== ON_CALC_FINAL：计算最终点数（翻倍、惩罚阶段）=====
+// 齐心（unison）：同格每有一张其他卡牌+1
+FX.register(new EffectHandler({
+    id: 'unison_aura',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 3,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        if (!ctx.card.keywords.includes('unison')) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return true;
+    },
+    execute: (ctx) => {
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        const slot = ctx.state.slots[targetSlot];
+        const others = slot.cards.filter(c => c.uuid !== ctx.card.uuid).length;
+        if (others > 0) {
+            ctx.value += others;
+        }
+    }
+}));
+
+// ===== ON_CALC_FINAL：计算最终点数（翻倍、惩罚阶段） =====
 
 // 伟力（mighty）：若场上无更大点数牌，翻倍
 FX.register(new EffectHandler({
@@ -79,12 +123,11 @@ FX.register(new EffectHandler({
     priority: Priority.VALUE_MIGHTY,
     condition: (ctx) => ctx.card.keywords.includes('mighty') && !ctx.extra?.mightyComparing,
     execute: (ctx) => {
-        const myVal = ctx.value; // 当前已计算到有效值（经过 ON_CALC_VALUE）
+        const myVal = ctx.value;
         const boardCards = ctx.getBoardCards();
         let hasLarger = false;
         for (const bc of boardCards) {
             if (bc.uuid === ctx.card.uuid) continue;
-            // 计算其他牌的最终值（触发 ON_CALC_FINAL，但mighty会跳过）
             let bcVal = getCardEffectiveValue(bc, ctx.state);
             const bcCtx = new EffectContext({
                 state: ctx.state, trigger: Trigger.ON_CALC_FINAL, card: bc, value: bcVal,
@@ -103,7 +146,7 @@ FX.register(new EffectHandler({
     }
 }));
 
-// 硬质皮肤（hard_skin）：最左最右可用格-1
+// 硬质皮肤（hard_skin）：最左最右格-1（3格中即第1格和第3格）
 FX.register(new EffectHandler({
     id: 'hard_skin',
     triggers: Trigger.ON_CALC_FINAL,
@@ -112,11 +155,7 @@ FX.register(new EffectHandler({
         if (!ctx.state.monster.keywords.includes('hard_skin')) return false;
         const targetSlot = ctx.getCardSlotIndex(ctx.card);
         if (targetSlot < 0) return false;
-        const available = ctx.state.slots.filter(s => s.available);
-        if (available.length === 0) return false;
-        const leftmost = available[0].index;
-        const rightmost = available[available.length - 1].index;
-        return targetSlot === leftmost || targetSlot === rightmost;
+        return targetSlot === 0 || targetSlot === 2;
     },
     execute: (ctx) => {
         ctx.value -= 1;

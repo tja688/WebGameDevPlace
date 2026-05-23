@@ -81,20 +81,10 @@ export function calculateTotalBoardDamage(state) {
 // ===== 放置规则 =====
 
 export function canPlaceCard(card, slot, state) {
-    if (!slot.available) {
-        return { ok: false, reason: '该格子尚未解锁' };
-    }
     if (card.size > 1) {
         return { ok: false, reason: '多格卡暂未实现' };
     }
-    if (slot.cards.length === 0) {
-        return { ok: true };
-    }
-    const topCard = slot.cards[slot.cards.length - 1];
-    if (topCard.keywords.includes('stack')) {
-        return { ok: true };
-    }
-    return { ok: false, reason: '该格子已被锁定' };
+    return { ok: true };
 }
 
 // ===== 打出卡牌 =====

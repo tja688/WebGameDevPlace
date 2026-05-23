@@ -1,7 +1,5 @@
 /**
- * 卡牌地下城 - 格子效果 (ON_SLOT_CALC)
- * 
- * 所有"计算格子倍率时"触发的效果定义
+ * 卡牌地下城 - 格子效果 (ON_SLOT_CALC)（第二版）
  */
 
 import { EffectHandler, FX } from './core.js';
@@ -12,7 +10,7 @@ FX.register(new EffectHandler({
     id: 'perfect_state_slot',
     triggers: Trigger.ON_SLOT_CALC,
     priority: Priority.SLOT_MODIFIER,
-    condition: (ctx) => true, // 由execute内部检查
+    condition: (ctx) => true,
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         let bonus = 0;

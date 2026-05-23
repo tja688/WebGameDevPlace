@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 职业定义
+ * 卡牌地下城 - 职业定义（第二版）
  */
 
 export const CLASS_DEFS = {
@@ -10,7 +10,7 @@ export const CLASS_DEFS = {
         relic: {
             name: '兵团装备',
             description: '为倍率牌桌最中间一格提供1倍率',
-            effect: { type: 'slot_multiplier', slotIndex: 2, bonus: 1 }
+            effect: { type: 'slot_multiplier', slotIndex: 1, bonus: 1 }
         },
         startingDeck: [
             { defId: 'precise_strike', count: 5 },
