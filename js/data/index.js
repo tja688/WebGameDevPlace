@@ -40,6 +40,7 @@ export function createCardInstance(defId) {
         iconType: def.iconType,
         hasBeenPlayed: false,
         growAmount: def.growAmount || 1,
+        chainCount: def.chainCount || 1,
         rarity: def.rarity || 'white'
     };
 }

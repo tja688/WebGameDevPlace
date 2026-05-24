@@ -62,7 +62,9 @@ export function initBattleFromRun(runData) {
             minSlotPenalty: 0,
             steadyPenalty: false,
             stealGold: false,
-            firstCardValuePenalty: 0
+            firstCardValuePenalty: 0,
+            hardSkin: false,
+            dodge: false
         },
         slots: slots,
         deck: deck,
@@ -71,6 +73,7 @@ export function initBattleFromRun(runData) {
         turn: 1,
         turnDamage: 0,
         currentStrategy: null,
+        firstCardPlayedThisTurn: null,
 
         selectedCard: null,
         hoveredSlot: null,
@@ -95,7 +98,14 @@ export function initBattleFromRun(runData) {
     parseMonsterSkills(state.monster);
 
     shuffleDiscardToDeck(state);
-    drawCards(state, DRAW_COUNT);
+
+    // 处理第一回合少抽牌（怪物技能）
+    let drawCount = DRAW_COUNT;
+    if (state.monster.firstTurnLessDraw && state.turn === 1) {
+        drawCount = Math.max(1, drawCount - 1);
+        logCombat(state, `${state.monster.name} 的技能生效：第一回合少抽一张牌`);
+    }
+    drawCards(state, drawCount);
 
     // 播放对应BGM
     if (typeof GameAudio !== 'undefined') {
@@ -137,8 +147,26 @@ export function endTurn(state) {
         logCombat(state, `触发计策：${state.currentStrategy.name}！`);
     }
 
+    // 稳重推进惩罚检测（怪物技能）
+    if (state.monster.steadyPenalty && state.currentStrategy && state.currentStrategy.id === 'steady_push') {
+        for (const slot of state.slots) {
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
+        }
+        logCombat(state, `${state.monster.name} 的技能生效：使用稳重推进，所有倍率格点数-1`);
+    }
+
     // 计算伤害（含计策加成）
     let totalDmg = calculateTotalBoardDamage(state);
+
+    // 闪避：每回合受到的前2点伤害无效
+    if (state.monster.dodge) {
+        const dodgeAmt = 2;
+        const origDmg = totalDmg;
+        totalDmg = Math.max(0, totalDmg - dodgeAmt);
+        if (origDmg !== totalDmg) {
+            logCombat(state, `${state.monster.name} 闪避了 ${origDmg - totalDmg} 点伤害`);
+        }
+    }
 
     // 怪物每回合恢复
     if (state.monster.healPerTurn > 0) {
@@ -148,6 +176,15 @@ export function endTurn(state) {
     }
 
     state.turnDamage = totalDmg;
+
+    // 窃魂：每造成一次伤害减少玩家1金币
+    if (state.monster.stealGold && totalDmg > 0) {
+        const stolen = Math.min(1, state.runDataRef?.gold || 0);
+        if (state.runDataRef && stolen > 0) {
+            state.runDataRef.gold -= stolen;
+            logCombat(state, `${state.monster.name} 窃取了 ${stolen} 金币！`);
+        }
+    }
 
     // 怪物扣血
     state.monster.hp = Math.max(0, state.monster.hp - totalDmg);
@@ -211,6 +248,9 @@ export function endTurn(state) {
         slot.cards = remaining;
         slot.nextCardBonus = 0;
         slot.roundMultiplierBonus = 0;
+        // 重置训练效果标记
+        slot.intenseTrainingActive = false;
+        slot.groupTrainingActive = false;
     }
 
     // 非保留手牌丢弃
@@ -231,6 +271,7 @@ export function endTurn(state) {
     ];
     for (const c of allCards) {
         if (c.tempBonus) c.tempBonus = 0;
+        c.dedicateTriggered = false;
     }
 
     // 弃牌堆洗回牌库，抽5张
@@ -245,4 +286,5 @@ export function endTurn(state) {
     state.turn++;
     state.turnDamage = 0;
     state.currentStrategy = null;
+    state.firstCardPlayedThisTurn = null;
 }

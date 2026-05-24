@@ -81,7 +81,7 @@ assertDoesNotThrow('drawCardSelect renders deck selection screen', () => {
         data: {
             title: '选择一张卡牌',
             desc: '测试选牌',
-            cards: [createCardInstance('precise_strike'), createCardInstance('feint')]
+            cards: [createCardInstance('brute_force'), createCardInstance('war_training')]
         }
     });
 });

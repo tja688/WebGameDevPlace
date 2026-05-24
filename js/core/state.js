@@ -32,7 +32,9 @@ export function createBattleSlots({ slotUpgrades = {} }) {
             baseMultiplier: mul - upgradeCount,
             cards: [],
             nextCardBonus: 0,
-            roundMultiplierBonus: 0
+            roundMultiplierBonus: 0,
+            intenseTrainingActive: false,
+            groupTrainingActive: false
         });
     }
     return slots;
@@ -61,15 +63,19 @@ export function createRunData(classId) {
         blacksmithStock: null,
         slotUpgrades: {},
         // 商店费用追踪
-        shopUpgradeCosts: {},      // 每张卡牌的强化费用 {cardId: cost}
+        shopUpgradeCost: 1,         // 数值强化基础费用
+        shopUpgradeCosts: {},       // 每张卡牌的强化费用 {cardId: cost}
         shopRefreshCost: 5,
         shopRefreshCount: 0,
+        firstUpgradeDiscount: true, // 首次强化-1金币
         // 铁匠费用追踪
+        blacksmithSlotCosts: [0, 0, 0], // 每格升级费用累积
         blacksmithSlotUpgraded: false,  // 本层是否已免费升级过格子
         blacksmithEnchantCost: 2,       // 当前附魔费用（按稀有度）
         blacksmithRefreshCost: 5,
         blacksmithRefreshCount: 0,
         blacksmithFirstEnchantFree: true, // 新人福利：首次附魔免费
+        firstBlacksmithRefreshFree: true,
         // 战后事件
         pendingPostBattle: null,
         pendingGoldGained: 0,
@@ -119,7 +125,18 @@ export function createInitialState() {
             theme: monster.theme,
             type: monster.type,
             shape: monster.shape,
-            virusPenalty: 0
+            healPerTurn: 0,
+            firstCardDiscard: false,
+            firstTurnLessDraw: false,
+            edgePenalty: 0,
+            leftPenalty: 0,
+            maxSlotPenalty: 0,
+            minSlotPenalty: 0,
+            steadyPenalty: false,
+            stealGold: false,
+            firstCardValuePenalty: 0,
+            hardSkin: false,
+            dodge: false
         },
         slots: slots,
         deck: deck,
@@ -140,7 +157,8 @@ export function createInitialState() {
         combatLog: [],
         runDataRef: null,
         stageKey: 'test',
-        heartsLost: 0
+        heartsLost: 0,
+        firstCardPlayedThisTurn: null
     };
 }
 

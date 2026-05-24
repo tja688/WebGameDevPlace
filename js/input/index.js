@@ -13,7 +13,7 @@ import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { resolveBattleEnd, generatePostBattleEvents } from '../systems/post-battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
-import { createCardInstance, KEYWORDS, CARD_DEFS } from '../data/index.js';
+import { createCardInstance, KEYWORDS, CARD_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
@@ -300,9 +300,9 @@ export const Input = {
                         const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
                         runData.gold -= upgradeCost;
                         if (runData.firstUpgradeDiscount) runData.firstUpgradeDiscount = false;
-                        card.permanentBonus += 2;
+                        card.permanentBonus += 5;
                         runData.shopUpgradeCost = Math.min(3, runData.shopUpgradeCost + 1);
-                        showPlaceholderToast(`${card.name} 数值+2！`);
+                        showPlaceholderToast(`${card.name} 数值+5！`);
                         data.processing = false;
                         switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
                         return;
@@ -350,6 +350,28 @@ export const Input = {
                         copy.uuid = Math.random().toString(36).substr(2, 9);
                         runData.deck.push(copy);
                         showPlaceholderToast(`复制了 ${card.name}！`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            this._finishEvent(runData);
+                        }, 600);
+                        return;
+                    }
+
+                    if (data.selectMode === 'event_pick_card') {
+                        runData.deck.push(card);
+                        showPlaceholderToast(`获得卡牌：${card.name}`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            this._finishEvent(runData);
+                        }, 600);
+                        return;
+                    }
+
+                    if (data.selectMode === 'event_enchant_mighty') {
+                        if (!card.keywords.includes('mighty')) {
+                            card.keywords.push('mighty');
+                        }
+                        showPlaceholderToast(`${card.name} 获得【伟力】！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -815,9 +837,9 @@ export const Input = {
                 if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: `选择牌组内一张卡牌，数值永久+${param || 2}`,
+                    desc: `选择牌组内一张卡牌，数值永久+${param || 5}`,
                     cards: runData.deck, backText: '离开', selectMode: 'event_buff',
-                    returnScreen: 'map', returnData: data, eventParam: param || 2
+                    returnScreen: 'map', returnData: data, eventParam: param || 5
                 });
                 return;
             case 'enchant_grow':
@@ -828,6 +850,11 @@ export const Input = {
                     cards: runData.deck, backText: '离开', selectMode: 'event_enchant_grow',
                     returnScreen: 'map', returnData: data
                 });
+                return;
+            case 'gain_gold':
+                runData.gold += (param || 4);
+                showPlaceholderToast(`获得 ${param || 4} 金币！`);
+                this._finishEvent(runData);
                 return;
             case 'gain_souls':
                 runData.gold += (param || 1);
@@ -845,7 +872,6 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
             case 'gain_relic':
-                // 随机低级遗物
                 runData.relics.push({ name: '随机遗物', desc: '获得一个低级遗物（占位）' });
                 showPlaceholderToast('获得随机低级遗物！');
                 this._finishEvent(runData);
@@ -853,6 +879,82 @@ export const Input = {
             case 'gain_rare_relic':
                 runData.relics.push({ name: '高级遗物', desc: '获得一个高级遗物（占位）' });
                 showPlaceholderToast('获得随机高级遗物！');
+                this._finishEvent(runData);
+                return;
+            case 'random_strategy_level':
+                {
+                    const strategies = ['steady_push', 'full_attack', 'balance_break', 'left_focus', 'right_focus'];
+                    const randomStrategy = strategies[Math.floor(Math.random() * strategies.length)];
+                    runData.strategyLevels[randomStrategy] = (runData.strategyLevels[randomStrategy] || 0) + 1;
+                    const strategyNames = {
+                        steady_push: '稳重推进', full_attack: '全军出击', balance_break: '均衡破坏',
+                        left_focus: '左倾', right_focus: '右倾'
+                    };
+                    showPlaceholderToast(`计策【${strategyNames[randomStrategy] || randomStrategy}】等级+1！`);
+                    this._finishEvent(runData);
+                }
+                return;
+            case 'self_blacksmith':
+                {
+                    const sbParam = param || { goldCost: 2, slotBonus: 1 };
+                    if (runData.gold < sbParam.goldCost) { showPlaceholderToast('金币不足！'); return; }
+                    runData.gold -= sbParam.goldCost;
+                    const availSlots = [0, 1, 2];
+                    const randSlot = availSlots[Math.floor(Math.random() * availSlots.length)];
+                    runData.slotUpgrades[randSlot] = (runData.slotUpgrades[randSlot] || 0) + sbParam.slotBonus;
+                    showPlaceholderToast(`第${randSlot + 1}格倍率+${sbParam.slotBonus}！（消耗${sbParam.goldCost}金币）`);
+                    this._finishEvent(runData);
+                }
+                return;
+            case 'card_pick_three':
+                {
+                    const cardDefs = createCardRewardOptions();
+                    const cardInstances = cardDefs.map(defId => createCardInstance(defId));
+                    switchScreen(this.state, 'card_select', {
+                        runData, title: opt.name || '及时的帮助',
+                        desc: '选择一张卡牌加入牌组',
+                        cards: cardInstances, backText: '放弃', selectMode: 'event_pick_card',
+                        returnScreen: 'map', returnData: data
+                    });
+                }
+                return;
+            case 'pick_rare_relic':
+                {
+                    const relicPool = [
+                        { name: '力量护符', desc: '所有卡牌基础伤害+1', rarity: 'rare' },
+                        { name: '贪婪之手', desc: '战斗胜利额外获得2金币', rarity: 'rare' },
+                        { name: '守护之盾', desc: '每回合开始时获得5点临时护盾', rarity: 'rare' }
+                    ];
+                    const shuffled = [...relicPool].sort(() => Math.random() - 0.5);
+                    const options = shuffled.slice(0, 3);
+                    switchScreen(this.state, 'event', {
+                        runData, title: opt.name || '出土装备',
+                        desc: '选择一件中级遗物',
+                        options: options.map(r => ({ name: r.name, desc: r.desc, effect: 'direct_relic', param: r })),
+                        returnScreen: 'map', returnData: data
+                    });
+                }
+                return;
+            case 'max_hearts_plus':
+                runData.maxHearts = (runData.maxHearts || 5) + 1;
+                showPlaceholderToast('最大人群+1！');
+                this._finishEvent(runData);
+                return;
+            case 'enchant_mighty':
+                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                switchScreen(this.state, 'card_select', {
+                    runData, title: opt.name || '轻语岩壁',
+                    desc: '选择一张卡牌获得【伟力】词条',
+                    cards: runData.deck, backText: '离开', selectMode: 'event_enchant_mighty',
+                    returnScreen: 'map', returnData: data
+                });
+                return;
+            case 'fight_monster':
+                showPlaceholderToast('遭遇怪物战斗！（尚未实现）');
+                this._finishEvent(runData);
+                return;
+            case 'fight_elite':
+                showPlaceholderToast('遭遇精英战斗！（尚未实现）');
                 this._finishEvent(runData);
                 return;
             case 'remove_for_souls':
@@ -867,7 +969,6 @@ export const Input = {
             case 'buy_random_card':
                 if (runData.gold < (param || 1)) { showPlaceholderToast('金币不足！'); return; }
                 runData.gold -= (param || 1);
-                // 随机奖励池卡牌
                 const pool = ['war_training', 'brute_force', 'ponder', 'vine_climb', 'clear_mind'];
                 const randomDef = pool[Math.floor(Math.random() * pool.length)];
                 const newCard = createCardInstance(randomDef);
@@ -891,6 +992,13 @@ export const Input = {
                     cards: runData.deck, backText: '离开', selectMode: 'event_duplicate',
                     returnScreen: 'map', returnData: data
                 });
+                return;
+            case 'direct_relic':
+                if (param) {
+                    runData.relics.push(param);
+                    showPlaceholderToast(`获得遗物：${param.name}`);
+                }
+                this._finishEvent(runData);
                 return;
             default:
                 showPlaceholderToast('该事件尚未实现');

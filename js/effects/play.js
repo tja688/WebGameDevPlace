@@ -15,13 +15,14 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.slotIndex >= 0,
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 奉献：格子中已有奉献牌，给新牌加点
+        // 奉献：格子中已有奉献牌，给新牌加点（只对下一张生效）
         for (const c of slot.cards) {
-            if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate')) {
+            if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate') && !c.dedicateTriggered) {
                 const val = ctx.getCardBaseValue(c);
                 const bonus = Math.floor(val / 2);
                 if (bonus > 0) {
                     ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
+                    c.dedicateTriggered = true;
                     ctx.log(`${c.name} 奉献了 ${bonus} 点给 ${ctx.card.name}！`);
                 }
             }
@@ -96,9 +97,10 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'messenger',
     execute: (ctx) => {
         if (ctx.state.deck.length > 0) {
-            const card = ctx.state.deck.pop();
+            const idx = Math.floor(Math.random() * ctx.state.deck.length);
+            const card = ctx.state.deck.splice(idx, 1)[0];
             ctx.state.hand.push(card);
-            ctx.log(`${ctx.card.name} 传令效果触发，从牌组拿来 ${card.name}`);
+            ctx.log(`${ctx.card.name} 传令效果触发，从牌组随机抽来 ${card.name}`);
         } else {
             ctx.log(`${ctx.card.name} 传令效果触发，但牌组已空`);
         }
@@ -133,10 +135,8 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'cogito_ergo_sum',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
-            ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
-        }
+        slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
+        ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
     }
 }));
 
@@ -148,15 +148,13 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'training_trace',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            for (const s of ctx.state.slots) {
-                if (Math.abs(s.index - ctx.slotIndex) === 1) {
-                    for (const c of s.cards) {
-                        if (c.keywords.includes('grow')) {
-                            const amount = calculateGrowAmount(c, s.index, ctx.state);
-                            c.permanentBonus += amount;
-                            ctx.log(`${c.name} 受到训练痕迹加持，额外成长+${amount}！`);
-                        }
+        for (const s of ctx.state.slots) {
+            if (Math.abs(s.index - ctx.slotIndex) === 1) {
+                for (const c of s.cards) {
+                    if (c.keywords.includes('grow')) {
+                        const amount = calculateGrowAmount(c, s.index, ctx.state);
+                        c.permanentBonus += amount;
+                        ctx.log(`${c.name} 受到训练痕迹加持，额外成长+${amount}！`);
                     }
                 }
             }
@@ -173,10 +171,8 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'intense_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.intenseTrainingActive = true;
-            ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
-        }
+        slot.intenseTrainingActive = true;
+        ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
     }
 }));
 
@@ -188,9 +184,7 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'group_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.groupTrainingActive = true;
-            ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
-        }
+        slot.groupTrainingActive = true;
+        ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
     }
 }));

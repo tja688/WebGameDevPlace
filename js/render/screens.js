@@ -874,7 +874,7 @@ export function drawShop(renderer, ctx, state) {
     const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
     const services = [
         { key: 'remove_card', text: `🗑️ 删牌服务 (1金币)`, x: 60, cost: 1 },
-        { key: 'upgrade_card', text: `⬆️ 数值强化 +2 (${upgradeCost}金币)`, x: 280, cost: upgradeCost },
+        { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (${upgradeCost}金币)`, x: 280, cost: upgradeCost },
         { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}金币)`, x: 500, cost: runData.shopRefreshCost },
     ];
     state.data.shopServiceRects = [];
@@ -955,7 +955,7 @@ export function drawBlacksmith(renderer, ctx, state) {
     // 第二版：铁匠改为随机强化倍率格
     const slotUpgradeCost = runData.blacksmithSlotCosts[0] || 2;
     let totalSlotUpgrades = 0;
-    const maxSlots = Math.min(5, 3 + (runData.act - 1));
+    const maxSlots = 3;
     for (let i = 0; i < maxSlots; i++) {
         totalSlotUpgrades += runData.slotUpgrades[i] || 0;
     }

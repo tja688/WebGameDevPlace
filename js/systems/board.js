@@ -121,6 +121,26 @@ export function playCardToSlot(card, slotIndex, state) {
     state.hand.splice(handIdx, 1);
     slot.cards.push(card);
 
+    card.hasBeenPlayed = true;
+
+    // 记录本回合第一张打出的牌（用于怪物技能）
+    if (!state.firstCardPlayedThisTurn) {
+        state.firstCardPlayedThisTurn = card;
+    }
+
+    // 怪物技能：第一张打出牌直接进弃牌堆（不触发ON_PLAY）
+    if (state.monster.firstCardDiscard && state.firstCardPlayedThisTurn === card) {
+        const idx = slot.cards.findIndex(c => c.uuid === card.uuid);
+        if (idx !== -1) {
+            const discarded = slot.cards.splice(idx, 1)[0];
+            state.discard.push(discarded);
+            logCombat(state, `${state.monster.name} 的技能生效：第一张打出的 ${discarded.name} 直接进入弃牌堆！`);
+            state.slotFlashes.push({ slotIndex, timer: 20 });
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
+            return true;
+        }
+    }
+
     // 触发 ON_PLAY 效果链
     const ctx = new EffectContext({
         state, trigger: Trigger.ON_PLAY,
@@ -128,7 +148,6 @@ export function playCardToSlot(card, slotIndex, state) {
     });
     FX.fire(Trigger.ON_PLAY, ctx);
 
-    card.hasBeenPlayed = true;
     state.slotFlashes.push({ slotIndex, timer: 20 });
 
     // 视觉特效：卡牌放置火花
