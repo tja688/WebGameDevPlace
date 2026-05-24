@@ -1,6 +1,6 @@
 # 卡牌地下城 Playground 实现报告
 
-> 版本：v3.1 | 日期：2026-05-24
+> 版本：v3.2 | 日期：2026-05-24
 
 ---
 
@@ -9,12 +9,13 @@
 Playground 系统经历两次迭代：
 
 - **v3.0**：词条效果 Playground（Phase 1+2），面向 AI 批量验证和开发者 JSON 编辑。
-- **v3.1**：**对战测试场**（本次改造），面向人类玩家的真实战斗测试环境。
+- **v3.1**：**对战测试场**，面向人类玩家的真实战斗测试环境。
+- **v3.2**：**参数配置面板独立化**（本次改造），更大、可开关、支持搜索过滤与人性化增改查。
 
-核心交付物（v3.1）：
+核心交付物（v3.2）：
 - **真实对战界面**：直接复用 `drawBattle()` 战斗渲染，与正常游戏画面完全一致
 - **人类友好控制面板**：右侧悬浮，支持对手切换、血量重置、手牌操控、实时信息
-- **参数配置面板**：可折叠，支持卡牌/怪物数值编辑，保存即持久化到 localStorage
+- **参数配置面板**：独立 520px 浮层面板，支持开关/搜索/过滤/已修改高亮/单字段恢复，保存即持久化到 localStorage
 - **战斗结束自动重置**：胜利/失败均自动恢复并继续测试，不跳屏
 - **AI 测试完整保留**：原有 scenario-engine / ai-harness / 18 个预设场景全部保留
 
@@ -90,7 +91,7 @@ js/playground/
 | `screenshots/02_playground_menu.png` | Playground 菜单：3个入口按钮 |
 | `screenshots/03_battle_test.png` | 对战测试场：真实战斗画面 + 右侧控制面板 |
 | `screenshots/04_monster_changed.png` | 切换怪物为污染之花（食人花） |
-| `screenshots/05_data_editor.png` | 参数配置面板展开，显示卡牌数值编辑 |
+| `screenshots/05_data_editor.png` | 参数配置独立面板打开，显示搜索过滤与卡牌数值编辑 |
 | `screenshots/06_card_added.png` | 添加卡牌到手牌后的状态 |
 | `screenshots/battle_02_after_end.png` | 战斗失败后自动重置后的状态 |
 
@@ -156,17 +157,19 @@ localStorage key: `card_dungeon_data_overrides`
 
 ## 七、文件变更清单
 
-### 修改文件（8个）
+### 修改文件（10个）
 | 文件 | 变更内容 |
 |------|---------|
 | `js/data/index.js` | 新增数据覆盖系统（apply/save/get/clear overrides） |
 | `js/main.js` | 启动时调用 `applyDataOverrides()`；游戏循环更新面板实时数据；调整 `initPlaygroundUI` 调用顺序 |
 | `js/playground/index.js` | 新增对战测试场状态管理（init/enter/reset/change/add card） |
-| `js/playground/ui-controller.js` | 重构 DOM 面板，新增对战测试控制面板和数据编辑器 |
+| `js/playground/ui-controller.js` | 重构 DOM 面板：独立参数配置面板（开关/搜索/过滤/高亮/单字段恢复/回车保存） |
 | `js/playground/renderer.js` | Menu 视图按钮改为 3 个（新增对战测试场入口） |
 | `js/render/renderer.js` | Playground screen 分支支持 pgView='battle' 调用 drawBattle |
 | `js/input/index.js` | Playground 输入复用战斗逻辑；checkBattleEnd 支持自动重置 |
-| `index.html` | 新增 `#pg-battle-panel` DOM 结构 |
+| `index.html` | 新增 `#pg-battle-panel` DOM 结构；新增独立 `#pg-param-panel` 面板 |
+| `css/style.css` | 新增 `#pg-param-panel.hidden` 样式 |
+| `test_playground_screenshots.cjs` | 截图测试适配新面板交互（点击按钮打开面板） |
 
 ---
 

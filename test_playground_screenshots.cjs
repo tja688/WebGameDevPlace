@@ -38,6 +38,12 @@ const path = require('path');
             canvas.dispatchEvent(event);
         });
         await page.waitForTimeout(1500);
+        // 确保参数面板关闭，展示干净的战斗界面
+        await page.evaluate(() => {
+            const panel = document.getElementById('pg-param-panel');
+            if (panel) panel.classList.add('hidden');
+        });
+        await page.waitForTimeout(200);
         await page.screenshot({ path: path.join(screenshotsDir, '03_battle_test.png') });
         console.log('Screenshot 03_battle_test.png saved');
 
@@ -50,10 +56,7 @@ const path = require('path');
         console.log('Screenshot 04_monster_changed.png saved');
 
         // 5. 展开参数配置面板
-        await page.evaluate(() => {
-            const details = document.querySelector('#pg-battle-panel details');
-            if (details) details.open = true;
-        });
+        await page.click('#pg-toggle-param');
         await page.waitForTimeout(500);
         await page.screenshot({ path: path.join(screenshotsDir, '05_data_editor.png') });
         console.log('Screenshot 05_data_editor.png saved');

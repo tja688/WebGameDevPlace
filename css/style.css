@@ -345,6 +345,10 @@ body {
     display: none;
 }
 
+#pg-param-panel.hidden {
+    display: none !important;
+}
+
 .start-content {
     max-width: 640px;
     padding: 40px;

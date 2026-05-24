@@ -62,6 +62,12 @@ let btnImportOverrides = null;
 let btnClearOverrides = null;
 let btnExitBattle = null;
 
+// 参数配置独立面板
+let paramPanel = null;
+let btnToggleParam = null;
+let btnCloseParam = null;
+let paramSearch = null;
+
 let _gameStateRef = null;
 let _dataEditorTab = 'cards';
 
@@ -110,6 +116,11 @@ export function initPlaygroundUI(gameState) {
     btnImportOverrides = document.getElementById('pg-import-overrides');
     btnClearOverrides = document.getElementById('pg-clear-overrides');
     btnExitBattle = document.getElementById('pg-exit-battle');
+
+    paramPanel = document.getElementById('pg-param-panel');
+    btnToggleParam = document.getElementById('pg-toggle-param');
+    btnCloseParam = document.getElementById('pg-close-param');
+    paramSearch = document.getElementById('pg-param-search');
 
     bindEvents(gameState);
     populateStaticSelects();
@@ -356,6 +367,38 @@ function bindEvents(gameState) {
             updateUIView('hidden');
         });
     }
+
+    // ===== 参数配置独立面板事件 =====
+    if (btnToggleParam) {
+        btnToggleParam.addEventListener('click', () => {
+            if (paramPanel) {
+                const isHidden = paramPanel.classList.contains('hidden');
+                if (isHidden) {
+                    paramPanel.classList.remove('hidden');
+                    renderDataEditor();
+                    if (paramSearch) paramSearch.focus();
+                } else {
+                    paramPanel.classList.add('hidden');
+                }
+            }
+        });
+    }
+    if (btnCloseParam) {
+        btnCloseParam.addEventListener('click', () => {
+            if (paramPanel) paramPanel.classList.add('hidden');
+        });
+    }
+    if (paramSearch) {
+        paramSearch.addEventListener('input', () => {
+            renderDataEditor();
+        });
+    }
+    // ESC 关闭参数面板
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && paramPanel && !paramPanel.classList.contains('hidden')) {
+            paramPanel.classList.add('hidden');
+        }
+    });
 }
 
 // ===== UI 状态更新 =====
@@ -383,12 +426,15 @@ export function updateUIView(view) {
         if (pgView === 'battle') {
             updateBattleInfo();
             renderDataEditor();
+        } else {
+            if (paramPanel) paramPanel.classList.add('hidden');
         }
     } else {
         uiRoot.classList.add('hidden');
         if (battlePanel) battlePanel.style.display = 'none';
         if (effectPanel) effectPanel.style.display = 'none';
         if (menuPanel) menuPanel.style.display = 'none';
+        if (paramPanel) paramPanel.classList.add('hidden');
     }
 }
 
@@ -416,9 +462,30 @@ export function updateBattlePanelRealtime(state) {
 
 // ===== 数据编辑器 =====
 
+// 原始数值缓存（用于恢复默认）
+const _originalValues = {
+    cards: {},
+    monsters: {}
+};
+
+function _initOriginalValues() {
+    if (Object.keys(_originalValues.cards).length === 0) {
+        for (const [id, def] of Object.entries(CARD_DEFS)) {
+            _originalValues.cards[id] = { baseValue: def.baseValue };
+        }
+    }
+    if (Object.keys(_originalValues.monsters).length === 0) {
+        for (const [id, def] of Object.entries(MONSTER_DEFS)) {
+            _originalValues.monsters[id] = { hp: def.hp };
+        }
+    }
+}
+
 function renderDataEditor() {
     if (!dataEditor) return;
+    _initOriginalValues();
 
+    // 标签页高亮
     if (btnTabCards && btnTabMonsters) {
         if (_dataEditorTab === 'cards') {
             btnTabCards.style.background = '#2c3e50';
@@ -433,55 +500,146 @@ function renderDataEditor() {
         }
     }
 
+    const searchQuery = (paramSearch?.value || '').toLowerCase().trim();
+    const overrides = getDataOverrides();
+
     let html = '';
+    let itemCount = 0;
+
     if (_dataEditorTab === 'cards') {
         for (const [id, def] of Object.entries(CARD_DEFS)) {
-            html += `<div style="margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:4px;">`;
-            html += `<div style="font-weight:bold;margin-bottom:6px;color:#f39c12;">${def.name} <span style="color:#666;font-size:11px;font-weight:normal;">(${id})</span></div>`;
-            html += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">`;
-            html += `<label style="width:60px;font-size:11px;color:#aaa;">基础数值</label>`;
-            html += `<input type="number" data-cat="cards" data-id="${id}" data-field="baseValue" value="${def.baseValue}" style="flex:1;padding:3px 6px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:3px;font-size:12px;">`;
-            html += `<button class="pg-save-field" style="padding:3px 8px;background:#27ae60;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;">保存</button>`;
+            if (searchQuery && !id.toLowerCase().includes(searchQuery) && !def.name.toLowerCase().includes(searchQuery)) {
+                continue;
+            }
+            itemCount++;
+            const overridden = overrides.cards?.[id]?.baseValue !== undefined;
+            const currentValue = overridden ? overrides.cards[id].baseValue : def.baseValue;
+            const originalValue = _originalValues.cards[id]?.baseValue ?? def.baseValue;
+            const borderColor = overridden ? 'rgba(243,156,18,0.4)' : 'rgba(255,255,255,0.03)';
+            const bgColor = overridden ? 'rgba(243,156,18,0.06)' : 'rgba(255,255,255,0.03)';
+            const badge = overridden ? `<span style="margin-left:6px;padding:1px 6px;background:#f39c12;color:#000;font-size:10px;border-radius:3px;font-weight:bold;">已修改</span>` : '';
+            const originalHint = `<span style="font-size:11px;color:#666;margin-left:6px;">原始: ${originalValue}</span>`;
+
+            html += `<div class="pg-editor-row" data-id="${id}" style="margin-bottom:10px;padding:10px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;transition:background 0.2s;">`;
+            html += `<div style="font-weight:bold;margin-bottom:8px;color:#f39c12;display:flex;align-items:center;flex-wrap:wrap;">${def.name} <span style="color:#666;font-size:11px;font-weight:normal;margin-left:6px;">(${id})</span>${badge}</div>`;
+            html += `<div style="display:flex;gap:6px;align-items:center;">`;
+            html += `<label style="width:70px;font-size:12px;color:#aaa;">基础数值</label>`;
+            html += `<input type="number" data-cat="cards" data-id="${id}" data-field="baseValue" value="${currentValue}" style="flex:1;padding:5px 8px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:4px;font-size:13px;min-width:60px;">`;
+            html += `<button class="pg-save-field" style="padding:5px 12px;background:#27ae60;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap;">保存</button>`;
+            html += `<button class="pg-reset-field" data-cat="cards" data-id="${id}" data-field="baseValue" style="padding:5px 10px;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap;">恢复</button>`;
             html += `</div>`;
+            html += `<div style="margin-top:6px;font-size:11px;color:#666;">${originalHint}</div>`;
             html += `</div>`;
         }
     } else {
         for (const [id, def] of Object.entries(MONSTER_DEFS)) {
-            html += `<div style="margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:4px;">`;
-            html += `<div style="font-weight:bold;margin-bottom:6px;color:#e74c3c;">${def.name} <span style="color:#666;font-size:11px;font-weight:normal;">(${id})</span></div>`;
-            html += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">`;
-            html += `<label style="width:60px;font-size:11px;color:#aaa;">HP</label>`;
-            html += `<input type="number" data-cat="monsters" data-id="${id}" data-field="hp" value="${def.hp}" style="flex:1;padding:3px 6px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:3px;font-size:12px;">`;
-            html += `<button class="pg-save-field" style="padding:3px 8px;background:#27ae60;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;">保存</button>`;
+            if (searchQuery && !id.toLowerCase().includes(searchQuery) && !def.name.toLowerCase().includes(searchQuery)) {
+                continue;
+            }
+            itemCount++;
+            const overridden = overrides.monsters?.[id]?.hp !== undefined;
+            const currentValue = overridden ? overrides.monsters[id].hp : def.hp;
+            const originalValue = _originalValues.monsters[id]?.hp ?? def.hp;
+            const borderColor = overridden ? 'rgba(231,76,60,0.4)' : 'rgba(255,255,255,0.03)';
+            const bgColor = overridden ? 'rgba(231,76,60,0.06)' : 'rgba(255,255,255,0.03)';
+            const badge = overridden ? `<span style="margin-left:6px;padding:1px 6px;background:#e74c3c;color:#fff;font-size:10px;border-radius:3px;font-weight:bold;">已修改</span>` : '';
+            const originalHint = `<span style="font-size:11px;color:#666;margin-left:6px;">原始: ${originalValue}</span>`;
+
+            html += `<div class="pg-editor-row" data-id="${id}" style="margin-bottom:10px;padding:10px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;transition:background 0.2s;">`;
+            html += `<div style="font-weight:bold;margin-bottom:8px;color:#e74c3c;display:flex;align-items:center;flex-wrap:wrap;">${def.name} <span style="color:#666;font-size:11px;font-weight:normal;margin-left:6px;">(${id})</span>${badge}</div>`;
+            html += `<div style="display:flex;gap:6px;align-items:center;">`;
+            html += `<label style="width:70px;font-size:12px;color:#aaa;">HP</label>`;
+            html += `<input type="number" data-cat="monsters" data-id="${id}" data-field="hp" value="${currentValue}" style="flex:1;padding:5px 8px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:4px;font-size:13px;min-width:60px;">`;
+            html += `<button class="pg-save-field" style="padding:5px 12px;background:#27ae60;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap;">保存</button>`;
+            html += `<button class="pg-reset-field" data-cat="monsters" data-id="${id}" data-field="hp" style="padding:5px 10px;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap;">恢复</button>`;
             html += `</div>`;
+            html += `<div style="margin-top:6px;font-size:11px;color:#666;">${originalHint}</div>`;
             html += `</div>`;
         }
     }
+
+    if (itemCount === 0) {
+        html = `<div style="text-align:center;color:#666;padding:40px 0;font-size:14px;">🔍 未找到匹配项</div>`;
+    } else {
+        html = `<div style="font-size:12px;color:#888;margin-bottom:10px;">共 ${itemCount} 项</div>` + html;
+    }
+
     dataEditor.innerHTML = html;
 
     // 绑定保存按钮
     dataEditor.querySelectorAll('.pg-save-field').forEach(btn => {
         btn.addEventListener('click', e => {
-            const input = e.target.previousElementSibling;
+            const row = e.target.closest('.pg-editor-row');
+            const input = row?.querySelector('input[data-field]');
             if (!input) return;
-            const cat = input.dataset.cat;
-            const id = input.dataset.id;
-            const field = input.dataset.field;
-            let value = input.value;
-            if (input.type === 'number') value = Number(value);
-            saveDataOverride(cat, id, field, value);
-            e.target.textContent = '✓';
-            setTimeout(() => { e.target.textContent = '保存'; }, 800);
-            // 如果正在战斗，同步更新当前状态中的数值
-            if (_gameStateRef && _gameStateRef._playgroundBattle) {
-                if (cat === 'monsters' && field === 'hp' && _gameStateRef.monster && _gameStateRef.data?.pgMonsterId === id) {
-                    const diff = value - _gameStateRef.monster.maxHp;
-                    _gameStateRef.monster.maxHp = value;
-                    _gameStateRef.monster.hp = Math.max(0, _gameStateRef.monster.hp + diff);
+            _saveField(input, e.target);
+        });
+    });
+
+    // 绑定恢复按钮
+    dataEditor.querySelectorAll('.pg-reset-field').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const cat = e.target.dataset.cat;
+            const id = e.target.dataset.id;
+            const field = e.target.dataset.field;
+            const orig = _originalValues[cat]?.[id]?.[field];
+            if (orig === undefined) return;
+            // 清除覆盖
+            const ov = getDataOverrides();
+            if (ov[cat]) {
+                delete ov[cat][id][field];
+                if (Object.keys(ov[cat][id]).length === 0) {
+                    delete ov[cat][id];
+                }
+                if (Object.keys(ov[cat]).length === 0) {
+                    delete ov[cat];
+                }
+                localStorage.setItem('card_dungeon_data_overrides', JSON.stringify(ov));
+                applyDataOverrides();
+                populateStaticSelects();
+                renderDataEditor();
+                // 同步战斗状态
+                if (_gameStateRef && _gameStateRef._playgroundBattle) {
+                    if (cat === 'monsters' && field === 'hp' && _gameStateRef.monster && _gameStateRef.data?.pgMonsterId === id) {
+                        const diff = orig - _gameStateRef.monster.maxHp;
+                        _gameStateRef.monster.maxHp = orig;
+                        _gameStateRef.monster.hp = Math.max(0, _gameStateRef.monster.hp + diff);
+                    }
                 }
             }
         });
     });
+
+    // 绑定回车保存
+    dataEditor.querySelectorAll('input[data-field]').forEach(input => {
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const row = e.target.closest('.pg-editor-row');
+                const btn = row?.querySelector('.pg-save-field');
+                if (btn) _saveField(input, btn);
+            }
+        });
+    });
+}
+
+function _saveField(input, btn) {
+    const cat = input.dataset.cat;
+    const id = input.dataset.id;
+    const field = input.dataset.field;
+    let value = input.value;
+    if (input.type === 'number') value = Number(value);
+    saveDataOverride(cat, id, field, value);
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = '保存'; }, 800);
+    // 如果正在战斗，同步更新当前状态中的数值
+    if (_gameStateRef && _gameStateRef._playgroundBattle) {
+        if (cat === 'monsters' && field === 'hp' && _gameStateRef.monster && _gameStateRef.data?.pgMonsterId === id) {
+            const diff = value - _gameStateRef.monster.maxHp;
+            _gameStateRef.monster.maxHp = value;
+            _gameStateRef.monster.hp = Math.max(0, _gameStateRef.monster.hp + diff);
+        }
+    }
+    renderDataEditor();
 }
 
 // ===== AI 测试相关 =====
