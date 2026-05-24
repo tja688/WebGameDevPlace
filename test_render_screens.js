@@ -50,12 +50,12 @@ function assertDoesNotThrow(name, fn) {
 const renderer = { width: 1280, height: 720, animTime: 1 };
 const ctx = createMockContext();
 
-const runData = createRunData('soldier');
-runData.souls = 8;
+const runData = createRunData('veteran');
+runData.gold = 8;
 
 assertDoesNotThrow('drawCardPick renders card reward screen', () => {
     drawCardPick(renderer, ctx, {
-        data: { options: ['precise_strike', 'feint', 'maintain_gear'] }
+        data: { options: ['unity_strike', 'brute_force', 'war_training'] }
     });
 });
 
@@ -64,7 +64,7 @@ assertDoesNotThrow('drawPostBattle renders shop-choice rewards', () => {
         data: {
             runData,
             type: 'shop_choice',
-            soulsGained: 3,
+            goldGained: 3,
             postBattleData: {
                 options: [
                     { type: 'shop', name: '牌店', icon: 'S', desc: '购买卡牌、删牌和强化' },

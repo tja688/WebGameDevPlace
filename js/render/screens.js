@@ -91,8 +91,8 @@ export function drawClassSelect(renderer, ctx, state) {
     const startX = cx - totalW / 2;
     const startY = 140;
 
-    const classes = ['soldier', 'mage', 'villager'];
-    const classIcons = { soldier: '⚔️', mage: '🔮', villager: '🌾' };
+    const classes = ['veteran'];
+    const classIcons = { veteran: '⚔️' };
     state.data.classCardRects = [];
 
     for (let i = 0; i < classes.length; i++) {
@@ -100,7 +100,7 @@ export function drawClassSelect(renderer, ctx, state) {
         const cls = CLASS_DEFS[clsId];
         const x = startX + i * (cardW + gap);
         const y = startY;
-        const isAvailable = clsId === 'soldier';
+        const isAvailable = true;
         const isHover = state.data.hoverClass === clsId;
 
         const alpha = isAvailable ? (isHover ? 0.95 : 0.85) : 0.4;
@@ -180,12 +180,12 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`💀 ${runData.souls} 魂`, renderer.width - 30, 45);
+    ctx.fillText(`💀 ${runData.gold} 金币`, renderer.width - 30, 45);
 
-    const nodeW = 110;
-    const nodeH = 140;
-    const gap = 60;
-    const totalW = 6 * nodeW + 5 * gap;
+    const nodeW = 100;
+    const nodeH = 130;
+    const gap = 40;
+    const totalW = 8 * nodeW + 7 * gap;
     const startX = cx - totalW / 2;
     const nodeY = 200;
 
@@ -193,7 +193,7 @@ export function drawMap(renderer, ctx, state) {
     ctx.lineWidth = 3;
     ctx.setLineDash([8, 6]);
     ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
         ctx.moveTo(startX + i * (nodeW + gap) + nodeW, nodeY + nodeH / 2);
         ctx.lineTo(startX + (i + 1) * (nodeW + gap), nodeY + nodeH / 2);
     }
@@ -202,13 +202,13 @@ export function drawMap(renderer, ctx, state) {
 
     state.data.nodeRects = [];
     const stageKeys = [];
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 8; i++) {
         stageKeys.push(`${runData.act}-${i}`);
     }
     const typeIcons = { normal: '👹', elite: '👺', boss: '👿' };
     const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
         const key = stageKeys[i];
         const config = STAGE_CONFIG[key];
         const x = startX + i * (nodeW + gap);
@@ -304,12 +304,12 @@ export function drawBossRelic(renderer, ctx, state) {
         align: 'center'
     });
 
-    if (data.soulsGained !== undefined) {
+    if (data.goldGained !== undefined) {
         drawSoulIcon(ctx, cx - 80, 135, 18);
         ctx.fillStyle = '#aaa';
         ctx.font = '18px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText(`获得 ${data.soulsGained} 魂 | 累计: ${data.runData.souls} 魂`, cx + 10, 140);
+        ctx.fillText(`获得 ${data.goldGained} 金币 | 累计: ${data.runData.gold} 金币`, cx + 10, 140);
     }
 
     state.data.optionRects = [];
@@ -383,12 +383,12 @@ export function drawPostBattle(renderer, ctx, state) {
         align: 'center'
     });
 
-    if (data.soulsGained !== undefined) {
+    if (data.goldGained !== undefined) {
         drawSoulIcon(ctx, cx - 80, 135, 18);
         ctx.fillStyle = '#aaa';
         ctx.font = '18px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText(`获得 ${data.soulsGained} 魂 | 累计: ${data.runData.souls} 魂`, cx + 10, 140);
+        ctx.fillText(`获得 ${data.goldGained} 金币 | 累计: ${data.runData.gold} 金币`, cx + 10, 140);
     }
 
     state.data.optionRects = [];
@@ -792,7 +792,7 @@ export function drawShop(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`${runData.souls} 魂`, renderer.width - 30, 45);
+    ctx.fillText(`${runData.gold} 金币`, renderer.width - 30, 45);
 
     state.data.shopItemRects = [];
 
@@ -855,7 +855,7 @@ export function drawShop(renderer, ctx, state) {
                 tagY += 22;
             }
 
-            const priceColor = runData.souls >= price ? '#2ecc71' : '#e74c3c';
+            const priceColor = runData.gold >= price ? '#2ecc71' : '#e74c3c';
             ctx.fillStyle = priceColor;
             ctx.font = 'bold 18px Microsoft YaHei';
             ctx.fillText(`💀 ${price}`, x + cardW / 2, y + cardH - 40);
@@ -873,9 +873,9 @@ export function drawShop(renderer, ctx, state) {
     const btnH = 45;
     const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
     const services = [
-        { key: 'remove_card', text: `🗑️ 删牌服务 (1魂)`, x: 60, cost: 1 },
-        { key: 'upgrade_card', text: `⬆️ 数值强化 +2 (${upgradeCost}魂)`, x: 280, cost: upgradeCost },
-        { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}魂)`, x: 500, cost: runData.shopRefreshCost },
+        { key: 'remove_card', text: `🗑️ 删牌服务 (1金币)`, x: 60, cost: 1 },
+        { key: 'upgrade_card', text: `⬆️ 数值强化 +2 (${upgradeCost}金币)`, x: 280, cost: upgradeCost },
+        { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}金币)`, x: 500, cost: runData.shopRefreshCost },
     ];
     state.data.shopServiceRects = [];
     for (const svc of services) {
@@ -888,7 +888,7 @@ export function drawShop(renderer, ctx, state) {
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = runData.souls >= svc.cost ? '#ccc' : '#555';
+        ctx.fillStyle = runData.gold >= svc.cost ? '#ccc' : '#555';
         ctx.font = '14px Microsoft YaHei';
         ctx.textAlign = 'center';
         ctx.fillText(svc.text, svc.x + btnW / 2, btnY + 28);
@@ -900,7 +900,7 @@ export function drawShop(renderer, ctx, state) {
         ctx.fillStyle = '#ffaa44';
         ctx.font = '12px Microsoft YaHei';
         ctx.textAlign = 'left';
-        ctx.fillText('⭐ 新人福利：首次强化-1魂', 60, btnY + 65);
+        ctx.fillText('⭐ 新人福利：首次强化-1金币', 60, btnY + 65);
     }
 
     drawBackButton(ctx, state, '返回地图', renderer.width, renderer.height);
@@ -931,7 +931,7 @@ export function drawBlacksmith(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`${runData.souls} 魂`, renderer.width - 30, 45);
+    ctx.fillText(`${runData.gold} 金币`, renderer.width - 30, 45);
 
     state.data.blacksmithRects = [];
 
@@ -992,7 +992,7 @@ export function drawBlacksmith(renderer, ctx, state) {
             const itemY = y + 60 + i * 55;
             const itemH = 48;
             const isHover = state.data.hoverBlacksmith === `${c}_${i}`;
-            const canAfford = runData.souls >= item.cost;
+            const canAfford = runData.gold >= item.cost;
             const isBought = item.type === 'buy_relic' && item.data && item.data.bought;
 
             ctx.fillStyle = isHover ? 'rgba(50,45,35,0.95)' : 'rgba(40,35,25,0.9)';
@@ -1017,7 +1017,7 @@ export function drawBlacksmith(renderer, ctx, state) {
                 ctx.fillStyle = costColor;
                 ctx.font = 'bold 14px Microsoft YaHei';
                 ctx.textAlign = 'right';
-                ctx.fillText(`${item.cost}魂`, x + colW - 15, itemY + 22);
+                ctx.fillText(`${item.cost}金币`, x + colW - 15, itemY + 22);
 
                 ctx.fillStyle = '#666';
                 ctx.font = '11px Microsoft YaHei';
@@ -1292,7 +1292,7 @@ export function drawVictory(renderer, ctx, state) {
 
     ctx.fillStyle = '#ffcc66';
     ctx.font = '20px Microsoft YaHei';
-    ctx.fillText(`累计获得魂: ${runData ? runData.souls : 0}`, cx, cy + 10);
+    ctx.fillText(`累计获得金币: ${runData ? runData.gold : 0}`, cx, cy + 10);
     ctx.fillText(`牌库数量: ${runData ? runData.deck.length : 0} 张`, cx, cy + 45);
     ctx.fillText(`遗物数量: ${runData ? runData.relics.length : 0} 个`, cx, cy + 80);
 
@@ -1333,7 +1333,7 @@ export function drawGameOver(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '22px Microsoft YaHei';
     ctx.fillText(`到达关卡: ${data.reachedStage || '1-1'}`, cx, cy - 20);
-    ctx.fillText(`累计获得魂: ${data.totalSouls || 0}`, cx, cy + 20);
+    ctx.fillText(`累计获得金币: ${data.totalGold || 0}`, cx, cy + 20);
 
     const btnW = 220;
     const btnH = 55;

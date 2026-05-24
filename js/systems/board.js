@@ -1,16 +1,17 @@
 /**
- * 卡牌地下城 - 牌桌系统
+ * 卡牌地下城 - 牌桌系统（第二版）
  * 
  * 负责：
  * 1. 卡牌放置规则校验
  * 2. 打出卡牌（触发效果系统）
- * 3. 伤害计算
+ * 3. 伤害计算（含计策加成）
  * 4. 放置预览
  */
 
 import { logCombat } from '../core/battle-core.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger } from '../core/constants.js';
+import { detectStrategy } from './strategy.js';
 
 // ===== 工具函数 =====
 
@@ -60,6 +61,15 @@ export function getSlotEffectiveMultiplier(slot, state) {
     return ctx.value;
 }
 
+// ===== 计策加成计算 =====
+
+export function getStrategySlotBonuses(state) {
+    const strategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+    state.currentStrategy = strategy;
+    if (!strategy) return [0, 0, 0];
+    return strategy.bonuses;
+}
+
 // ===== 伤害计算 =====
 
 export function calculateCardOutput(card, slot, state) {
@@ -69,13 +79,21 @@ export function calculateCardOutput(card, slot, state) {
 }
 
 export function calculateTotalBoardDamage(state) {
+    const strategyBonuses = getStrategySlotBonuses(state);
     let total = 0;
     for (const slot of state.slots) {
+        let slotMul = getSlotEffectiveMultiplier(slot, state);
+        // 应用计策加成
+        slotMul += strategyBonuses[slot.index] || 0;
+        let slotDamage = 0;
         for (const card of slot.cards) {
-            total += calculateCardOutput(card, slot, state);
+            slotDamage += getCardFinalValue(card, state);
         }
+        total += slotDamage * slotMul;
     }
-    return total;
+    // 额外指数（遗物加成等）
+    const extraMultiplier = state.runDataRef?.extraMultiplier || 1;
+    return total * extraMultiplier;
 }
 
 // ===== 放置规则 =====
@@ -115,10 +133,6 @@ export function playCardToSlot(card, slotIndex, state) {
 
     // 视觉特效：卡牌放置火花
     if (typeof FX !== 'undefined') {
-        const slot = state.slots[slotIndex];
-        const sx = slot.index * 240 + 120 + 140; // 近似屏幕坐标，由渲染层处理实际位置
-        // 由于坐标系不一致，我们在渲染层根据 slotFlashes 来生成粒子
-        // 这里先标记需要生成粒子
         if (!state.pendingPlaceEffects) state.pendingPlaceEffects = [];
         state.pendingPlaceEffects.push({ slotIndex, color: card.accentColor || '#ffd700' });
     }
@@ -126,7 +140,6 @@ export function playCardToSlot(card, slotIndex, state) {
     if (typeof GameAudio !== 'undefined') {
         const stackCount = slot.cards.length;
         if (stackCount > 1) {
-            // 堆叠递进音效
             GameAudio.playStackSound(stackCount);
         } else if (card.rarity === 'gold') {
             GameAudio.playRareCard();
@@ -136,6 +149,10 @@ export function playCardToSlot(card, slotIndex, state) {
             GameAudio.playCardPlace();
         }
     }
+
+    // 检测计策变化
+    detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+
     return true;
 }
 
@@ -150,8 +167,7 @@ export function getPlacementPreview(card, slotIndex, state) {
     const tempHand = state.hand.filter(c => c.uuid !== card.uuid);
     const tempSlot = {
         ...slot,
-        cards: [...slot.cards, card],
-        multiplier: slot.multiplier + (card.defId === 'maintain_gear' ? 1 : 0)
+        cards: [...slot.cards, card]
     };
     const tempSlots = state.slots.map((s, i) => i === slotIndex ? tempSlot : s);
 
@@ -161,16 +177,13 @@ export function getPlacementPreview(card, slotIndex, state) {
         slots: tempSlots
     };
 
-    const val = getCardFinalValue(card, tempState);
-    const effMul = getSlotEffectiveMultiplier(tempSlot, tempState);
-    const output = val * effMul;
     const total = calculateTotalBoardDamage(tempState);
 
     return {
-        cardOutput: output,
+        cardOutput: getCardFinalValue(card, tempState) * getSlotEffectiveMultiplier(tempSlot, tempState),
         totalDamage: total,
         monsterRemaining: Math.max(0, state.monster.hp - total),
         willKill: total >= state.monster.hp,
-        slotMultiplier: effMul
+        slotMultiplier: getSlotEffectiveMultiplier(tempSlot, tempState)
     };
 }

@@ -5,10 +5,9 @@
 import { EffectHandler, FX, calculateGrowAmount } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { drawCards } from '../core/battle-core.js';
-import { CARD_DEFS } from '../data/index.js';
 import { createCardInstance } from '../data/index.js';
 
-// ===== 1. 格子加成（爱护装备、奉献等） =====
+// ===== 1. 格子加成（奉献等） =====
 FX.register(new EffectHandler({
     id: 'slot_bonus',
     triggers: Trigger.ON_PLAY,
@@ -16,12 +15,6 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.slotIndex >= 0,
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 爱护装备等设置的 nextCardBonus
-        if (slot.nextCardBonus) {
-            ctx.card.tempBonus = (ctx.card.tempBonus || 0) + slot.nextCardBonus;
-            ctx.log(`${ctx.card.name} 受到装备爱护加持，本回合点数+${slot.nextCardBonus}`);
-            slot.nextCardBonus = 0;
-        }
         // 奉献：格子中已有奉献牌，给新牌加点
         for (const c of slot.cards) {
             if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate')) {
@@ -36,19 +29,20 @@ FX.register(new EffectHandler({
     }
 }));
 
-// ===== 2. 连携（chain）：抽一张牌 =====
+// ===== 2. 连携（chain）：抽牌 =====
 FX.register(new EffectHandler({
     id: 'chain',
     triggers: Trigger.ON_PLAY,
     priority: Priority.DRAW - 20,
     condition: (ctx) => ctx.card.keywords.includes('chain'),
     execute: (ctx) => {
-        drawCards(ctx.state, 1);
-        ctx.log(`${ctx.card.name} 连携效果触发，抽一张牌`);
+        const count = ctx.card.chainCount || 1;
+        drawCards(ctx.state, count);
+        ctx.log(`${ctx.card.name} 连携效果触发，抽${count}张牌`);
     }
 }));
 
-// ===== 3. 双生（twin）：复制加入手牌 =====
+// ===== 3. 双生（twin）：复制加入手牌（无双生） =====
 FX.register(new EffectHandler({
     id: 'twin',
     triggers: Trigger.ON_PLAY,
@@ -58,8 +52,10 @@ FX.register(new EffectHandler({
         const copy = createCardInstance(ctx.card.defId);
         copy.permanentBonus = ctx.card.permanentBonus;
         copy.baseValue = ctx.card.baseValue;
+        // 复制牌移除双生词条，避免无限复制
+        copy.keywords = copy.keywords.filter(k => k !== 'twin');
         ctx.state.hand.push(copy);
-        ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌`);
+        ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌（已移除双生）`);
     }
 }));
 
@@ -70,49 +66,13 @@ FX.register(new EffectHandler({
     priority: Priority.DRAW - 10,
     condition: (ctx) => ctx.card.keywords.includes('spread'),
     execute: (ctx) => {
-        const diffusion = {
-            uuid: 'diff_' + Math.random().toString(36).substr(2, 9),
-            defId: 'diffusion',
-            name: '扩散',
-            baseValue: 0,
-            permanentBonus: 0,
-            tempBonus: 0,
-            size: 1,
-            keywords: [],
-            description: '点数为0的扩散牌',
-            color: '#888888',
-            accentColor: '#aaaaaa',
-            iconType: 'shadow',
-            hasBeenPlayed: false,
-            rarity: 'white'
-        };
+        const diffusion = createCardInstance('diffusion');
         ctx.state.hand.push(diffusion);
         ctx.log(`${ctx.card.name} 蔓延效果触发，加入一张扩散牌`);
     }
 }));
 
-// ===== 5. 合理训练（proper_training）：同格卡牌获得生长2 =====
-FX.register(new EffectHandler({
-    id: 'proper_training',
-    triggers: Trigger.ON_PLAY,
-    priority: Priority.VALUE_BONUS - 10,
-    condition: (ctx) => ctx.card.defId === 'proper_training',
-    execute: (ctx) => {
-        const slot = ctx.state.slots[ctx.slotIndex];
-        for (const c of slot.cards) {
-            if (c.uuid !== ctx.card.uuid && !c.keywords.includes('grow')) {
-                c.keywords.push('grow');
-                c.growAmount = 2;
-                ctx.log(`${c.name} 受到合理训练加持，获得生长2！`);
-            } else if (c.uuid !== ctx.card.uuid && c.keywords.includes('grow') && (c.growAmount || 1) < 2) {
-                c.growAmount = 2;
-                ctx.log(`${c.name} 受到合理训练加持，生长提升至2！`);
-            }
-        }
-    }
-}));
-
-// ===== 6. 生长（grow）：永久加点 =====
+// ===== 5. 生长（grow）：永久加点 =====
 FX.register(new EffectHandler({
     id: 'grow',
     triggers: Trigger.ON_PLAY,
@@ -121,146 +81,116 @@ FX.register(new EffectHandler({
     execute: (ctx) => {
         const amount = calculateGrowAmount(ctx.card, ctx.slotIndex, ctx.state);
         ctx.card.permanentBonus += amount;
-        ctx.log(`${ctx.card.name} 生长了！永久点数+${amount}`);
+        ctx.log(`${ctx.card.name} 成长了！永久点数+${amount}`);
         if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
         if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
         ctx.state.pendingGrowthEffects.push({ slotIndex: ctx.slotIndex });
     }
 }));
 
-// ===== 7. 训练痕迹（training_trace）：点数>3连锁打出 =====
+// ===== 6. 传令（messenger）：从牌组拿一张入手牌 =====
 FX.register(new EffectHandler({
-    id: 'training_trace',
-    triggers: Trigger.ON_PLAY,
-    priority: Priority.SPECIAL - 10,
-    condition: (ctx) => ctx.card.defId === 'training_trace',
-    execute: (ctx) => {
-        const currentVal = ctx.getCardBaseValue(ctx.card);
-        if (currentVal > 3) {
-            const traces = ctx.state.deck.filter(c => c.defId === 'training_trace');
-            for (const t of traces) {
-                const deckIdx = ctx.state.deck.findIndex(c => c.uuid === t.uuid);
-                if (deckIdx !== -1) {
-                    ctx.state.deck.splice(deckIdx, 1);
-                    ctx.state.slots[ctx.slotIndex].cards.push(t);
-                    ctx.log(`${ctx.card.name} 触发连锁！从牌组打出 ${t.name}`);
-                    if (t.keywords.includes('grow')) {
-                        let tAmount = calculateGrowAmount(t, ctx.slotIndex, ctx.state);
-                        t.permanentBonus += tAmount;
-                        ctx.log(`${t.name} 生长了！永久点数+${tAmount}`);
-                    }
-                    t.hasBeenPlayed = true;
-                }
-            }
-        }
-    }
-}));
-
-// ===== 8. 保养装备（maintain_gear）：格子倍率+1（单回合） =====
-FX.register(new EffectHandler({
-    id: 'maintain_gear',
-    triggers: Trigger.ON_PLAY,
-    priority: Priority.SLOT_MODIFIER,
-    condition: (ctx) => ctx.card.defId === 'maintain_gear',
-    execute: (ctx) => {
-        const slot = ctx.state.slots[ctx.slotIndex];
-        slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
-        ctx.log(`保养装备提升了第${ctx.slotIndex + 1}格倍率至 ${slot.multiplier + slot.roundMultiplierBonus}X（单回合）`);
-    }
-}));
-
-// ===== 9. 炫耀肌肉（show_muscle）：打出时相邻两侧卡牌获得生长1 =====
-FX.register(new EffectHandler({
-    id: 'show_muscle_effect',
-    triggers: Trigger.ON_PLAY,
-    priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'show_muscle',
-    execute: (ctx) => {
-        for (const s of ctx.state.slots) {
-            if (Math.abs(s.index - ctx.slotIndex) === 1 && s.cards.length > 0) {
-                const target = s.cards[s.cards.length - 1];
-                if (!target.keywords.includes('grow')) {
-                    target.keywords.push('grow');
-                    target.growAmount = 1;
-                    ctx.log(`${ctx.card.name} 让 ${target.name} 获得了生长1！`);
-                }
-            }
-        }
-    }
-}));
-
-// ===== 10. 理清头绪（clear_mind）：抽两张牌 =====
-FX.register(new EffectHandler({
-    id: 'clear_mind',
+    id: 'messenger_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.DRAW,
-    condition: (ctx) => ctx.card.defId === 'clear_mind',
+    condition: (ctx) => ctx.card.defId === 'messenger',
     execute: (ctx) => {
-        drawCards(ctx.state, 2);
-        ctx.log(`${ctx.card.name} 理清头绪！抽两张牌`);
-    }
-}));
-
-// ===== 11. 忆往昔（recall_past）：从弃牌堆选定拿回一张卡牌 =====
-FX.register(new EffectHandler({
-    id: 'recall_past',
-    triggers: Trigger.ON_PLAY,
-    priority: Priority.DRAW + 10,
-    condition: (ctx) => ctx.card.defId === 'recall_past',
-    execute: (ctx) => {
-        if (ctx.state.discard.length > 0) {
-            ctx.state.draggedCard = null;
-            ctx.state.selectedCard = null;
-            ctx.state.hoveredSlot = null;
-            ctx.state.pendingRecall = {
-                message: '请选择弃牌堆中的一张卡牌拿回手牌',
-                cards: [...ctx.state.discard],
-                hoverIndex: -1
-            };
-            ctx.log(`${ctx.card.name} 回忆往昔，等待选择弃牌堆中的卡牌...`);
+        if (ctx.state.deck.length > 0) {
+            const card = ctx.state.deck.pop();
+            ctx.state.hand.push(card);
+            ctx.log(`${ctx.card.name} 传令效果触发，从牌组拿来 ${card.name}`);
         } else {
-            ctx.log(`${ctx.card.name} 回忆往昔，但弃牌堆为空`);
+            ctx.log(`${ctx.card.name} 传令效果触发，但牌组已空`);
         }
     }
 }));
 
-// ===== 12. 训练纲领（training_program）：打出时根据训练牌数量生长 =====
+// ===== 7. 豪华装备（luxury_gear）：已在倍率格时相邻两侧倍率+1 =====
 FX.register(new EffectHandler({
-    id: 'training_program_effect',
+    id: 'luxury_gear_effect',
     triggers: Trigger.ON_PLAY,
-    priority: Priority.GROW - 10,
-    condition: (ctx) => ctx.card.defId === 'training_program',
+    priority: Priority.SLOT_MODIFIER,
+    condition: (ctx) => ctx.card.defId === 'luxury_gear',
     execute: (ctx) => {
-        const runData = ctx.state.runDataRef;
-        let count = 0;
-        if (runData && runData.startingDeck) {
-            for (const entry of runData.startingDeck) {
-                const def = CARD_DEFS[entry.defId];
-                if (def && def.name && def.name.includes('训练')) {
-                    count += entry.count;
+        const slot = ctx.state.slots[ctx.slotIndex];
+        // 检查是否已在倍率格（即不是第一张打出的）
+        if (slot.cards.length > 1) {
+            for (const s of ctx.state.slots) {
+                if (Math.abs(s.index - ctx.slotIndex) === 1) {
+                    s.roundMultiplierBonus = (s.roundMultiplierBonus || 0) + 1;
+                    ctx.log(`${ctx.card.name} 提升了第${s.index + 1}格倍率！`);
                 }
             }
         }
-        if (count > 0) {
-            ctx.card.growAmount = count;
-            const amount = calculateGrowAmount(ctx.card, ctx.slotIndex, ctx.state);
-            ctx.card.permanentBonus += amount;
-            ctx.log(`${ctx.card.name} 训练纲领生效！检测到 ${count} 张训练牌，生长+${amount}`);
-        } else {
-            ctx.log(`${ctx.card.name} 训练纲领触发，但牌组中没有训练牌`);
+    }
+}));
+
+// ===== 8. 我思故我在（cogito_ergo_sum）：已在倍率格时所在格点数x2 =====
+FX.register(new EffectHandler({
+    id: 'cogito_ergo_sum_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL,
+    condition: (ctx) => ctx.card.defId === 'cogito_ergo_sum',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        if (slot.cards.length > 1) {
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
+            ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
         }
     }
 }));
 
-// ===== 13. 爱护装备（surging_anger）：设置下一张同格加成+4 =====
+// ===== 9. 训练痕迹（training_trace）：相邻两侧成长效果多触发一次 =====
 FX.register(new EffectHandler({
-    id: 'surging_anger',
+    id: 'training_trace_effect',
     triggers: Trigger.ON_PLAY,
-    priority: Priority.SPECIAL + 20,
-    condition: (ctx) => ctx.card.defId === 'surging_anger',
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'training_trace',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        slot.nextCardBonus = (slot.nextCardBonus || 0) + 4;
-        ctx.log(`${ctx.card.name} 爱护装备就绪！下一张同格卡牌+4`);
+        if (slot.cards.length > 1) {
+            for (const s of ctx.state.slots) {
+                if (Math.abs(s.index - ctx.slotIndex) === 1) {
+                    for (const c of s.cards) {
+                        if (c.keywords.includes('grow')) {
+                            const amount = calculateGrowAmount(c, s.index, ctx.state);
+                            c.permanentBonus += amount;
+                            ctx.log(`${c.name} 受到训练痕迹加持，额外成长+${amount}！`);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}));
+
+// ===== 10. 猛训练（intense_training）：后续同格成长效果多触发一次 =====
+// 此效果通过在 calculateGrowAmount 中检测来实现
+FX.register(new EffectHandler({
+    id: 'intense_training_mark',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 5,
+    condition: (ctx) => ctx.card.defId === 'intense_training',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        if (slot.cards.length > 1) {
+            slot.intenseTrainingActive = true;
+            ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
+        }
+    }
+}));
+
+// ===== 11. 集体训练（group_training）：后续同格卡牌获得成长2 =====
+FX.register(new EffectHandler({
+    id: 'group_training_mark',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 5,
+    condition: (ctx) => ctx.card.defId === 'group_training',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        if (slot.cards.length > 1) {
+            slot.groupTrainingActive = true;
+            ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
+        }
     }
 }));

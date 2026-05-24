@@ -1,5 +1,8 @@
 /**
- * 卡牌地下城 - 怪物定义
+ * 卡牌地下城 - 怪物定义（第二版）
+ *
+ * 按 14.怪物数值设计.md 实现
+ * 三层，每层8节点
  */
 
 export const MONSTER_COLOR_THEMES = {
@@ -61,36 +64,16 @@ export const MONSTER_COLOR_THEMES = {
     }
 };
 
+// ===== 第一层怪物 =====
 export const MONSTER_DEFS = {
-    lone_rat: {
-        id: 'lone_rat',
-        name: '离群硕鼠',
-        hp: 75,
-        description: '大一点落单耗子',
-        keywords: ['virus_source'],
-        keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
-        theme: 'normal',
-        type: 'normal',
-        shape: 'rat'
-    },
-    rotten_rat: {
-        id: 'rotten_rat',
-        name: '腐化田鼠',
-        hp: 80,
-        description: '被污染农田里钻出的病鼠',
-        keywords: ['virus_source'],
-        keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
-        theme: 'normal',
-        type: 'normal',
-        shape: 'rat'
-    },
-    gluttony_swarm: {
-        id: 'gluttony_swarm',
-        name: '暴食鼠群',
-        hp: 90,
-        description: '成群结队觅食的硕鼠',
-        keywords: ['virus_source'],
-        keywordDesc: '病毒之源：当扣除敌方生命后，下一次多扣除一次生命',
+    // 1-1 普通怪池
+    wasteland_wolf: {
+        id: 'wasteland_wolf',
+        name: '荒原狼',
+        hp: 150,
+        description: '徘徊在荒原上的野狼，成群出没',
+        keywords: ['heal_20'],
+        keywordDesc: '每回合开始，恢复自身血量20',
         theme: 'normal',
         type: 'normal',
         shape: 'rat'
@@ -98,7 +81,7 @@ export const MONSTER_DEFS = {
     cave_bat: {
         id: 'cave_bat',
         name: '洞穴蝙蝠',
-        hp: 70,
+        hp: 150,
         description: '在地下城深处栖息的蝙蝠',
         keywords: ['dodge'],
         keywordDesc: '闪避：每回合受到的前2点伤害无效',
@@ -106,10 +89,34 @@ export const MONSTER_DEFS = {
         type: 'normal',
         shape: 'bat'
     },
+    lone_rat: {
+        id: 'lone_rat',
+        name: '离群硕鼠',
+        hp: 150,
+        description: '大一点落单耗子',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 1-2 普通怪池
+    rotten_rat: {
+        id: 'rotten_rat',
+        name: '腐化田鼠',
+        hp: 250,
+        description: '被污染农田里钻出的病鼠',
+        keywords: ['edge_penalty_5'],
+        keywordDesc: '放在最左和最右的倍率格子上的卡牌数值-5',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
     mud_slime: {
         id: 'mud_slime',
         name: '泥浆软泥怪',
-        hp: 110,
+        hp: 250,
         description: '被污染的泥浆凝聚而成的怪物',
         keywords: [],
         keywordDesc: '',
@@ -120,7 +127,7 @@ export const MONSTER_DEFS = {
     polluted_flower: {
         id: 'polluted_flower',
         name: '污染之花',
-        hp: 120,
+        hp: 250,
         description: '被地下城气息侵蚀的食人花',
         keywords: [],
         keywordDesc: '',
@@ -128,10 +135,23 @@ export const MONSTER_DEFS = {
         type: 'normal',
         shape: 'flower'
     },
+
+    // 1-3 普通怪池
+    gluttony_swarm: {
+        id: 'gluttony_swarm',
+        name: '暴食鼠群',
+        hp: 400,
+        description: '成群结队觅食的硕鼠',
+        keywords: ['left_penalty_10'],
+        keywordDesc: '放在最左倍率格子上的卡牌数值-10',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
     stone_guard: {
         id: 'stone_guard',
         name: '巨石门卫',
-        hp: 100,
+        hp: 400,
         description: '被魔法唤醒的石制守卫',
         keywords: ['hard_skin'],
         keywordDesc: '硬质皮肤：放在最左和最右倍率格子上的卡牌数值减少1',
@@ -139,81 +159,384 @@ export const MONSTER_DEFS = {
         type: 'normal',
         shape: 'golem'
     },
-    elite_guard: {
-        id: 'elite_guard',
-        name: '虎哥',
-        hp: 200,
-        description: '守护鼠王的精锐战士',
-        keywords: [],
-        keywordDesc: '',
-        theme: 'elite',
-        type: 'elite',
-        shape: 'rat'
-    },
-    rat_king: {
-        id: 'rat_king',
-        name: '牛头人',
-        hp: 400,
-        description: '地下城鼠群的统治者',
-        keywords: [],
-        keywordDesc: '',
-        theme: 'boss',
-        type: 'boss',
-        shape: 'rat'
-    },
     blade_bro: {
         id: 'blade_bro',
         name: '刀哥',
-        hp: 125,
-        description: '需要快速击杀的小怪',
-        keywords: ['strong_heal'],
-        keywordDesc: '强力回复：每回合开始，提高自身血量20',
+        hp: 400,
+        description: '游荡的刀手',
+        keywords: [],
+        keywordDesc: '',
         theme: 'normal',
         type: 'normal',
+        shape: 'rat'
+    },
+
+    // 1-4 精英怪池
+    elite_guard: {
+        id: 'elite_guard',
+        name: '虎哥',
+        hp: 600,
+        description: '守护地下城的精锐战士',
+        keywords: ['first_card_discard', 'first_turn_less_draw'],
+        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
+        theme: 'elite',
+        type: 'elite',
         shape: 'rat'
     },
     vest_sage: {
         id: 'vest_sage',
         name: '背心尊者',
-        hp: 200,
-        description: '可承受3回合的测试用靶子',
-        keywords: ['crash'],
-        keywordDesc: '猛撞：放在最左倍率格子上的卡牌数值-4',
-        theme: 'normal',
-        type: 'normal',
+        hp: 600,
+        description: '披着破旧背心的神秘强者',
+        keywords: ['first_card_discard', 'first_turn_less_draw'],
+        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
+        theme: 'elite',
+        type: 'elite',
         shape: 'rat'
     },
     small_gate: {
         id: 'small_gate',
         name: '小门',
-        hp: 250,
-        description: '可承受3回合的测试用靶子',
-        keywords: ['courage'],
-        keywordDesc: '勇气：数值最高的倍率格点数-1',
-        theme: 'normal',
-        type: 'normal',
+        hp: 600,
+        description: '地下城中的守卫 construct',
+        keywords: ['first_card_discard', 'first_turn_less_draw'],
+        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
+        theme: 'stone',
+        type: 'elite',
         shape: 'golem'
     },
+
+    // 1-5 普通怪池
     soul_thief: {
         id: 'soul_thief',
         name: '偷子',
-        hp: 300,
-        description: '可承受3回合的测试用靶子',
-        keywords: ['soul_steal'],
-        keywordDesc: '窃魂：每造成一次伤害减少玩家1魂',
-        theme: 'normal',
+        hp: 800,
+        description: '擅长窃取资源的怪物',
+        keywords: ['max_slot_penalty_1'],
+        keywordDesc: '数值最高的倍率格点数-1',
+        theme: 'bat',
         type: 'normal',
         shape: 'bat'
     },
     training_dummy: {
         id: 'training_dummy',
         name: '训练靶子',
-        hp: 200,
-        description: '一个耐打的稻草人靶子（测试用）',
-        keywords: [],
-        keywordDesc: '',
+        hp: 800,
+        description: '一个耐打的稻草人靶子',
+        keywords: ['max_slot_penalty_1'],
+        keywordDesc: '数值最高的倍率格点数-1',
         theme: 'dummy',
         type: 'normal',
         shape: 'rat'
+    },
+    swamp_toad: {
+        id: 'swamp_toad',
+        name: '沼泽蟾蜍',
+        hp: 800,
+        description: '潜伏在沼泽中的巨大蟾蜍',
+        keywords: ['max_slot_penalty_1'],
+        keywordDesc: '数值最高的倍率格点数-1',
+        theme: 'slime',
+        type: 'normal',
+        shape: 'slime'
+    },
+
+    // 1-6 普通怪池
+    shadow_assassin: {
+        id: 'shadow_assassin',
+        name: '暗影刺客',
+        hp: 1200,
+        description: '潜伏在阴影中的杀手',
+        keywords: ['steady_penalty'],
+        keywordDesc: '若使用计策稳重推进，则玩家所有倍率格点数-1',
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
+    },
+    bone_collector: {
+        id: 'bone_collector',
+        name: '白骨收集者',
+        hp: 1200,
+        description: '搜集骸骨的亡灵',
+        keywords: ['steady_penalty'],
+        keywordDesc: '若使用计策稳重推进，则玩家所有倍率格点数-1',
+        theme: 'stone',
+        type: 'normal',
+        shape: 'golem'
+    },
+    venom_spider: {
+        id: 'venom_spider',
+        name: '毒液蜘蛛',
+        hp: 1200,
+        description: '喷射剧毒的巨型蜘蛛',
+        keywords: ['steady_penalty'],
+        keywordDesc: '若使用计策稳重推进，则玩家所有倍率格点数-1',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 1-7 普通怪池
+    gold_eater: {
+        id: 'gold_eater',
+        name: '吞金兽',
+        hp: 1600,
+        description: '以金币为食的怪物',
+        keywords: ['steal_gold'],
+        keywordDesc: '每造成一次伤害减少玩家1金币',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    crystal_golem: {
+        id: 'crystal_golem',
+        name: '水晶魔像',
+        hp: 1600,
+        description: '由魔法水晶构成的魔像',
+        keywords: ['steal_gold'],
+        keywordDesc: '每造成一次伤害减少玩家1金币',
+        theme: 'stone',
+        type: 'normal',
+        shape: 'golem'
+    },
+    curse_witch: {
+        id: 'curse_witch',
+        name: '诅咒女巫',
+        hp: 1600,
+        description: '散播诅咒的女巫',
+        keywords: ['steal_gold'],
+        keywordDesc: '每造成一次伤害减少玩家1金币',
+        theme: 'elite',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 1-8 BOSS池
+    rat_king: {
+        id: 'rat_king',
+        name: '鼠王',
+        hp: 2000,
+        description: '地下城鼠群的统治者',
+        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
+        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
+        theme: 'boss',
+        type: 'boss',
+        shape: 'rat'
+    },
+    abyss_guardian: {
+        id: 'abyss_guardian',
+        name: '深渊守护者',
+        hp: 2000,
+        description: '守护深渊入口的古老存在',
+        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
+        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
+        theme: 'boss',
+        type: 'boss',
+        shape: 'golem'
+    },
+    plague_lord: {
+        id: 'plague_lord',
+        name: '瘟疫领主',
+        hp: 2000,
+        description: '散播瘟疫的恐怖领主',
+        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
+        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
+        theme: 'boss',
+        type: 'boss',
+        shape: 'slime'
+    },
+
+    // ===== 第二层怪物 =====
+    // 2-1 ~ 2-3 普通怪
+    layer2_wolf: {
+        id: 'layer2_wolf',
+        name: '腐狼',
+        hp: 2000,
+        description: '第二层腐化的野狼',
+        keywords: ['heal_20'],
+        keywordDesc: '每回合开始，恢复自身血量20',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    layer2_bat: {
+        id: 'layer2_bat',
+        name: '血蝠',
+        hp: 3000,
+        description: '吸血的巨型蝙蝠',
+        keywords: ['edge_penalty_5'],
+        keywordDesc: '放在最左和最右的倍率格子上的卡牌数值-5',
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
+    },
+    layer2_slime: {
+        id: 'layer2_slime',
+        name: '酸液怪',
+        hp: 4000,
+        description: '喷射酸液的怪物',
+        keywords: ['left_penalty_10'],
+        keywordDesc: '放在最左倍率格子上的卡牌数值-10',
+        theme: 'slime',
+        type: 'normal',
+        shape: 'slime'
+    },
+
+    // 2-4 精英
+    layer2_elite: {
+        id: 'layer2_elite',
+        name: '铁甲卫',
+        hp: 5000,
+        description: '身披铁甲的精英守卫',
+        keywords: ['first_card_discard', 'first_turn_less_draw'],
+        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
+        theme: 'elite',
+        type: 'elite',
+        shape: 'golem'
+    },
+
+    // 2-5 ~ 2-7 普通怪
+    layer2_normal5: {
+        id: 'layer2_normal5',
+        name: '熔岩行者',
+        hp: 7500,
+        description: '在熔岩中行走的怪物',
+        keywords: ['max_slot_penalty_1'],
+        keywordDesc: '数值最高的倍率格点数-1',
+        theme: 'stone',
+        type: 'normal',
+        shape: 'golem'
+    },
+    layer2_normal6: {
+        id: 'layer2_normal6',
+        name: '暗影猎手',
+        hp: 10000,
+        description: '潜伏在暗影中的猎手',
+        keywords: ['steady_penalty'],
+        keywordDesc: '若使用计策稳重推进，则玩家所有倍率格点数-1',
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
+    },
+    layer2_normal7: {
+        id: 'layer2_normal7',
+        name: '贪婪巨魔',
+        hp: 11000,
+        description: '贪婪的巨魔',
+        keywords: ['steal_gold'],
+        keywordDesc: '每造成一次伤害减少玩家1金币',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 2-8 BOSS
+    layer2_boss: {
+        id: 'layer2_boss',
+        name: '熔岩巨兽',
+        hp: 16500,
+        description: '由熔岩构成的巨大怪物',
+        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
+        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
+        theme: 'boss',
+        type: 'boss',
+        shape: 'golem'
+    },
+
+    // ===== 第三层怪物 =====
+    // 3-1 ~ 3-3 普通怪
+    layer3_wolf: {
+        id: 'layer3_wolf',
+        name: '地狱犬',
+        hp: 22000,
+        description: '来自地狱的猎犬',
+        keywords: ['heal_20'],
+        keywordDesc: '每回合开始，恢复自身血量20',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    layer3_bat: {
+        id: 'layer3_bat',
+        name: '夜魇',
+        hp: 24000,
+        description: '夜晚的梦魇',
+        keywords: ['edge_penalty_5'],
+        keywordDesc: '放在最左和最右的倍率格子上的卡牌数值-5',
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
+    },
+    layer3_slime: {
+        id: 'layer3_slime',
+        name: '混沌黏液',
+        hp: 30000,
+        description: '混沌的化身',
+        keywords: ['left_penalty_10'],
+        keywordDesc: '放在最左倍率格子上的卡牌数值-10',
+        theme: 'slime',
+        type: 'normal',
+        shape: 'slime'
+    },
+
+    // 3-4 精英
+    layer3_elite: {
+        id: 'layer3_elite',
+        name: '堕落骑士',
+        hp: 40000,
+        description: '堕落的骑士',
+        keywords: ['first_card_discard', 'first_turn_less_draw'],
+        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
+        theme: 'elite',
+        type: 'elite',
+        shape: 'golem'
+    },
+
+    // 3-5 ~ 3-7 普通怪
+    layer3_normal5: {
+        id: 'layer3_normal5',
+        name: '虚空行者',
+        hp: 40000,
+        description: '行走于虚空的怪物',
+        keywords: ['max_slot_penalty_1'],
+        keywordDesc: '数值最高的倍率格点数-1',
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
+    },
+    layer3_normal6: {
+        id: 'layer3_normal6',
+        name: '灵魂收割者',
+        hp: 50000,
+        description: '收割灵魂的死神',
+        keywords: ['steady_penalty'],
+        keywordDesc: '若使用计策稳重推进，则玩家所有倍率格点数-1',
+        theme: 'stone',
+        type: 'normal',
+        shape: 'golem'
+    },
+    layer3_normal7: {
+        id: 'layer3_normal7',
+        name: '贪婪魔王',
+        hp: 70000,
+        description: '极度贪婪的魔王',
+        keywords: ['steal_gold'],
+        keywordDesc: '每造成一次伤害减少玩家1金币',
+        theme: 'elite',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 3-8 BOSS
+    layer3_boss: {
+        id: 'layer3_boss',
+        name: '混沌之主',
+        hp: 100000,
+        description: '地下城最深处的终极存在',
+        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
+        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
+        theme: 'boss',
+        type: 'boss',
+        shape: 'golem'
     }
 };

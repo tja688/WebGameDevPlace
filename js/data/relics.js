@@ -5,39 +5,45 @@
  */
 
 export const EVENT_NAMES = [
-    { name: '神秘祭坛', desc: '一座散发着微光的古老祭坛，似乎在等待某种献祭...' },
-    { name: '古老石碑', desc: '刻满看不懂符文的石碑，触碰时传来微弱的震动...' },
-    { name: '迷失旅人', desc: '一个衣衫褴褛的旅人坐在路边，眼神中透着疯狂...' },
-    { name: '地下泉水', desc: '一汪清澈的泉水从石缝中涌出，水面倒映着奇异的光芒...' },
-    { name: '暗影低语', desc: '黑暗中传来若有若无的低语，听不清在说什么...' },
-    { name: '精灵赌局', desc: '一个笑嘻嘻的元素精灵摆出了三杯晃动的液体...' },
-    { name: '遗忘宝库', desc: '半掩的石门后面透出金光，但门口有奇怪的符文陷阱...' },
-    { name: '契约之环', desc: '地面上画着一个发光的圆环，中间漂浮着一张羊皮纸...' }
+    { name: '散落的金币', desc: '地上散落着一些金币，闪闪发光...' },
+    { name: '遗落的兵书', desc: '一本古老的兵书躺在地上，似乎记载着某种战术...' },
+    { name: '好心的小画家', desc: '一个背着画板的小画家正在路边写生，看到你后热情地打招呼...' },
+    { name: '自助铁匠锤', desc: '路边放着一把铁匠锤，旁边有个投币箱...' },
+    { name: '及时的帮助', desc: '一位神秘的商人从阴影中走出，提供了一些货物...' },
+    { name: '抵御怪物', desc: '前方的道路上突然跳出一只怪物！' },
+    { name: '出土装备', desc: '地面裂开，露出一个古老的宝箱...' },
+    { name: '魔镜', desc: '一面散发着诡异光芒的镜子立在路边...' },
+    { name: '轻语岩壁', desc: '岩壁上传来低语声，似乎在诉说着某种秘密...' },
+    { name: '挑战强敌', desc: '一个巨大的身影挡在前方，散发着危险的气息...' }
 ];
 
 export const RELIC_DEFS = [
-    // 低级遗物（单回合收益~20，多回合~40）
-    { id: 'relic_starter_1', name: '先锋徽章', desc: '每次战斗第一张打出的卡牌点数+20', rarity: 'common' },
-    { id: 'relic_starter_2', name: '锻体护符', desc: '牌组里所有卡牌点数+2', rarity: 'common' },
-    { id: 'relic_starter_3', name: '成长种子', desc: '每场战斗第一张打出的卡牌点数永久+5', rarity: 'common' },
-    { id: 'relic_starter_4', name: '疾风卷轴', desc: '每场战斗第一回合多抽一张牌', rarity: 'common' },
-    { id: 'relic_starter_5', name: '焦点透镜', desc: '最中倍率格点数+2', rarity: 'common' },
-    { id: 'relic_econ', name: '折扣券', desc: '每场战斗后获得一次免费刷新次数', rarity: 'common' },
+    // ===== 低级遗物（单回合收益~20，多回合~40）=====
+    { id: 'relic_starter_1', name: '先锋徽章', desc: '每次战斗第一张打出的卡牌点数+20', rarity: 'common', effect: { type: 'first_card_bonus', bonus: 20 } },
+    { id: 'relic_starter_2', name: '锻体护符', desc: '牌组里所有卡牌点数+2', rarity: 'common', effect: { type: 'deck_bonus', bonus: 2 } },
+    { id: 'relic_starter_3', name: '成长种子', desc: '每场战斗第一张打出的卡牌点数永久+5', rarity: 'common', effect: { type: 'first_card_permanent_grow', bonus: 5 } },
+    { id: 'relic_starter_4', name: '疾风卷轴', desc: '每场战斗第一回合多抽一张牌', rarity: 'common', effect: { type: 'first_turn_extra_draw', bonus: 1 } },
+    { id: 'relic_starter_5a', name: '左翼透镜', desc: '最左倍率格点数+2', rarity: 'common', effect: { type: 'slot_bonus', slotIndex: 0, bonus: 2 } },
+    { id: 'relic_starter_5b', name: '焦点透镜', desc: '最中倍率格点数+2', rarity: 'common', effect: { type: 'slot_bonus', slotIndex: 1, bonus: 2 } },
+    { id: 'relic_starter_5c', name: '右翼透镜', desc: '最右倍率格点数+2', rarity: 'common', effect: { type: 'slot_bonus', slotIndex: 2, bonus: 2 } },
+    { id: 'relic_econ', name: '折扣券', desc: '每场战斗后获得一次免费刷新次数', rarity: 'common', effect: { type: 'free_refresh_per_battle' } },
 
-    // 中级遗物（单回合收益~40，多回合~80）
-    { id: 'relic_core_1', name: '连击手套', desc: '每次战斗首次将倍率格填满，倍率格上每张卡牌点数+10', rarity: 'rare' },
-    { id: 'relic_core_2', name: '赏金袋', desc: '每次倍率格上卡牌点数超过50，获得一魂', rarity: 'rare' },
-    { id: 'relic_core_3', name: '拥挤雕像', desc: '倍率格上每有两张卡牌倍率点数+1', rarity: 'rare' },
-    { id: 'relic_exp_1', name: '首击放大器', desc: '每次战斗首回合，总伤害X2', rarity: 'rare' },
+    // ===== 中级遗物（单回合收益~40，多回合~80）=====
+    { id: 'relic_core_1', name: '连击手套', desc: '每次战斗首次将倍率格填满，倍率格上每张卡牌点数+10', rarity: 'rare', effect: { type: 'full_board_bonus', bonus: 10 } },
+    { id: 'relic_core_2', name: '赏金袋', desc: '每次倍率格上卡牌点数超过50，获得2金币', rarity: 'rare', effect: { type: 'slot_value_gold', threshold: 50, gold: 2 } },
+    { id: 'relic_core_3', name: '拥挤雕像', desc: '倍率格上每有两张卡牌倍率点数+1', rarity: 'rare', effect: { type: 'crowd_slot_bonus', threshold: 2, bonus: 1 } },
+    { id: 'relic_exp_1', name: '首击放大器', desc: '每次战斗首回合，额外指数+2', rarity: 'rare', effect: { type: 'first_turn_extra_multiplier', bonus: 2 } },
 
-    // 高级遗物（单回合收益~80，多回合~160）
-    { id: 'relic_ult_1', name: '三重共鸣', desc: '每个倍率格上都有三张卡牌时，总伤害X3', rarity: 'epic' },
-    { id: 'relic_ult_2', name: '镜像核心', desc: '一回合内，打出两张同名的卡牌，使两张卡牌点数翻倍', rarity: 'epic' },
+    // ===== 高级遗物（单回合收益~80，多回合~160）=====
+    { id: 'relic_ult_1', name: '三重共鸣', desc: '每个倍率格上都有三张卡牌时，额外指数+3', rarity: 'epic', effect: { type: 'triple_crowd_bonus', threshold: 3, bonus: 3 } },
+    { id: 'relic_ult_2', name: '超限核心', desc: '当触发任意超限计策时，额外指数+3', rarity: 'epic', effect: { type: 'overdrive_bonus', bonus: 3 } },
 
-    // BOSS遗物（带负面，收益40~80）
-    { id: 'relic_boss_1', name: '巨鼠之牙', desc: '所有卡牌点数+5，但每回合开始时失去1心', rarity: 'boss' }
+    // ===== BOSS遗物（带负面，收益40~80）=====
+    { id: 'relic_boss_dragon_heart', name: '龙心', desc: '所有卡牌点数+5，但每回合开始时失去1人群', rarity: 'boss', effect: { type: 'all_card_bonus_heart_penalty', bonus: 5, penalty: 1 } },
+    { id: 'relic_boss_dragon_bone', name: '龙骨', desc: '倍率格点数+2，但怪物血量+20%', rarity: 'boss', effect: { type: 'all_slot_bonus_hp_increase', slotBonus: 2, hpPercent: 20 } },
+    { id: 'relic_boss_dragon_eye', name: '龙眼', desc: '每回合额外抽2张牌，但手牌上限-2', rarity: 'boss', effect: { type: 'extra_draw_hand_limit', drawBonus: 2, handLimitPenalty: 2 } }
 ];
 
 export function pickRandomEvent() {
-    return { name: '神秘力量', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card' };
+    return { name: '神秘力量', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card', param: 2 };
 }

@@ -1,47 +1,49 @@
 /**
  * 卡牌地下城 - 战后结算系统（第二版）
  *
- * 第二版战后流程：
- * - 普通战：获得魂 → 直接进入牌店 → 事件 → 地图
- * - 精英战：获得魂 → 直接进入铁匠铺 → 事件 → 地图
- * - BOSS战：获得魂 → BOSS遗物三选一 → 事件 → 下一层
+ * 战后流程：
+ * - 普通战：获得金币 → 商店 → 事件 → 地图
+ * - 精英战：获得金币 → 铁匠 → 事件 → 地图
+ * - BOSS战：获得金币 → BOSS遗物 → 传说事件 → 下一层
  */
 
 import { pickRandom } from '../core/utils.js';
 import { getCurrentStageKey } from '../core/state.js';
 import { STAGE_CONFIG, RELIC_DEFS, createCardRewardOptions } from '../data/index.js';
 
-// ===== 事件池定义 =====
+// ===== 事件池定义（按 7.事件池.md） =====
 const EVENT_POOLS = {
     common: [
-        { name: '神秘祭坛', desc: '选择牌组内一张卡牌，使其数值永久+2', effect: 'buff_card', param: 2 },
-        { name: '古老石碑', desc: '你发现了石碑下隐藏的魂石，获得1魂', effect: 'gain_souls', param: 1 },
-        { name: '地下泉水', desc: '清澈的泉水让你精神一振，获得2魂', effect: 'gain_souls', param: 2 },
-        { name: '暗影低语', desc: '选择一张卡牌，使其获得【生长1】', effect: 'enchant_grow' },
-        { name: '迷失旅人', desc: '一位旅人赠与你一张随机卡牌', effect: 'gain_random_card' },
+        { name: '散落的金币', desc: '玩家获得4金币', effect: 'gain_gold', param: 4 },
+        { name: '遗落的兵书', desc: '获得一次随机计策等级强化', effect: 'random_strategy_level' },
+        { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 },
+        { name: '自助铁匠锤', desc: '玩家-2金币，任意倍率格点数+1', effect: 'self_blacksmith', param: { goldCost: 2, slotBonus: 1 } },
+        { name: '及时的帮助', desc: '获得一次三选一卡牌的机会', effect: 'card_pick_three' }
     ],
     rare: [
-        { name: '精灵赌局', desc: '赌一把？50%获得3魂，50%失去2魂', effect: 'gamble' },
-        { name: '遗忘宝库', desc: '获得一个随机低级遗物', effect: 'gain_relic' },
-        { name: '契约之环', desc: '选择一张卡牌移除，获得3魂', effect: 'remove_for_souls', param: 3 },
-        { name: '精灵商店', desc: '用1魂换取一张随机卡牌', effect: 'buy_random_card', param: 1 },
+        { name: '抵御怪物', desc: '玩家立刻与X-5的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
+        { name: '出土装备', desc: '获得一次三选一中级遗物的机会', effect: 'pick_rare_relic' },
+        { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 }
     ],
     legendary: [
-        { name: '神圣祝福', desc: '选择牌组内一张卡牌，数值永久+5', effect: 'buff_card', param: 5 },
-        { name: '远古传承', desc: '获得一个随机高级遗物', effect: 'gain_rare_relic' },
-        { name: '时空裂隙', desc: '复制牌组内一张卡牌加入牌组', effect: 'duplicate_card' },
+        { name: '魔镜', desc: '玩家在本局中人群数+1', effect: 'max_hearts_plus' },
+        { name: '轻语岩壁', desc: '选择任意一张卡牌获得伟力词条', effect: 'enchant_mighty' },
+        { name: '挑战强敌', desc: '玩家立刻与该层任意精英进行战斗', effect: 'fight_elite' }
     ]
 };
 
 function pickEventTier(poolType) {
     const r = Math.random();
     if (poolType === 'high') {
+        // 高常见概率：90%常见 10%稀有
         return r < 0.9 ? 'common' : 'rare';
     } else if (poolType === 'mid') {
+        // 中概率稀有：49%常见 50%稀有 1%传说
         if (r < 0.49) return 'common';
         else if (r < 0.99) return 'rare';
         else return 'legendary';
     } else if (poolType === 'low') {
+        // 低概率传说：90%稀有 10%传说
         return r < 0.9 ? 'rare' : 'legendary';
     } else if (poolType === 'boss') {
         return 'legendary';
@@ -69,7 +71,7 @@ export function generatePostBattleEvents(runData) {
 export function resolveBattleEnd(battleState) {
     const runData = battleState.runDataRef;
     if (!runData) {
-        return { result: 'win', soulsGained: 0, nextScreen: 'map', postBattleData: {} };
+        return { result: 'win', goldGained: 0, nextScreen: 'map', postBattleData: {} };
     }
     let config = STAGE_CONFIG[battleState.stageKey];
     if (!config) {
@@ -78,15 +80,13 @@ export function resolveBattleEnd(battleState) {
     }
 
     if (battleState.result === 'win') {
-        let soulGain = config.baseSouls;
-        // 第二版：首回合击杀额外奖励1魂
-        if (battleState.turn === 1) {
-            soulGain += 1;
+        let goldGain = config.goldReward || 6;
+        // 首回合击杀额外+2金币
+        if (battleState.firstTurnKill) {
+            goldGain += 2;
         }
-        // 扣除损失的心对应的魂（最低为1）
-        soulGain = Math.max(1, soulGain - battleState.heartsLost);
 
-        runData.souls += soulGain;
+        runData.gold += goldGain;
         runData.heartsLostInStage = battleState.heartsLost;
         runData.completedStages.push(battleState.stageKey);
 
@@ -109,21 +109,21 @@ export function resolveBattleEnd(battleState) {
         if (config.postBattle.startsWith('shop')) {
             return {
                 result: 'win',
-                soulsGained: soulGain,
+                goldGained: goldGain,
                 nextScreen: 'shop',
                 postBattleData: {}
             };
         } else if (config.postBattle.startsWith('blacksmith')) {
             return {
                 result: 'win',
-                soulsGained: soulGain,
+                goldGained: goldGain,
                 nextScreen: 'blacksmith',
                 postBattleData: {}
             };
         } else if (config.postBattle.startsWith('boss_relic')) {
             return {
                 result: 'win',
-                soulsGained: soulGain,
+                goldGained: goldGain,
                 nextScreen: 'boss_relic',
                 postBattleData: { relicOptions: pickBossRelics() }
             };
@@ -131,7 +131,7 @@ export function resolveBattleEnd(battleState) {
 
         return {
             result: 'win',
-            soulsGained: soulGain,
+            goldGained: goldGain,
             nextScreen: 'map',
             postBattleData: {}
         };
@@ -143,18 +143,15 @@ export function resolveBattleEnd(battleState) {
 function getEventPool(postBattleType) {
     switch (postBattleType) {
         case 'shop_high_event':
-        case 'blacksmith_high_event':
-            return { tier: 'high', pool: 'common', count: 2 };
-        case 'shop_mid_event':
-        case 'blacksmith_mid_event':
-            return { tier: 'mid', pool: 'mixed', count: 2 };
+            return { tier: 'high', count: 2 };
         case 'shop_low_event':
-        case 'blacksmith_low_event':
-            return { tier: 'low', pool: 'rare', count: 2 };
+            return { tier: 'low', count: 2 };
+        case 'blacksmith_mid_event':
+            return { tier: 'mid', count: 3 };
         case 'boss_relic_event':
-            return { tier: 'boss', pool: 'legendary', count: 3 };
+            return { tier: 'boss', count: 3 };
         default:
-            return { tier: 'high', pool: 'common', count: 2 };
+            return { tier: 'high', count: 2 };
     }
 }
 
@@ -169,5 +166,3 @@ function pickBossRelics() {
     }
     return options;
 }
-
-

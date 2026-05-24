@@ -1,9 +1,9 @@
 /**
- * 卡牌地下城 - 游戏状态管理
+ * 卡牌地下城 - 游戏状态管理（第二版）
  */
 
 import { shuffleArray } from './utils.js';
-import { SLOT_COUNT, MAX_UNLOCKED_SLOTS, DRAW_COUNT } from './constants.js';
+import { SLOT_COUNT, DRAW_COUNT } from './constants.js';
 import { createDeck } from '../data/index.js';
 import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS } from '../data/index.js';
 
@@ -18,16 +18,12 @@ export function createGameState(screen) {
 }
 
 /**
- * 创建战斗格子（供 createInitialState 和 initBattleFromRun 共享）
+ * 创建战斗格子（固定3格）
  */
-export function createBattleSlots({ classRelic, slotUpgrades = {}, act = 1 }) {
+export function createBattleSlots({ slotUpgrades = {} }) {
     const slots = [];
-    const slotCount = Math.min(5, 3 + (act - 1));
-    for (let i = 0; i < slotCount; i++) {
+    for (let i = 0; i < SLOT_COUNT; i++) {
         let mul = 1;
-        if (classRelic.effect.type === 'slot_multiplier' && classRelic.effect.slotIndex === i) {
-            mul += classRelic.effect.bonus;
-        }
         const upgradeCount = slotUpgrades[i] || 0;
         mul += upgradeCount;
         slots.push({
@@ -54,7 +50,7 @@ export function createRunData(classId) {
     return {
         act: 1,
         stageIndex: 0,
-        souls: 0,
+        gold: 0,           // 金币（替代魂）
         heartsLostInStage: 0,
         deck: shuffleArray(createDeck(cls)),
         startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
@@ -64,15 +60,23 @@ export function createRunData(classId) {
         shopStock: null,
         blacksmithStock: null,
         slotUpgrades: {},
-        blacksmithSlotCosts: [2, 2, 2],
-        shopUpgradeCost: 1,
-        shopRefreshCost: 1,
-        blacksmithEnchantCost: 4,
-        blacksmithRefreshCost: 1,
+        // 商店费用追踪
+        shopUpgradeCosts: {},      // 每张卡牌的强化费用 {cardId: cost}
+        shopRefreshCost: 5,
+        shopRefreshCount: 0,
+        // 铁匠费用追踪
+        blacksmithSlotUpgraded: false,  // 本层是否已免费升级过格子
+        blacksmithEnchantCost: 2,       // 当前附魔费用（按稀有度）
+        blacksmithRefreshCost: 5,
+        blacksmithRefreshCount: 0,
+        blacksmithFirstEnchantFree: true, // 新人福利：首次附魔免费
+        // 战后事件
         pendingPostBattle: null,
-        pendingSoulsGained: 0,
-        firstUpgradeDiscount: true,
-        firstBlacksmithRefreshFree: true
+        pendingGoldGained: 0,
+        // 计策强化等级
+        strategyLevels: {},
+        // 跨层保留
+        extraMultiplier: 1   // 额外指数（遗物加成）
     };
 }
 
@@ -85,19 +89,16 @@ export function getStageConfig(runData) {
 }
 
 export function isRunComplete(runData) {
-    return runData.stageIndex >= 6;
+    return runData.stageIndex >= 8;
 }
 
 // ===== 调试/测试用的初始状态 =====
 export function createInitialState() {
-    const cls = CLASS_DEFS.soldier;
+    const cls = CLASS_DEFS.veteran;
     const deck = shuffleArray(createDeck(cls));
     const monster = MONSTER_DEFS.lone_rat;
 
-    const slots = createBattleSlots({
-        classRelic: cls.relic,
-        act: 1
-    });
+    const slots = createBattleSlots({});
 
     return {
         screen: 'battle',

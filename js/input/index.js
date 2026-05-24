@@ -287,7 +287,7 @@ export const Input = {
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
 
                     if (data.selectMode === 'shop_remove') {
-                        runData.souls -= 1;
+                        runData.gold -= 1;
                         const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
                         if (idx !== -1) runData.deck.splice(idx, 1);
                         showPlaceholderToast(`已移除 ${card.name}`);
@@ -298,7 +298,7 @@ export const Input = {
 
                     if (data.selectMode === 'shop_upgrade') {
                         const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
-                        runData.souls -= upgradeCost;
+                        runData.gold -= upgradeCost;
                         if (runData.firstUpgradeDiscount) runData.firstUpgradeDiscount = false;
                         card.permanentBonus += 2;
                         runData.shopUpgradeCost = Math.min(3, runData.shopUpgradeCost + 1);
@@ -334,10 +334,10 @@ export const Input = {
 
                     if (data.selectMode === 'event_remove_for_souls') {
                         const gain = data.eventParam || 3;
-                        runData.souls += gain;
+                        runData.gold += gain;
                         const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
                         if (idx !== -1) runData.deck.splice(idx, 1);
-                        showPlaceholderToast(`移除 ${card.name}，获得 ${gain} 魂！`);
+                        showPlaceholderToast(`移除 ${card.name}，获得 ${gain} 金币！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -360,7 +360,7 @@ export const Input = {
                     if (data.selectMode === 'blacksmith_enchant') {
                         const keyword = data.enchantKeyword;
                         const cost = data.enchantCost;
-                        runData.souls -= cost;
+                        runData.gold -= cost;
                         if (keyword && !card.keywords.includes(keyword)) {
                             card.keywords.push(keyword);
                             const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
@@ -431,7 +431,7 @@ export const Input = {
                 } else {
                     switchScreen(this.state, 'post_battle', {
                         runData, type: result.postBattleType,
-                        soulsGained: result.soulsGained, postBattleData: result.postBattleData
+                        goldGained: result.goldGained, postBattleData: result.postBattleData
                     });
                 }
             }, 300);
@@ -457,7 +457,7 @@ export const Input = {
                         } else {
                             switchScreen(this.state, 'post_battle', {
                                 runData, type: result.postBattleType,
-                                soulsGained: result.soulsGained, postBattleData: result.postBattleData
+                                goldGained: result.goldGained, postBattleData: result.postBattleData
                             });
                         }
                     }, 300);
@@ -593,15 +593,15 @@ export const Input = {
         if (data.shopItemRects) {
             for (const rect of data.shopItemRects) {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
-                    if (runData.souls >= rect.price) {
-                        runData.souls -= rect.price;
+                    if (runData.gold >= rect.price) {
+                        runData.gold -= rect.price;
                         rect.item.bought = true;
                         const newCard = createCardInstance(rect.item.defId);
                         runData.deck.push(newCard);
                         showPlaceholderToast(`获得卡牌：${newCard.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else {
-                        showPlaceholderToast('魂不足！');
+                        showPlaceholderToast('金币不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
                     }
                     return;
@@ -612,9 +612,9 @@ export const Input = {
         if (data.shopServiceRects) {
             for (const rect of data.shopServiceRects) {
                 if (this.hitTest(pos, rect)) {
-                    if (runData.souls >= rect.cost) {
+                    if (runData.gold >= rect.cost) {
                         if (rect.key === 'refresh') {
-                            runData.souls -= rect.cost;
+                            runData.gold -= rect.cost;
                             refreshShopStock(runData);
                             data.stock = runData.shopStock;
                             runData.shopRefreshCost += 1;
@@ -623,7 +623,7 @@ export const Input = {
                         } else if (rect.key === 'remove_card') {
                             if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                             switchScreen(this.state, 'card_select', {
-                                runData, title: '🗑️ 删牌服务', desc: '选择牌组内一张卡牌移除（消耗1魂）',
+                                runData, title: '🗑️ 删牌服务', desc: '选择牌组内一张卡牌移除（消耗1金币）',
                                 cards: runData.deck, backText: '取消', selectMode: 'shop_remove',
                                 returnScreen: 'shop', returnData: data
                             });
@@ -636,7 +636,7 @@ export const Input = {
                             });
                         }
                     } else {
-                        showPlaceholderToast('魂不足！');
+                        showPlaceholderToast('金币不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
                     }
                     return;
@@ -689,20 +689,20 @@ export const Input = {
             for (const rect of data.blacksmithRects) {
                 if (this.hitTest(pos, rect)) {
                     if (!rect.canAfford) {
-                        showPlaceholderToast('魂不足！');
+                        showPlaceholderToast('金币不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
                         return;
                     }
                     if (rect.item.type === 'buy_relic') {
                         const item = rect.item.data;
                         if (item.bought) { showPlaceholderToast('已购买！'); return; }
-                        runData.souls -= rect.item.cost;
+                        runData.gold -= rect.item.cost;
                         item.bought = true;
                         runData.relics.push({ name: item.name, desc: item.desc });
                         showPlaceholderToast(`获得遗物：${item.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'upgrade_slot') {
-                        runData.souls -= rect.item.cost;
+                        runData.gold -= rect.item.cost;
                         // 第二版：随机强化一个倍率格
                         const availableSlots = runData.act === 1 ? [0, 1, 2] : (runData.act === 2 ? [0, 1, 2, 3] : [0, 1, 2, 3, 4]);
                         const slotIndex = availableSlots[Math.floor(Math.random() * availableSlots.length)];
@@ -725,7 +725,7 @@ export const Input = {
                         if (runData.firstBlacksmithRefreshFree) {
                             runData.firstBlacksmithRefreshFree = false;
                         } else {
-                            runData.souls -= rect.item.cost;
+                            runData.gold -= rect.item.cost;
                         }
                         refreshBlacksmithStock(runData);
                         data.stock = runData.blacksmithStock;
@@ -781,7 +781,7 @@ export const Input = {
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
             runData.pendingEventPool = null;
             runData.stageIndex++;
-            if (runData.stageIndex >= 6) {
+            if (runData.stageIndex >= 8) {
                 if (runData.act >= 3) {
                     switchScreen(this.state, 'victory', { runData });
                 } else {
@@ -830,17 +830,17 @@ export const Input = {
                 });
                 return;
             case 'gain_souls':
-                runData.souls += (param || 1);
-                showPlaceholderToast(`获得 ${param || 1} 魂！`);
+                runData.gold += (param || 1);
+                showPlaceholderToast(`获得 ${param || 1} 金币！`);
                 this._finishEvent(runData);
                 return;
             case 'gamble':
                 if (Math.random() < 0.5) {
-                    runData.souls += 3;
-                    showPlaceholderToast('赌局胜利！获得 3 魂！');
+                    runData.gold += 3;
+                    showPlaceholderToast('赌局胜利！获得 3 金币！');
                 } else {
-                    runData.souls = Math.max(0, runData.souls - 2);
-                    showPlaceholderToast('赌局失败...失去 2 魂');
+                    runData.gold = Math.max(0, runData.gold - 2);
+                    showPlaceholderToast('赌局失败...失去 2 金币');
                 }
                 this._finishEvent(runData);
                 return;
@@ -859,14 +859,14 @@ export const Input = {
                 if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: `选择一张卡牌移除，获得 ${param || 3} 魂`,
+                    desc: `选择一张卡牌移除，获得 ${param || 3} 金币`,
                     cards: runData.deck, backText: '离开', selectMode: 'event_remove_for_souls',
                     returnScreen: 'map', returnData: data, eventParam: param || 3
                 });
                 return;
             case 'buy_random_card':
-                if (runData.souls < (param || 1)) { showPlaceholderToast('魂不足！'); return; }
-                runData.souls -= (param || 1);
+                if (runData.gold < (param || 1)) { showPlaceholderToast('金币不足！'); return; }
+                runData.gold -= (param || 1);
                 // 随机奖励池卡牌
                 const pool = ['war_training', 'show_muscle', 'social_strike', 'spread_seed', 'dedicated_guard'];
                 const randomDef = pool[Math.floor(Math.random() * pool.length)];
@@ -902,7 +902,7 @@ export const Input = {
     _finishEvent(runData) {
         runData.pendingEventPool = null;
         runData.stageIndex++;
-        if (runData.stageIndex >= 6) {
+        if (runData.stageIndex >= 8) {
             if (runData.act >= 3) {
                 switchScreen(this.state, 'victory', { runData });
             } else {
@@ -1199,7 +1199,7 @@ export const Input = {
                 } else {
                     const runData = this.state.runDataRef;
                     switchScreen(this.state, 'game_over', {
-                        reachedStage: getCurrentStageKey(runData), totalSouls: runData.souls
+                        reachedStage: getCurrentStageKey(runData), totalGold: runData.gold
                     });
                 }
             }, 800);

@@ -1,43 +1,23 @@
 /**
  * 卡牌地下城 - 职业定义（第二版）
+ *
+ * 目前仅开放"老兵"职业
  */
 
 export const CLASS_DEFS = {
-    soldier: {
-        id: 'soldier',
-        name: '兵大哥',
-        hearts: 3,
+    veteran: {
+        id: 'veteran',
+        name: '老兵',
+        hearts: 4,  // 初始装备"老伙计们"：人群+1
         relic: {
-            name: '兵团装备',
-            description: '为倍率牌桌最中间一格提供1倍率',
-            effect: { type: 'slot_multiplier', slotIndex: 1, bonus: 1 }
+            name: '老伙计们',
+            description: '人群数+1（开局就有4人群，意味着有4次出牌机会）',
+            effect: { type: 'extra_hearts', bonus: 1 }
         },
         startingDeck: [
-            { defId: 'precise_strike', count: 5 },
-            { defId: 'feint', count: 5 },
-            { defId: 'maintain_gear', count: 2 }
+            { defId: 'unity_strike', count: 5 },
+            { defId: 'support_strike', count: 4 },
+            { defId: 'veteran_ambition', count: 1 }
         ]
-    },
-    mage: {
-        id: 'mage',
-        name: '王国法师',
-        hearts: 3,
-        relic: {
-            name: '奥术法典',
-            description: '（暂未开放）',
-            effect: { type: 'none' }
-        },
-        startingDeck: []
-    },
-    villager: {
-        id: 'villager',
-        name: '中年村民',
-        hearts: 3,
-        relic: {
-            name: '家传锄头',
-            description: '（暂未开放）',
-            effect: { type: 'none' }
-        },
-        startingDeck: []
     }
 };

@@ -221,22 +221,25 @@ export class EffectSystem {
 export function calculateGrowAmount(card, slotIndex, state) {
     let amount = card.growAmount || 1;
     const slot = state.slots[slotIndex];
-    // 30小时训练：同一格生长效果触发两次
-    for (const c of slot.cards) {
-        if (c.defId === 'thirty_hour_training' && c.uuid !== card.uuid) {
-            amount += card.growAmount || 1;
+
+    // 猛训练：同一格生长效果多触发一次
+    if (slot.intenseTrainingActive) {
+        amount += card.growAmount || 1;
+    }
+
+    // 集体训练：后续同格卡牌获得成长2
+    if (slot.groupTrainingActive && !card.keywords.includes('grow')) {
+        // 集体训练给没有成长的卡牌添加成长2（一次性）
+        // 这个效果在 ON_PLAY 时通过 group_training_mark 标记
+        // 这里只处理已有成长的情况
+    }
+    if (slot.groupTrainingActive && card.keywords.includes('grow')) {
+        // 如果卡牌已有成长，提升成长量
+        if ((card.growAmount || 1) < 2) {
+            card.growAmount = 2;
         }
     }
-    // 训练激素：相邻格生长效果触发两次
-    for (const s of state.slots) {
-        if (Math.abs(s.index - slotIndex) === 1) {
-            for (const c of s.cards) {
-                if (c.defId === 'training_hormone') {
-                    amount += card.growAmount || 1;
-                }
-            }
-        }
-    }
+
     return amount;
 }
 

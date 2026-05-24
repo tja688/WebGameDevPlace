@@ -705,11 +705,29 @@ function drawRelicsBar(renderer, ctx, state) {
 
 function drawBoardArea(renderer, ctx, state) {
     const startX = renderer.width * 0.5 - (state.slots.length * 220 + (state.slots.length - 1) * 20) / 2;
-    const startY = 280;
+    const startY = 300;
     const slotW = 220;
     const slotH = 160;
     const gap = 20;
     const t = renderer.animTime;
+
+    // 计策显示
+    const strategy = state.currentStrategy;
+    if (strategy) {
+        ctx.fillStyle = strategy.isOverdrive ? '#ff4444' : '#ffd700';
+        ctx.font = 'bold 16px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        const bonusText = strategy.bonuses.map((b, i) => `格${i+1}+${b}`).join(' ');
+        ctx.fillText(`计策：${strategy.name} | ${bonusText}`, renderer.width / 2, startY - 50);
+    } else {
+        const totalCards = state.slots.reduce((sum, s) => sum + s.cards.length, 0);
+        if (totalCards > 0) {
+            ctx.fillStyle = '#888';
+            ctx.font = '14px Microsoft YaHei';
+            ctx.textAlign = 'center';
+            ctx.fillText('暂无计策', renderer.width / 2, startY - 50);
+        }
+    }
 
     for (let i = 0; i < state.slots.length; i++) {
         const slot = state.slots[i];

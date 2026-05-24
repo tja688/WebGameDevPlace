@@ -8,62 +8,6 @@ import { getCardEffectiveValue } from '../systems/board.js';
 
 // ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
-// 佯攻（feint）：相邻卡牌+2
-FX.register(new EffectHandler({
-    id: 'feint_aura',
-    triggers: Trigger.ON_CALC_VALUE,
-    priority: Priority.VALUE_AURA,
-    condition: (ctx) => {
-        if (!ctx.card) return false;
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        if (targetSlot < 0) return false;
-        for (const slot of ctx.state.slots) {
-            if (Math.abs(slot.index - targetSlot) === 1) {
-                if (slot.cards.some(c => c.defId === 'feint')) return true;
-            }
-        }
-        return false;
-    },
-    execute: (ctx) => {
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        for (const slot of ctx.state.slots) {
-            if (Math.abs(slot.index - targetSlot) === 1) {
-                if (slot.cards.some(c => c.defId === 'feint')) {
-                    ctx.value += 2;
-                }
-            }
-        }
-    }
-}));
-
-// 训练技巧（hone_skill）：相邻两侧倍率格卡牌点数+3
-FX.register(new EffectHandler({
-    id: 'hone_skill_aura',
-    triggers: Trigger.ON_CALC_VALUE,
-    priority: Priority.VALUE_AURA + 1,
-    condition: (ctx) => {
-        if (!ctx.card) return false;
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        if (targetSlot < 0) return false;
-        for (const slot of ctx.state.slots) {
-            if (Math.abs(slot.index - targetSlot) === 1) {
-                if (slot.cards.some(c => c.defId === 'hone_skill')) return true;
-            }
-        }
-        return false;
-    },
-    execute: (ctx) => {
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        for (const slot of ctx.state.slots) {
-            if (Math.abs(slot.index - targetSlot) === 1) {
-                if (slot.cards.some(c => c.defId === 'hone_skill')) {
-                    ctx.value += 3;
-                }
-            }
-        }
-    }
-}));
-
 // 合群（social）：相邻格每有一张其他卡牌+1
 FX.register(new EffectHandler({
     id: 'social_aura',
@@ -81,7 +25,6 @@ FX.register(new EffectHandler({
         let bonus = 0;
         for (const slot of ctx.state.slots) {
             if (Math.abs(slot.index - targetSlot) === 1) {
-                // 只计算其他卡牌（不包括自己）
                 const others = slot.cards.filter(c => c.uuid !== ctx.card.uuid).length;
                 bonus += others;
             }
@@ -146,7 +89,7 @@ FX.register(new EffectHandler({
     }
 }));
 
-// 硬质皮肤（hard_skin）：最左最右格-1（3格中即第1格和第3格）
+// 硬质皮肤（hard_skin）：最左最右格-1
 FX.register(new EffectHandler({
     id: 'hard_skin',
     triggers: Trigger.ON_CALC_FINAL,
@@ -159,6 +102,102 @@ FX.register(new EffectHandler({
     },
     execute: (ctx) => {
         ctx.value -= 1;
+        if (ctx.value < 0) ctx.value = 0;
+    }
+}));
+
+// 最左最右格-5（怪物技能）
+FX.register(new EffectHandler({
+    id: 'edge_penalty_5',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_PENALTY + 1,
+    condition: (ctx) => {
+        if (ctx.state.monster.edgePenalty !== 5) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return targetSlot === 0 || targetSlot === 2;
+    },
+    execute: (ctx) => {
+        ctx.value -= 5;
+        if (ctx.value < 0) ctx.value = 0;
+    }
+}));
+
+// 最左格-10（怪物技能）
+FX.register(new EffectHandler({
+    id: 'left_penalty_10',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_PENALTY + 2,
+    condition: (ctx) => {
+        if (ctx.state.monster.leftPenalty !== 10) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return targetSlot === 0;
+    },
+    execute: (ctx) => {
+        ctx.value -= 10;
+        if (ctx.value < 0) ctx.value = 0;
+    }
+}));
+
+// 数值最高倍率格-1（怪物技能）
+FX.register(new EffectHandler({
+    id: 'max_slot_penalty',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER - 5,
+    condition: (ctx) => ctx.state.monster.maxSlotPenalty > 0,
+    execute: (ctx) => {
+        const slots = ctx.state.slots;
+        let maxMul = -1;
+        let maxIdx = -1;
+        for (const s of slots) {
+            const mul = s.multiplier + (s.roundMultiplierBonus || 0);
+            if (mul > maxMul) {
+                maxMul = mul;
+                maxIdx = s.index;
+            }
+        }
+        if (ctx.slotIndex === maxIdx) {
+            ctx.value -= ctx.state.monster.maxSlotPenalty;
+        }
+    }
+}));
+
+// 数值最低倍率格-1（怪物技能）
+FX.register(new EffectHandler({
+    id: 'min_slot_penalty',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER - 5,
+    condition: (ctx) => ctx.state.monster.minSlotPenalty > 0,
+    execute: (ctx) => {
+        const slots = ctx.state.slots;
+        let minMul = Infinity;
+        let minIdx = -1;
+        for (const s of slots) {
+            const mul = s.multiplier + (s.roundMultiplierBonus || 0);
+            if (mul < minMul) {
+                minMul = mul;
+                minIdx = s.index;
+            }
+        }
+        if (ctx.slotIndex === minIdx) {
+            ctx.value -= ctx.state.monster.minSlotPenalty;
+        }
+    }
+}));
+
+// 每回合第一张打出牌点数-5（怪物技能）
+FX.register(new EffectHandler({
+    id: 'first_card_value_penalty',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_PENALTY + 3,
+    condition: (ctx) => {
+        if (ctx.state.monster.firstCardValuePenalty <= 0) return false;
+        if (!ctx.card) return false;
+        return ctx.card === ctx.state.firstCardPlayedThisTurn;
+    },
+    execute: (ctx) => {
+        ctx.value -= ctx.state.monster.firstCardValuePenalty;
         if (ctx.value < 0) ctx.value = 0;
     }
 }));

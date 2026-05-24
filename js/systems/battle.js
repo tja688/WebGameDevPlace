@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 战斗系统
+ * 卡牌地下城 - 战斗系统（第二版）
  * 
  * 负责：
  * 1. 从RunData初始化战斗
@@ -14,6 +14,7 @@ import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT } from '../core/constants.js';
 import { calculateTotalBoardDamage } from './board.js';
 import { createBattleSlots } from '../core/state.js';
+import { detectStrategy } from './strategy.js';
 
 export { logCombat, drawCards } from '../core/battle-core.js';
 
@@ -27,9 +28,7 @@ export function initBattleFromRun(runData) {
     const monsterDef = MONSTER_DEFS[monsterDefId];
 
     const slots = createBattleSlots({
-        classRelic: cls.relic,
-        slotUpgrades: runData.slotUpgrades,
-        act: runData.act
+        slotUpgrades: runData.slotUpgrades
     });
 
     const deck = [...runData.deck];
@@ -54,7 +53,16 @@ export function initBattleFromRun(runData) {
             theme: monsterDef.theme,
             type: monsterDef.type,
             shape: monsterDef.shape,
-            virusPenalty: 0
+            healPerTurn: 0,
+            firstCardDiscard: false,
+            firstTurnLessDraw: false,
+            edgePenalty: 0,
+            leftPenalty: 0,
+            maxSlotPenalty: 0,
+            minSlotPenalty: 0,
+            steadyPenalty: false,
+            stealGold: false,
+            firstCardValuePenalty: 0
         },
         slots: slots,
         deck: deck,
@@ -62,6 +70,7 @@ export function initBattleFromRun(runData) {
         discard: [],
         turn: 1,
         turnDamage: 0,
+        currentStrategy: null,
 
         selectedCard: null,
         hoveredSlot: null,
@@ -77,9 +86,13 @@ export function initBattleFromRun(runData) {
         runDataRef: runData,
         stageKey: stageKey,
         heartsLost: 0,
+        firstTurnKill: false,
         pendingPlaceEffects: [],
         pendingGrowthEffects: []
     };
+
+    // 解析怪物技能
+    parseMonsterSkills(state.monster);
 
     shuffleDiscardToDeck(state);
     drawCards(state, DRAW_COUNT);
@@ -93,42 +106,50 @@ export function initBattleFromRun(runData) {
     return state;
 }
 
+function parseMonsterSkills(monster) {
+    for (const kw of monster.keywords) {
+        switch (kw) {
+            case 'heal_20': monster.healPerTurn = 20; break;
+            case 'edge_penalty_5': monster.edgePenalty = 5; break;
+            case 'left_penalty_10': monster.leftPenalty = 10; break;
+            case 'first_card_discard': monster.firstCardDiscard = true; break;
+            case 'first_turn_less_draw': monster.firstTurnLessDraw = true; break;
+            case 'max_slot_penalty_1': monster.maxSlotPenalty = 1; break;
+            case 'min_slot_penalty_1': monster.minSlotPenalty = 1; break;
+            case 'steady_penalty': monster.steadyPenalty = true; break;
+            case 'steal_gold': monster.stealGold = true; break;
+            case 'first_card_value_penalty_5': monster.firstCardValuePenalty = 5; break;
+            case 'hard_skin': monster.hardSkin = true; break;
+            case 'dodge': monster.dodge = true; break;
+        }
+    }
+}
+
 // ===== 结束回合 =====
 
 export function endTurn(state) {
     if (state.phase !== 'playing') return;
     if (typeof GameAudio !== 'undefined') GameAudio.playEndTurn();
 
-    // 第二版回合结束流程：
-    // 1. 救兵效果
-    // 2. 计算伤害
-    // 3. 怪物扣血
-    // 4. 检查击杀
-    // 5. 扣心
-    // 6. 清理牌桌（留场保留）
-    // 7. 非保留手牌丢弃
-    // 8. 弃牌堆洗回牌库
-    // 9. 抽5张
-    // 10. 回合开始效果
-
-    // 1. 救兵效果
-    FX.fire(Trigger.ON_TURN_END, new EffectContext({
-        state, trigger: Trigger.ON_TURN_END
-    }));
-
-    // 2. 计算伤害
-    let totalDmg = calculateTotalBoardDamage(state);
-    if (state.monster.keywords.includes('dodge')) {
-        const dodgeAmt = 2;
-        const origDmg = totalDmg;
-        totalDmg = Math.max(0, totalDmg - dodgeAmt);
-        if (origDmg !== totalDmg) {
-            logCombat(state, `蝙蝠闪避了 ${origDmg - totalDmg} 点伤害`);
-        }
+    // 检测当前计策
+    state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+    if (state.currentStrategy) {
+        logCombat(state, `触发计策：${state.currentStrategy.name}！`);
     }
+
+    // 计算伤害（含计策加成）
+    let totalDmg = calculateTotalBoardDamage(state);
+
+    // 怪物每回合恢复
+    if (state.monster.healPerTurn > 0) {
+        const heal = state.monster.healPerTurn;
+        state.monster.hp = Math.min(state.monster.maxHp, state.monster.hp + heal);
+        logCombat(state, `${state.monster.name} 恢复了 ${heal} 点血量`);
+    }
+
     state.turnDamage = totalDmg;
 
-    // 3. 怪物扣血
+    // 怪物扣血
     state.monster.hp = Math.max(0, state.monster.hp - totalDmg);
 
     if (totalDmg > 0) {
@@ -147,10 +168,13 @@ export function endTurn(state) {
 
     logCombat(state, `第${state.turn}回合造成 ${totalDmg} 伤害，怪物剩余 ${state.monster.hp} HP`);
 
-    // 4. 检查击杀
+    // 检查击杀
     if (state.monster.hp <= 0) {
         state.phase = 'ended';
         state.result = 'win';
+        if (state.turn === 1) {
+            state.firstTurnKill = true;
+        }
         if (typeof window !== 'undefined' && window.RenderFX) {
             window.RenderFX.spawnVictory(640, 120);
         }
@@ -158,7 +182,7 @@ export function endTurn(state) {
         return;
     }
 
-    // 5. 扣心
+    // 扣人群（心）
     state.player.hearts -= 1;
     state.heartsLost += 1;
     if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
@@ -166,7 +190,7 @@ export function endTurn(state) {
         const heartX = 50 + (state.player.hearts) * 36 + 15;
         window.RenderFX.spawnHeartBreak(heartX, 155);
     }
-    logCombat(state, `失去 1 颗心！剩余 ${state.player.hearts} 颗`);
+    logCombat(state, `失去 1 人群！剩余 ${state.player.hearts} 人群`);
 
     if (state.player.hearts <= 0) {
         state.phase = 'ended';
@@ -174,7 +198,7 @@ export function endTurn(state) {
         return;
     }
 
-    // 6. 清理牌桌（留场保留，其余入弃牌堆）
+    // 清理牌桌（留场保留，其余入弃牌堆）
     for (const slot of state.slots) {
         const remaining = [];
         for (const card of slot.cards) {
@@ -189,7 +213,7 @@ export function endTurn(state) {
         slot.roundMultiplierBonus = 0;
     }
 
-    // 7. 非保留手牌丢弃
+    // 非保留手牌丢弃
     const retainedHand = [];
     for (const card of state.hand) {
         if (card.keywords.includes('retain')) {
@@ -200,7 +224,7 @@ export function endTurn(state) {
     }
     state.hand = retainedHand;
 
-    // 8. 清空所有卡牌的临时加成
+    // 清空所有卡牌的临时加成
     const allCards = [
         ...state.deck, ...state.hand, ...state.discard,
         ...state.slots.flatMap(s => s.cards)
@@ -209,17 +233,16 @@ export function endTurn(state) {
         if (c.tempBonus) c.tempBonus = 0;
     }
 
-    // 9. 弃牌堆洗回牌库，抽5张
+    // 弃牌堆洗回牌库，抽5张
     shuffleDiscardToDeck(state);
     drawCards(state, DRAW_COUNT);
 
-    // 10. 触发回合开始效果
+    // 触发回合开始效果
     FX.fire(Trigger.ON_TURN_START, new EffectContext({
         state, trigger: Trigger.ON_TURN_START
     }));
 
     state.turn++;
     state.turnDamage = 0;
+    state.currentStrategy = null;
 }
-
-
