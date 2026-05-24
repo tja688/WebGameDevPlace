@@ -462,7 +462,7 @@ export const FX = {
             gravity: -0.05, spread: Math.PI * 2, glow: true
         });
         this.floatingText.add({
-            x, y, text: '+生长', color: '#2ecc71',
+            x, y, text: '+成长', color: '#2ecc71',
             fontSize: 16, vy: -1.5, life: 40
         });
     },

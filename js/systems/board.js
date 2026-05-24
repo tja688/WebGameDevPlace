@@ -91,7 +91,7 @@ export function calculateTotalBoardDamage(state) {
         }
         total += slotDamage * slotMul;
     }
-    // 额外指数（遗物加成等）
+    // 额外指数（装备加成等）
     const extraMultiplier = state.runDataRef?.extraMultiplier || 1;
     return total * extraMultiplier;
 }
@@ -169,8 +169,8 @@ export function playCardToSlot(card, slotIndex, state) {
         }
     }
 
-    // 检测计策变化
-    detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+    // 检测计策变化；条件不满足时必须立刻清空旧计策
+    state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
 
     return true;
 }

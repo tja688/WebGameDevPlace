@@ -52,7 +52,7 @@ export function createRunData(classId) {
     return {
         act: 1,
         stageIndex: 0,
-        gold: 0,           // 金币（替代魂）
+        gold: 0,
         heartsLostInStage: 0,
         deck: shuffleArray(createDeck(cls)),
         startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
@@ -83,7 +83,7 @@ export function createRunData(classId) {
         // 计策强化等级
         strategyLevels: {},
         // 跨层保留
-        extraMultiplier: 1   // 额外指数（遗物加成）
+        extraMultiplier: 1   // 额外指数（装备加成）
     };
 }
 
@@ -136,7 +136,6 @@ export function createInitialState() {
             steadyPenalty: false,
             stealGold: false,
             firstCardValuePenalty: 0,
-            hardSkin: false,
             dodge: false
         },
         slots: slots,

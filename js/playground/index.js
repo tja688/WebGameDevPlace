@@ -193,7 +193,6 @@ function parseMonsterSkills(monster) {
             case 'steady_penalty': monster.steadyPenalty = true; break;
             case 'steal_gold': monster.stealGold = true; break;
             case 'first_card_value_penalty_5': monster.firstCardValuePenalty = 5; break;
-            case 'hard_skin': monster.hardSkin = true; break;
             case 'dodge': monster.dodge = true; break;
         }
     }
@@ -235,7 +234,6 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
             steadyPenalty: false,
             stealGold: false,
             firstCardValuePenalty: 0,
-            hardSkin: false,
             dodge: false
         },
         slots: slots,
@@ -264,7 +262,6 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
         firstTurnKill: false,
         pendingPlaceEffects: [],
         pendingGrowthEffects: [],
-        pendingRecall: null,
         _playgroundBattle: true
     };
 
@@ -333,7 +330,6 @@ export function resetPlaygroundBattle(gameState) {
     gameState.firstTurnKill = false;
     gameState.pendingPlaceEffects = [];
     gameState.pendingGrowthEffects = [];
-    gameState.pendingRecall = null;
     if (gameState.data) gameState.data.battleEndProcessing = false;
 
     shuffleDiscardToDeck(gameState);
@@ -397,7 +393,6 @@ export function changePlaygroundMonster(gameState, monsterDefId) {
     gameState.firstTurnKill = false;
     gameState.pendingPlaceEffects = [];
     gameState.pendingGrowthEffects = [];
-    gameState.pendingRecall = null;
     gameState._playgroundBattle = true;
 
     gameState.screen = 'playground';

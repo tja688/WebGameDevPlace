@@ -40,10 +40,10 @@ export function createShopStock() {
 
 /**
  * 创建铁匠库存
- * - 2件非BOSS遗物
+ * - 2件非BOSS装备
  * - 附魔词条选项（2个随机词条）
  */
-export function createBlacksmithStock() {
+export function createBlacksmithStock(excludeEnchantKeywords = []) {
     const relics = [];
     const pool = RELIC_DEFS.filter(r => r.rarity !== 'boss');
     for (let i = 0; i < 2; i++) {
@@ -55,12 +55,17 @@ export function createBlacksmithStock() {
         relics.push({ ...relic, price, bought: false });
     }
 
-    // 附魔词条：提供两个选项
+    // 附魔词条：提供两个不重复选项，刷新时尽量避开上一组
+    const excluded = new Set(excludeEnchantKeywords);
+    let keywordPool = Object.keys(KEYWORDS).filter(kw => !excluded.has(kw));
+    if (keywordPool.length < 2) {
+        keywordPool = Object.keys(KEYWORDS);
+    }
+
     const enchantKeywords = [];
-    const keywordPool = Object.keys(KEYWORDS);
-    for (let i = 0; i < 2; i++) {
-        const kw = keywordPool[Math.floor(Math.random() * keywordPool.length)];
-        enchantKeywords.push(kw);
+    while (enchantKeywords.length < 2 && keywordPool.length > 0) {
+        const idx = Math.floor(Math.random() * keywordPool.length);
+        enchantKeywords.push(keywordPool.splice(idx, 1)[0]);
     }
 
     return { relics, enchantKeywords };

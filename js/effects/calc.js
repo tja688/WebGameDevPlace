@@ -2,9 +2,8 @@
  * 卡牌地下城 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（第二版）
  */
 
-import { EffectHandler, FX, EffectContext } from './core.js';
+import { EffectHandler, FX } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
-import { getCardEffectiveValue } from '../systems/board.js';
 
 // ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
@@ -59,50 +58,14 @@ FX.register(new EffectHandler({
 
 // ===== ON_CALC_FINAL：计算最终点数（翻倍、惩罚阶段） =====
 
-// 伟力（mighty）：若场上无更大点数牌，翻倍
+// 伟力（mighty）：将本牌点数翻倍
 FX.register(new EffectHandler({
     id: 'mighty',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_MIGHTY,
-    condition: (ctx) => ctx.card.keywords.includes('mighty') && !ctx.extra?.mightyComparing,
+    condition: (ctx) => ctx.card.keywords.includes('mighty'),
     execute: (ctx) => {
-        const myVal = ctx.value;
-        const boardCards = ctx.getBoardCards();
-        let hasLarger = false;
-        for (const bc of boardCards) {
-            if (bc.uuid === ctx.card.uuid) continue;
-            let bcVal = getCardEffectiveValue(bc, ctx.state);
-            const bcCtx = new EffectContext({
-                state: ctx.state, trigger: Trigger.ON_CALC_FINAL, card: bc, value: bcVal,
-                extra: { mightyComparing: true }
-            });
-            FX.fire(Trigger.ON_CALC_FINAL, bcCtx);
-            bcVal = bcCtx.value;
-            if (bcVal > myVal) {
-                hasLarger = true;
-                break;
-            }
-        }
-        if (!hasLarger) {
-            ctx.value *= 2;
-        }
-    }
-}));
-
-// 硬质皮肤（hard_skin）：最左最右格-1
-FX.register(new EffectHandler({
-    id: 'hard_skin',
-    triggers: Trigger.ON_CALC_FINAL,
-    priority: Priority.VALUE_PENALTY,
-    condition: (ctx) => {
-        if (!ctx.state.monster.keywords.includes('hard_skin')) return false;
-        const targetSlot = ctx.getCardSlotIndex(ctx.card);
-        if (targetSlot < 0) return false;
-        return targetSlot === 0 || targetSlot === 2;
-    },
-    execute: (ctx) => {
-        ctx.value -= 1;
-        if (ctx.value < 0) ctx.value = 0;
+        ctx.value *= 2;
     }
 }));
 

@@ -91,9 +91,9 @@ export const MONSTER_DEFS = {
     },
     lone_rat: {
         id: 'lone_rat',
-        name: '离群硕鼠',
+        name: '雾化野兽',
         hp: 150,
-        description: '大一点落单耗子',
+        description: '被白雾侵蚀后游荡在农田边缘的野兽',
         keywords: [],
         keywordDesc: '',
         theme: 'normal',
@@ -150,20 +150,20 @@ export const MONSTER_DEFS = {
     },
     stone_guard: {
         id: 'stone_guard',
-        name: '巨石门卫',
+        name: '断墙守卫',
         hp: 400,
         description: '被魔法唤醒的石制守卫',
-        keywords: ['hard_skin'],
-        keywordDesc: '硬质皮肤：放在最左和最右倍率格子上的卡牌数值减少1',
+        keywords: ['left_penalty_10'],
+        keywordDesc: '放在最左倍率格子上的卡牌数值-10',
         theme: 'stone',
         type: 'normal',
         shape: 'golem'
     },
     blade_bro: {
         id: 'blade_bro',
-        name: '刀哥',
+        name: '白雾刀手',
         hp: 400,
-        description: '游荡的刀手',
+        description: '在白雾中游荡的持刀怪物',
         keywords: [],
         keywordDesc: '',
         theme: 'normal',
@@ -174,7 +174,7 @@ export const MONSTER_DEFS = {
     // 1-4 精英怪池
     elite_guard: {
         id: 'elite_guard',
-        name: '虎哥',
+        name: '地下城精锐',
         hp: 600,
         description: '守护地下城的精锐战士',
         keywords: ['first_card_discard', 'first_turn_less_draw'],
@@ -185,9 +185,9 @@ export const MONSTER_DEFS = {
     },
     vest_sage: {
         id: 'vest_sage',
-        name: '背心尊者',
+        name: '雾蚀斗士',
         hp: 600,
-        description: '披着破旧背心的神秘强者',
+        description: '被白雾强化的地下城斗士',
         keywords: ['first_card_discard', 'first_turn_less_draw'],
         keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
         theme: 'elite',
@@ -196,7 +196,7 @@ export const MONSTER_DEFS = {
     },
     small_gate: {
         id: 'small_gate',
-        name: '小门',
+        name: '石门守卫',
         hp: 600,
         description: '地下城中的守卫 construct',
         keywords: ['first_card_discard', 'first_turn_less_draw'],
@@ -209,9 +209,9 @@ export const MONSTER_DEFS = {
     // 1-5 普通怪池
     soul_thief: {
         id: 'soul_thief',
-        name: '偷子',
+        name: '焦点扰乱者',
         hp: 800,
-        description: '擅长窃取资源的怪物',
+        description: '会干扰高倍率格节奏的怪物',
         keywords: ['max_slot_penalty_1'],
         keywordDesc: '数值最高的倍率格点数-1',
         theme: 'bat',

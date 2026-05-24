@@ -342,7 +342,7 @@ export const Input = {
                             card.keywords.push('grow');
                             card.growAmount = 1;
                         }
-                        showPlaceholderToast(`${card.name} 获得【生长1】！`);
+                        showPlaceholderToast(`${card.name} 获得【成长1】！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -507,7 +507,7 @@ export const Input = {
         }
     },
 
-    // ===== BOSS遗物选择 =====
+    // ===== BOSS装备选择 =====
     handleBossRelicClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
@@ -518,7 +518,7 @@ export const Input = {
                 if (this.hitTest(pos, rect)) {
                     if (typeof GameAudio !== 'undefined') GameAudio.playWin();
                     runData.relics.push(rect.data);
-                    showPlaceholderToast(`获得BOSS遗物：${rect.data.name}`);
+                    showPlaceholderToast(`获得BOSS装备：${rect.data.name}`);
                     data.processing = true;
                     setTimeout(() => {
                         data.processing = false;
@@ -754,12 +754,12 @@ export const Input = {
                         runData.gold -= rect.item.cost;
                         item.bought = true;
                         runData.relics.push({ name: item.name, desc: item.desc });
-                        showPlaceholderToast(`获得遗物：${item.name}`);
+                        showPlaceholderToast(`获得装备：${item.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'upgrade_slot') {
                         runData.gold -= rect.item.cost;
-                        // 第二版：随机强化一个倍率格
-                        const availableSlots = runData.act === 1 ? [0, 1, 2] : (runData.act === 2 ? [0, 1, 2, 3] : [0, 1, 2, 3, 4]);
+                        // 第二版：固定三格，随机强化其中一格
+                        const availableSlots = [0, 1, 2];
                         const slotIndex = availableSlots[Math.floor(Math.random() * availableSlots.length)];
                         runData.blacksmithSlotCosts[slotIndex] = (runData.blacksmithSlotCosts[slotIndex] || 2) + 1;
                         runData.slotUpgrades[slotIndex] = (runData.slotUpgrades[slotIndex] || 0) + 1;
@@ -767,9 +767,7 @@ export const Input = {
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'enchant') {
                         if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
-                        const stock = data.stock || getOrCreateBlacksmithStock(runData);
-                        const enchantKeywords = stock.enchantKeywords || [];
-                        const keyword = enchantKeywords.length > 0 ? enchantKeywords[0] : null;
+                        const keyword = rect.item.keyword || null;
                         const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
                         switchScreen(this.state, 'card_select', {
                             runData, title: `✨ 附魔【${kwName}】`, desc: '选择牌组内一张卡牌，为其添加词条',
@@ -880,7 +878,7 @@ export const Input = {
                 if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: '选择一张卡牌，使其获得【生长1】',
+                    desc: '选择一张卡牌，使其获得【成长1】',
                     cards: runData.deck, backText: '离开', selectMode: 'event_enchant_grow',
                     returnScreen: 'map', returnData: data
                 });
@@ -906,13 +904,13 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
             case 'gain_relic':
-                runData.relics.push({ name: '随机遗物', desc: '获得一个低级遗物（占位）' });
-                showPlaceholderToast('获得随机低级遗物！');
+                runData.relics.push({ name: '随机装备', desc: '获得一个低级装备（占位）' });
+                showPlaceholderToast('获得随机低级装备！');
                 this._finishEvent(runData);
                 return;
             case 'gain_rare_relic':
-                runData.relics.push({ name: '高级遗物', desc: '获得一个高级遗物（占位）' });
-                showPlaceholderToast('获得随机高级遗物！');
+                runData.relics.push({ name: '高级装备', desc: '获得一个高级装备（占位）' });
+                showPlaceholderToast('获得随机高级装备！');
                 this._finishEvent(runData);
                 return;
             case 'random_strategy_level':
@@ -960,7 +958,7 @@ export const Input = {
                     const options = shuffled.slice(0, 3).map(r => ({ name: r.name, desc: r.desc || r.description, effect: 'direct_relic', param: r }));
                     switchScreen(this.state, 'event', {
                         runData, title: opt.name || '出土装备',
-                        desc: '选择一件中级遗物',
+                        desc: '选择一件中级装备',
                         options,
                         returnScreen: 'map', returnData: data
                     });
@@ -1025,7 +1023,7 @@ export const Input = {
             case 'direct_relic':
                 if (param) {
                     runData.relics.push(param);
-                    showPlaceholderToast(`获得遗物：${param.name}`);
+                    showPlaceholderToast(`获得装备：${param.name}`);
                 }
                 this._finishEvent(runData);
                 return;
@@ -1163,28 +1161,6 @@ export const Input = {
             return;
         }
 
-        // 处理忆往昔的弃牌堆选择
-        if (this.state.pendingRecall) {
-            const rects = this.state.pendingRecall.cardRects;
-            if (rects) {
-                for (const rect of rects) {
-                    if (this.hitTest(pos, rect)) {
-                        const card = rect.card;
-                        const discardIdx = this.state.discard.findIndex(c => c.uuid === card.uuid);
-                        if (discardIdx !== -1) {
-                            const recalled = this.state.discard.splice(discardIdx, 1)[0];
-                            this.state.hand.push(recalled);
-                            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                        }
-                        this.state.pendingRecall = null;
-                        this.canvas.style.cursor = 'default';
-                        return;
-                    }
-                }
-            }
-            return;
-        }
-
         const btnRect = getEndTurnButtonRect(this.renderer);
         if (this.hitTest(pos, btnRect)) {
             endTurn(this.state);
@@ -1213,29 +1189,6 @@ export const Input = {
             this.state.hoveredEndTurn = false;
             this.canvas.style.cursor = 'default';
             this.hideTooltip();
-            return;
-        }
-
-        // 处理忆往昔的弃牌堆选择悬停
-        if (this.state.pendingRecall) {
-            const rects = this.state.pendingRecall.cardRects;
-            if (rects) {
-                let found = false;
-                for (const rect of rects) {
-                    if (this.hitTest(pos, rect)) {
-                        this.state.pendingRecall.hoverIndex = rect.index;
-                        this.canvas.style.cursor = 'pointer';
-                        this.updateTooltip(rect.card, pos.x, pos.y);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    this.state.pendingRecall.hoverIndex = -1;
-                    this.canvas.style.cursor = 'default';
-                    this.hideTooltip();
-                }
-            }
             return;
         }
 
@@ -1292,7 +1245,7 @@ export const Input = {
                 this.updatePlayerTooltip(pos.x, pos.y);
                 this._playHoverSound();
             } else {
-                // 检测遗物悬停
+                // 检测装备悬停
                 const relicHover = this._checkRelicHover(pos);
                 if (relicHover) {
                     this.state.selectedCard = null;
@@ -1488,7 +1441,7 @@ export const Input = {
         } else {
             html += `<p>本回合伤害: <b>${totalDmg}</b></p>`;
             html += `<p>怪物剩余: <b style="color:#ff6666">${remaining}</b> HP</p>`;
-            html += `<p style="color:#ff6666;margin-top:4px">⚠️ 未击杀将扣除 1 颗心</p>`;
+            html += `<p style="color:#ff6666;margin-top:4px">⚠️ 未击杀将失去 1 人群</p>`;
         }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
@@ -1503,7 +1456,7 @@ export const Input = {
         const player = this.state.player;
         let html = `<h4>${player.name}</h4>`;
         html += `<p>❤️ 生命: ${player.hearts}/${player.maxHearts}</p>`;
-        html += `<p>🏛️ 遗物: <b style="color:#cc9955">${player.relic.name}</b></p>`;
+        html += `<p>🏛️ 装备: <b style="color:#cc9955">${player.relic.name}</b></p>`;
         html += `<p style="color:#aaa;font-size:12px;margin-top:4px">${player.relic.description || ''}</p>`;
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');

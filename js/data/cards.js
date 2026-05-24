@@ -93,7 +93,7 @@ export const CARD_DEFS = {
         size: 1,
         keywords: ['remain'],
         rarity: 'white',
-        description: '留场：回合结束时本牌不移入弃牌堆，下回合开始时本牌获得堆叠词条',
+        description: '留场：回合结束时本牌不移入弃牌堆，继续留在倍率格上',
         color: '#3498DB',
         accentColor: '#2980B9',
         iconType: 'shield'

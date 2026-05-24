@@ -90,7 +90,7 @@ function drawMenu(renderer, ctx, state) {
     ctx.fillStyle = '#666';
     ctx.font = '14px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('卡牌地下城 Playground v1.0', cx, renderer.height - 40);
+    ctx.fillText('卡牌地下城 Playground v3.3', cx, renderer.height - 40);
 }
 
 // ===== Effect 沙盒视图 =====

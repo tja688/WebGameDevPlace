@@ -144,13 +144,13 @@ export function detectStrategy(slots, strategyLevels = {}) {
         }
     }
 
-    // 基础计策检测（从高级到低级匹配）
-    // 按 total 降序，这样优先匹配更高级别的计策
+    // 基础计策必须精确匹配。多打一张后如果没有新的计策，当前计策消失。
     const sortedBase = [...BASE_STRATEGIES].sort((a, b) => b.total - a.total);
     for (const strat of sortedBase) {
+        if (total !== strat.total) continue;
         let match = true;
         for (let i = 0; i < 3; i++) {
-            if (counts[i] < strat.req[i]) {
+            if (counts[i] !== strat.req[i]) {
                 match = false;
                 break;
             }

@@ -1,7 +1,8 @@
 import { createInitialState, startBattle } from './js/core/state.js';
 import { drawCards, endTurn } from './js/systems/battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier, getCardBaseValue } from './js/systems/board.js';
-import { createCardInstance } from './js/data/index.js';
+import { createCardInstance, createBlacksmithStock } from './js/data/index.js';
+import { detectStrategy } from './js/systems/strategy.js';
 
 // 必须导入以触发效果注册
 import './js/effects/index.js';
@@ -48,7 +49,7 @@ playCardToSlot(s3.hand[0], 0, s3);
 dmg = calculateTotalBoardDamage(s3);
 assert(dmg === 15, `蛮力(15)在1X格应为15，实际${dmg}`);
 
-// Test 4: 伟力不触发（场上有更大点数）
+// Test 4: 伟力无条件触发（场上有更大点数也翻倍）
 const s4 = makeTestState(['veteran_ambition', 'brute_force']);
 const s4card1 = s4.hand[0];
 const s4card2 = s4.hand[1];
@@ -57,7 +58,7 @@ playCardToSlot(s4card2, 2, s4); // 蛮力放右格
 const fv4a = getCardFinalValue(s4.slots[2].cards[0], s4);
 assert(fv4a === 15, `蛮力(15)最终值应为15，实际${fv4a}`);
 const fv4b = getCardFinalValue(s4.slots[1].cards[0], s4);
-assert(fv4b === 5, `老兵雄心(5)场上有15>5，伟力不触发，实际${fv4b}`);
+assert(fv4b === 10, `老兵雄心(5)伟力应无条件翻倍为10，实际${fv4b}`);
 
 // Test 5: 齐心协力成长（10点打出后永久+1）
 const s5 = makeTestState(['unity_strike']);
@@ -128,6 +129,43 @@ assert(ok11c.ok, '右格可以放牌');
 const s12 = makeTestState(['vine_climb']);
 playCardToSlot(s12.hand[0], 0, s12);
 assert(s12.hand.some(c => c.defId === 'diffusion'), '爬藤蔓延加入扩散牌');
+
+// Test 13: 计策必须精确匹配，条件不满足时清空
+const s13 = makeTestState(['brute_force', 'brute_force', 'brute_force', 'brute_force']);
+playCardToSlot(s13.hand[0], 0, s13);
+playCardToSlot(s13.hand[0], 1, s13);
+playCardToSlot(s13.hand[0], 2, s13);
+assert(detectStrategy(s13.slots)?.id === 'attempt_push', '1/1/1 精确触发尝试推进');
+playCardToSlot(s13.hand[0], 0, s13);
+assert(detectStrategy(s13.slots) === null, '2/1/1 不满足任何计策');
+calculateTotalBoardDamage(s13);
+assert(s13.currentStrategy === null, '条件不满足时 currentStrategy 清空');
+
+// Test 14: 铁匠刷新词条应避开上一组并保持两个选项唯一
+const originalRandom = Math.random;
+Math.random = () => 0;
+const allButLastTwo = ['mighty', 'echo', 'dedicate', 'chain', 'twin', 'remain', 'spread', 'grow', 'retain'];
+const stock14 = createBlacksmithStock(allButLastTwo);
+Math.random = originalRandom;
+assert(stock14.enchantKeywords.length === 2, '铁匠提供两个附魔词条选项');
+assert(new Set(stock14.enchantKeywords).size === 2, '铁匠附魔词条选项不重复');
+assert(stock14.enchantKeywords.every(k => !allButLastTwo.includes(k)), '刷新词条避开上一组词条');
+
+// Test 15: 训练体系驻场效果影响后续打出的牌
+const s15a = makeTestState(['group_training', 'brute_force']);
+playCardToSlot(s15a.hand[0], 1, s15a);
+playCardToSlot(s15a.hand[0], 1, s15a);
+assert(s15a.slots[1].cards[1].permanentBonus === 2, '集体训练在场后，后续同格无成长牌获得成长2');
+
+const s15b = makeTestState(['intense_training', 'war_training']);
+playCardToSlot(s15b.hand[0], 1, s15b);
+playCardToSlot(s15b.hand[0], 1, s15b);
+assert(s15b.slots[1].cards[1].permanentBonus === 4, '猛训练在场后，后续同格成长2多触发一次为+4');
+
+const s15c = makeTestState(['training_trace', 'war_training']);
+playCardToSlot(s15c.hand[0], 1, s15c);
+playCardToSlot(s15c.hand[0], 0, s15c);
+assert(s15c.slots[0].cards[0].permanentBonus === 4, '训练痕迹在场后，相邻格成长2多触发一次为+4');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);

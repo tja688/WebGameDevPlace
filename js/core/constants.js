@@ -31,7 +31,7 @@ export const Priority = {
     VALUE_MIGHTY: 400,      // 伟力翻倍
     VALUE_PENALTY: 500,     // 惩罚（怪物技能等）
     DRAW: 600,              // 抽牌
-    GROW: 700,              // 生长
+    GROW: 700,              // 成长
     SPECIAL: 800,           // 特殊效果
     CLEANUP: 900,           // 清理
 };

@@ -75,14 +75,15 @@ FX.register(new EffectHandler({
     }
 }));
 
-// ===== 5. 生长（grow）：永久加点 =====
+// ===== 5. 成长（grow）：永久加点 =====
 FX.register(new EffectHandler({
     id: 'grow',
     triggers: Trigger.ON_PLAY,
     priority: Priority.GROW,
-    condition: (ctx) => ctx.card.keywords.includes('grow'),
+    condition: (ctx) => ctx.card.keywords.includes('grow') || ctx.state.slots[ctx.slotIndex]?.groupTrainingActive,
     execute: (ctx) => {
         const amount = calculateGrowAmount(ctx.card, ctx.slotIndex, ctx.state);
+        if (amount <= 0) return;
         ctx.card.permanentBonus += amount;
         ctx.log(`${ctx.card.name} 成长了！永久点数+${amount}`);
         if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
@@ -150,20 +151,7 @@ FX.register(new EffectHandler({
     priority: Priority.SPECIAL + 10,
     condition: (ctx) => ctx.card.defId === 'training_trace',
     execute: (ctx) => {
-        const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            for (const s of ctx.state.slots) {
-                if (Math.abs(s.index - ctx.slotIndex) === 1) {
-                    for (const c of s.cards) {
-                        if (c.keywords.includes('grow')) {
-                            const amount = calculateGrowAmount(c, s.index, ctx.state);
-                            c.permanentBonus += amount;
-                            ctx.log(`${c.name} 受到训练痕迹加持，额外成长+${amount}！`);
-                        }
-                    }
-                }
-            }
-        }
+        ctx.log(`${ctx.card.name} 入场：相邻倍率格后续成长效果多触发一次`);
     }
 }));
 
@@ -176,10 +164,8 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'intense_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.intenseTrainingActive = true;
-            ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
-        }
+        slot.intenseTrainingActive = true;
+        ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
     }
 }));
 
@@ -191,9 +177,7 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'group_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.groupTrainingActive = true;
-            ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
-        }
+        slot.groupTrainingActive = true;
+        ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
     }
 }));

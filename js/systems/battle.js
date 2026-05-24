@@ -62,7 +62,6 @@ export function initBattleFromRun(runData) {
             steadyPenalty: false,
             stealGold: false,
             firstCardValuePenalty: 0,
-            hardSkin: false,
             dodge: false
         },
         slots: slots,
@@ -128,7 +127,6 @@ function parseMonsterSkills(monster) {
             case 'steady_penalty': monster.steadyPenalty = true; break;
             case 'steal_gold': monster.stealGold = true; break;
             case 'first_card_value_penalty_5': monster.firstCardValuePenalty = 5; break;
-            case 'hard_skin': monster.hardSkin = true; break;
             case 'dodge': monster.dodge = true; break;
         }
     }
@@ -176,7 +174,7 @@ export function endTurn(state) {
 
     state.turnDamage = totalDmg;
 
-    // 窃魂：每造成一次伤害减少玩家1金币
+    // 掠夺金币：每造成一次伤害减少玩家1金币
     if (state.monster.stealGold && totalDmg > 0) {
         const stolen = Math.min(1, state.runDataRef?.gold || 0);
         if (state.runDataRef && stolen > 0) {
@@ -218,7 +216,7 @@ export function endTurn(state) {
         return;
     }
 
-    // 扣人群（心）
+    // 扣人群
     state.player.hearts -= 1;
     state.heartsLost += 1;
     if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();

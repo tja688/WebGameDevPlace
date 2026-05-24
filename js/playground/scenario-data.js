@@ -11,7 +11,7 @@ export const EFFECT_SCENARIOS = [
         id: 'mighty_basic',
         name: '伟力基础触发',
         category: 'keyword',
-        description: '5点伟力牌打出，场上无更大点数，应翻倍为10',
+        description: '5点伟力牌打出后，应无条件翻倍为10',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -35,10 +35,10 @@ export const EFFECT_SCENARIOS = [
         ]
     },
     {
-        id: 'mighty_not_trigger',
-        name: '伟力不触发（场上有更大点数）',
+        id: 'mighty_unconditional',
+        name: '伟力无条件触发（场上有更大点数）',
         category: 'keyword',
-        description: '5点伟力牌打出，但场上有15点蛮力，伟力不应触发',
+        description: '5点伟力牌在场，即使场上有15点蛮力，也应翻倍为10',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -60,7 +60,7 @@ export const EFFECT_SCENARIOS = [
         ],
         assertions: [
             { path: 'slots[2].cards[0].finalValue', expected: 15, desc: '蛮力点数不变' },
-            { path: 'slots[1].cards[0].finalValue', expected: 5, desc: '老兵雄心伟力不触发，保持5点' }
+            { path: 'slots[1].cards[0].finalValue', expected: 10, desc: '老兵雄心伟力无条件翻倍为10点' }
         ]
     },
 
@@ -504,13 +504,13 @@ export const EFFECT_SCENARIOS = [
 
     // ===== 组合与边界 =====
     {
-        id: 'mighty_vs_penalty',
-        name: '伟力与怪物惩罚',
+        id: 'mighty_vs_edge_penalty',
+        name: '伟力与边缘格惩罚',
         category: 'boundary',
-        description: '怪物有hard_skin（左右格-1），伟力牌放在右格。【注意】伟力优先级(400) < 惩罚优先级(500)，故先翻倍(5*2=10)再惩罚(10-1=9)',
+        description: '怪物有边缘格-5惩罚，伟力牌放在右格。先翻倍(5*2=10)再惩罚(10-5=5)',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
-            monster: { hp: 100, maxHp: 100, hardSkin: true, keywords: ['hard_skin'] },
+            monster: { hp: 100, maxHp: 100, edgePenalty: 5, keywords: ['edge_penalty_5'] },
             slots: [
                 { index: 0, multiplier: 1, cards: [] },
                 { index: 1, multiplier: 1, cards: [] },
@@ -526,7 +526,7 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 2 }
         ],
         assertions: [
-            { path: 'slots[2].cards[0].finalValue', expected: 9, desc: '先翻倍(5*2=10)再惩罚(10-1=9)' }
+            { path: 'slots[2].cards[0].finalValue', expected: 5, desc: '先翻倍(5*2=10)再惩罚(10-5=5)' }
         ]
     },
     {

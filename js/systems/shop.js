@@ -23,5 +23,6 @@ export function getOrCreateBlacksmithStock(runData) {
 }
 
 export function refreshBlacksmithStock(runData) {
-    runData.blacksmithStock = createBlacksmithStock();
+    const previousKeywords = runData.blacksmithStock?.enchantKeywords || [];
+    runData.blacksmithStock = createBlacksmithStock(previousKeywords);
 }

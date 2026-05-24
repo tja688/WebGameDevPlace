@@ -212,31 +212,37 @@ export class EffectSystem {
 }
 
 /**
- * 计算生长牌的最终生长数值（含30小时训练、训练激素的加成）
+ * 计算成长效果的最终数值（含训练痕迹、猛训练、集体训练加成）
  * @param {object} card - 卡牌实例
  * @param {number} slotIndex - 所在格子索引
  * @param {object} state - 游戏状态
  * @returns {number}
  */
 export function calculateGrowAmount(card, slotIndex, state) {
-    let amount = card.growAmount || 1;
     const slot = state.slots[slotIndex];
+    if (!slot) return 0;
 
-    // 猛训练：同一格生长效果多触发一次
-    if (slot.intenseTrainingActive) {
-        amount += card.growAmount || 1;
-    }
+    let amount = card.keywords.includes('grow') ? (card.growAmount || 1) : 0;
 
     // 集体训练：后续同格卡牌获得成长2
-    if (slot.groupTrainingActive && !card.keywords.includes('grow')) {
-        // 集体训练给没有成长的卡牌添加成长2（一次性）
-        // 这个效果在 ON_PLAY 时通过 group_training_mark 标记
-        // 这里只处理已有成长的情况
+    if (slot.groupTrainingActive) {
+        amount = Math.max(amount, 2);
     }
-    if (slot.groupTrainingActive && card.keywords.includes('grow')) {
-        // 如果卡牌已有成长，提升成长量
-        if ((card.growAmount || 1) < 2) {
-            card.growAmount = 2;
+
+    if (amount <= 0) return 0;
+
+    const triggerAmount = amount;
+
+    // 猛训练：后续同格卡牌的成长效果多触发一次
+    if (slot.intenseTrainingActive) {
+        amount += triggerAmount;
+    }
+
+    // 训练痕迹：相邻倍率格卡牌的成长效果多触发一次
+    const adjacentSlots = state.slots.filter(s => Math.abs(s.index - slotIndex) === 1);
+    for (const adjacent of adjacentSlots) {
+        if (adjacent.cards.some(c => c.defId === 'training_trace')) {
+            amount += triggerAmount;
         }
     }
 

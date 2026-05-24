@@ -7,7 +7,7 @@ import { Trigger, Priority } from '../core/constants.js';
 
 // ===== ON_TURN_START：回合开始 =====
 
-// 留场牌获得标记（下回合可继续堆叠）
+// 留场牌继续保留在倍率格上
 FX.register(new EffectHandler({
     id: 'remain_persist',
     triggers: Trigger.ON_TURN_START,

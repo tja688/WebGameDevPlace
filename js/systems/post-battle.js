@@ -4,7 +4,7 @@
  * 战后流程：
  * - 普通战：获得金币 → 商店 → 事件 → 地图
  * - 精英战：获得金币 → 铁匠 → 事件 → 地图
- * - BOSS战：获得金币 → BOSS遗物 → 传说事件 → 下一层
+ * - BOSS战：获得金币 → BOSS装备 → 传说事件 → 下一层
  */
 
 import { pickRandom } from '../core/utils.js';
@@ -22,7 +22,7 @@ const EVENT_POOLS = {
     ],
     rare: [
         { name: '抵御怪物', desc: '玩家立刻与X-5的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
-        { name: '出土装备', desc: '获得一次三选一中级遗物的机会', effect: 'pick_rare_relic' },
+        { name: '出土装备', desc: '获得一次三选一中级装备的机会', effect: 'pick_rare_relic' },
         { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 }
     ],
     legendary: [

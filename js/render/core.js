@@ -433,7 +433,7 @@ function hexToRgb(hex) {
     } : { r: 255, g: 255, b: 255 };
 }
 
-// 绘制精致心形
+// 绘制人群计数图标
 export function drawHeartIcon(ctx, x, y, size, filled, pulseTime = 0) {
     const scale = size / 30;
     const pulse = pulseTime > 0 ? 1 + Math.sin(pulseTime * 6) * 0.08 : 1;
@@ -489,14 +489,14 @@ export function drawHeartIcon(ctx, x, y, size, filled, pulseTime = 0) {
     ctx.restore();
 }
 
-// 绘制灵魂/货币图标
+// 绘制金币/货币图标
 export function drawSoulIcon(ctx, x, y, size) {
     ctx.save();
     ctx.translate(x, y);
     const s = size / 20;
     ctx.scale(s, s);
 
-    // 魂火
+    // 金币火光
     const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
     grad.addColorStop(0, 'rgba(100,200,255,0.8)');
     grad.addColorStop(0.5, 'rgba(80,150,255,0.4)');
