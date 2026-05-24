@@ -64,7 +64,13 @@ export const Renderer = {
             case 'act_transition': drawActTransition(this, ctx, state); break;
             case 'victory': drawVictory(this, ctx, state); break;
             case 'game_over': drawGameOver(this, ctx, state); break;
-            case 'playground': drawPlayground(this, ctx, state); break;
+            case 'playground': 
+    if (state.data?.pgView === 'battle') {
+        drawBattle(this, ctx, state);
+    } else {
+        drawPlayground(this, ctx, state);
+    }
+    break;
             default:
                 ctx.fillStyle = '#0f0a14';
                 ctx.fillRect(0, 0, this.width, this.height);

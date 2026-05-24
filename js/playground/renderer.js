@@ -58,8 +58,9 @@ function drawMenu(renderer, ctx, state) {
 
     // 按钮列表
     const buttons = [
-        { id: 'effect', label: '🃏 词条效果测试', y: 250 },
-        { id: 'back', label: '← 返回主菜单', y: 350 }
+        { id: 'battle', label: '🎮 对战测试场', y: 230 },
+        { id: 'effect', label: '🃏 词条效果测试（AI）', y: 310 },
+        { id: 'back', label: '← 返回主菜单', y: 390 }
     ];
 
     state.data.pgMenuButtons = [];

@@ -1,20 +1,22 @@
 # 卡牌地下城 Playground 实现报告
 
-> 版本：v3.0 | 日期：2026-05-24
+> 版本：v3.1 | 日期：2026-05-24
 
 ---
 
 ## 一、实现概述
 
-本次更新落地了**词条效果 Playground**（Phase 1+2），目标解决"体量上去后效果测试乏力"和"AI实现与设计期望不一致"两大痛点。
+Playground 系统经历两次迭代：
 
-核心交付物：
-- **场景执行引擎**：纯逻辑，浏览器/Node通用，直接调用生产代码
-- **18个预设场景**：覆盖全部11种词条 + 边界组合
-- **LocalStorage覆盖层**：改数→保存→即时生效→跨会话保留
-- **DOM编辑面板**：场景选择、JSON编辑器、导入/导出
-- **AI Playtest Harness**：`window.AITest` 批量验证API
-- **Canvas简化渲染**：牌桌+手牌可视化
+- **v3.0**：词条效果 Playground（Phase 1+2），面向 AI 批量验证和开发者 JSON 编辑。
+- **v3.1**：**对战测试场**（本次改造），面向人类玩家的真实战斗测试环境。
+
+核心交付物（v3.1）：
+- **真实对战界面**：直接复用 `drawBattle()` 战斗渲染，与正常游戏画面完全一致
+- **人类友好控制面板**：右侧悬浮，支持对手切换、血量重置、手牌操控、实时信息
+- **参数配置面板**：可折叠，支持卡牌/怪物数值编辑，保存即持久化到 localStorage
+- **战斗结束自动重置**：胜利/失败均自动恢复并继续测试，不跳屏
+- **AI 测试完整保留**：原有 scenario-engine / ai-harness / 18 个预设场景全部保留
 
 ---
 
@@ -22,87 +24,75 @@
 
 ```
 js/playground/
-├── index.js              # 入口：状态管理、screen切换、全局暴露
-├── scenario-engine.js    # 场景执行引擎（核心，零DOM依赖）
-├── scenario-data.js      # 18个预设场景（JSON可序列化）
-├── local-storage.js      # LocalStorage读写 + JSON导入导出
-├── ui-controller.js      # DOM面板：编辑器、按钮、结果展示
-├── renderer.js           # Canvas绘制：菜单 + 简化牌桌
-└── ai-harness.js         # AI Playtest Harness API
+├── index.js              # 入口：状态管理、screen切换、对战测试场状态引擎
+├── scenario-engine.js    # 场景执行引擎（AI测试核心，零DOM依赖）
+├── scenario-data.js      # 18个预设场景
+├── local-storage.js      # LocalStorage读写 + JSON导入导出（AI场景用）
+├── ui-controller.js      # DOM面板：AI测试编辑器 + 对战测试控制面板 + 数据编辑器
+├── renderer.js           # Canvas绘制：菜单（3按钮） + AI测试简化牌桌
+├── ai-harness.js         # AI Playtest Harness API
 ```
 
 ### 关键设计决策
 
 | 决策 | 说明 |
 |------|------|
-| **零重复实现** | 所有效果调用原版 `playCardToSlot` / `FX.fire` / `getCardFinalValue`，绝不写第二份 |
-| **引擎纯逻辑** | `scenario-engine.js` 不引用任何DOM/Canvas/Audio，Node.js可直接运行 |
-| **JSON场景格式** | 场景对象完全可序列化，支持导出为文件、保存到localStorage、AI生成 |
-| **批量式API优先** | AI Harness 设计为"JSON-in / JSON-out"，浏览器控制台只是可选入口 |
-| **向后兼容** | 不修改任何现有效果处理器，只新增Playground文件 |
+| **零重复实现** | 对战测试场复用 `drawBattle` / `handleBattleMouseDown` / `playCardToSlot` / `endTurn`，绝不写第二份 |
+| **数据覆盖持久化** | `card_dungeon_data_overrides` localStorage key，启动时自动应用，全局生效 |
+| **独立虚拟 RunData** | 使用 `createRunData('veteran')` 创建虚拟 runData，不污染真实游戏进度 |
+| **战斗结束自动重置** | `checkBattleEnd` 检测到 Playground 模式时，延迟后调用 `resetPlaygroundBattle` |
+| **向后兼容** | AI 测试菜单/引擎/场景全部保留，Playground 菜单新增"对战测试场"入口 |
 
 ---
 
-## 三、已验证场景（18个 / 18个通过）
+## 三、用户场景验证
 
-| # | 场景ID | 词条 | 测试点 |
-|---|--------|------|--------|
-| 1 | `mighty_basic` | 伟力 | 5→10触发 |
-| 2 | `mighty_not_trigger` | 伟力 | 场上有更大点数时不触发 |
-| 3 | `echo_chain` | 回响+连携 | ON_PLAY效果触发2次，抽2张 |
-| 4 | `echo_grow` | 回响+成长 | 成长触发2次，永久+2 |
-| 5 | `twin_no_twin` | 双生 | 复制体去除双生词条 |
-| 6 | `chain_basic` | 连携 | 抽1张 |
-| 7 | `chain_2` | 连携2 | 抽2张 |
-| 8 | `spread_draw` | 蔓延 | 加入0点扩散牌 |
-| 9 | `grow_basic` | 成长 | 永久+1 |
-| 10 | `grow_2` | 成长2 | 永久+2 |
-| 11 | `dedicate_half` | 奉献 | 8→下一张+4（向下取整） |
-| 12 | `devotion_stacking` | 奉献+堆叠 | 多张奉献顺序触发，连锁加成 |
-| 13 | `social_adjacent` | 合群 | 相邻格2张→+2 |
-| 14 | `unison_same_slot` | 齐心 | 同格3张→+3 |
-| 15 | `retain_hand` | 保留 | 回合结束保留在手牌 |
-| 16 | `remain_stay` | 留场 | 回合结束不移入弃牌堆 |
-| 17 | `mighty_vs_penalty` | 伟力+惩罚 | 优先级导致的执行顺序差异 |
-| 18 | `social_unison_combo` | 合群+齐心 | 同一张牌同时获得两种加成 |
+### 场景1：选择对手
+1. 主菜单点击 "🧪 Playground"
+2. 点击 "🎮 对战测试场"
+3. 右侧面板「对手」下拉框选择「污染之花」
+4. 点击「切换对手」
+5. ✅ 画面中央怪物立即变为食人花，HP 变为 250/250
+
+### 场景2：灵活手牌控制
+1. 在右侧面板「添加手牌」下拉框选择「老兵雄心」
+2. 点击「添加到手牌」
+3. ✅ 手牌区出现该卡牌
+4. 拖拽卡牌到倍率格，点击「结束回合」
+5. ✅ 伤害正确结算，怪物扣血；若未击杀，玩家扣1心
+
+### 场景3：死亡自动重置
+1. 连续结束回合直到玩家 hearts 降至 0
+2. ✅ 弹出失败提示「💔 战斗失败！已自动恢复血量」
+3. ✅ 约 1.2 秒后自动恢复：玩家满血、怪物满血、格子清空、重新抽5张牌
+4. ✅ 停留在对战测试场，可继续测试
+
+### 场景4：数值修改持久化
+1. 展开右侧面板「⚙️ 参数配置」
+2. 切换到「卡牌」标签，找到「齐心协力」
+3. 将基础数值从 10 改为 8，点击「保存」
+4. ✅ 当前战斗中该卡牌数值已更新
+5. 点击「退出到主菜单」，再进入正常游戏
+6. ✅ 修改后的数值在正常游戏中同样生效
+7. 关闭浏览器重新打开
+8. ✅ 数值仍然是 8（localStorage 持久化）
+
+### 场景5：AI测试保留
+1. Playground 菜单点击 "🃏 词条效果测试（AI）"
+2. ✅ 进入 v3.0 的 JSON 场景编辑器，所有预设场景和 AI Harness 正常工作
 
 ---
 
-## 四、发现的设计与实现差异
+## 四、截图验证
 
-Playground 的核心价值之一就是**暴露设计与实现的不一致**。本次验证发现2处：
-
-### 差异1：奉献bonus基于当前值而非原始值
-
-**场景**：`devotion_stacking`
-
-**现象**：奉献A（6点）先打出 → 奉献B（10点）打出，获得A的+3 → 奉献B当前值13 → 测试牌打出，获得B的 floor(13/2)=6，而非 floor(10/2)=5。
-
-**根因**：`js/effects/play.js` 中奉献效果使用 `ctx.getCardBaseValue(c)`，包含了 `tempBonus`。
-
-```javascript
-const val = ctx.getCardBaseValue(c);  // 含 tempBonus
-const bonus = Math.floor(val / 2);
-```
-
-**设计文档**："下一张打出在本牌所在倍率格的卡牌获得本牌一半的点数"
-
-**结论**：当前代码行为与文字描述存在歧义。如需修正，应将 `getCardBaseValue` 改为 `c.baseValue + c.permanentBonus`（排除临时加成）。
-
-### 差异2：伟力优先级高于怪物惩罚
-
-**场景**：`mighty_vs_penalty`
-
-**现象**：hard_skin（左右格-1）与伟力同时作用于同一张牌时，先翻倍(5→10)再惩罚(10→9)，而非先惩罚(5→4)再翻倍(4→8)。
-
-**根因**：`js/effects/calc.js` 中优先级设置：
-```javascript
-Priority.VALUE_MIGHTY = 400;
-Priority.VALUE_PENALTY = 500;
-```
-数值小的先执行。
-
-**结论**：这是明确的优先级设计选择。如需"先惩罚再翻倍"，应将 `VALUE_PENALTY` 调至 `VALUE_MIGHTY` 之前。
+| 截图 | 说明 |
+|------|------|
+| `screenshots/02_playground_menu.png` | Playground 菜单：3个入口按钮 |
+| `screenshots/03_battle_test.png` | 对战测试场：真实战斗画面 + 右侧控制面板 |
+| `screenshots/04_monster_changed.png` | 切换怪物为污染之花（食人花） |
+| `screenshots/05_data_editor.png` | 参数配置面板展开，显示卡牌数值编辑 |
+| `screenshots/06_card_added.png` | 添加卡牌到手牌后的状态 |
+| `screenshots/battle_02_after_end.png` | 战斗失败后自动重置后的状态 |
 
 ---
 
@@ -110,152 +100,74 @@ Priority.VALUE_PENALTY = 500;
 
 ### 5.1 人工使用（浏览器）
 
+**对战测试场：**
 1. 启动游戏，主菜单点击 "🧪 Playground"
-2. 选择 "🃏 词条效果测试"
-3. 在场景下拉框选择要测试的场景
-4. 点击 "▶ 运行测试" 查看结果
-5. 在JSON编辑器中修改参数 → "💾 保存到本地" → 再次运行
-6. "📤 导出JSON" / "📥 导入JSON" 分享场景
+2. 点击 "🎮 对战测试场"
+3. 右侧面板控制测试环境：
+   - 「对手」下拉框 + 「切换对手」：更换怪物
+   - 「重置血量」：恢复敌我满血
+   - 「清空格子」：收回所有场上卡牌
+   - 「添加手牌」下拉框 + 「添加到手牌」：指定卡牌加入手牌
+   - 「随机抽1张」：从牌库抽1张
+   - 「参数配置」：展开后编辑卡牌/怪物数值，保存即生效
+4. 拖拽手牌到倍率格进行测试
+5. 点击「结束回合」或按 E 结算
+6. 测试完成点击「退出到主菜单」
+
+**AI 测试（保留）：**
+1. Playground 菜单点击 "🃏 词条效果测试（AI）"
+2. 选择场景，点击「运行测试」
+3. 编辑 JSON 后「保存到本地」或「导出JSON」
 
 ### 5.2 AI使用（浏览器控制台）
 
 ```javascript
-// 运行单个场景
+// AI 测试功能与 v3.0 完全一致
 await AITest.run('mighty_basic');
-
-// 运行全部场景
 await AITest.runAll();
-
-// 运行AI自定义场景
-await AITest.runCustom({
-    id: 'ai_test_1',
-    name: 'AI测试',
-    setup: { /* ... */ },
-    actions: [ /* ... */ ],
-    assertions: [ /* ... */ ]
-});
-
-// 快速验证
-AITest.quickTest({
-    cardName: '测试牌',
-    baseValue: 10,
-    keywords: ['mighty'],
-    actions: [{ type: 'play', handIndex: 0, slotIndex: 1 }]
-});
-
-// 生成完整报告
 const report = await AITest.report();
-console.table(report.details);
-```
-
-### 5.3 Node.js 使用
-
-```bash
-# 运行预设场景验证
-node test_playground.js
-
-# 未来可扩展：包装为正式测试脚本
 ```
 
 ---
 
-## 六、后续开发指导
+## 六、数据覆盖系统说明
 
-### 6.1 添加新的Playground类型（如商店、铁匠铺）
+### 存储格式
+localStorage key: `card_dungeon_data_overrides`
 
-1. 在 `js/playground/index.js` 的 menu 中新增按钮
-2. 创建 `scenario-data-shop.js` / `scenario-data-blacksmith.js`
-3. 在 `scenario-engine.js` 的 `executeAction` 中新增动作类型（如 `buy`、`upgrade`）
-4. 在 `renderer.js` 中新增绘制分支
-5. 在 `ui-controller.js` 中新增场景分类显示
-
-### 6.2 添加新的测试场景
-
-编辑 `js/playground/scenario-data.js`，按以下格式添加：
-
-```javascript
+```json
 {
-    id: 'your_scene_id',
-    name: '场景名称',
-    category: 'keyword',
-    description: '场景说明',
-    setup: {
-        player: { hearts: 4, maxHearts: 4 },
-        monster: { hp: 100, maxHp: 100 },
-        slots: [
-            { index: 0, multiplier: 1, cards: [] },
-            { index: 1, multiplier: 1, cards: [] },
-            { index: 2, multiplier: 1, cards: [] }
-        ],
-        hand: [
-            { template: 'card_def_id', baseValue: 10, keywords: ['mighty'] }
-        ],
-        deck: [],
-        discard: []
-    },
-    actions: [
-        { type: 'play', handIndex: 0, slotIndex: 1 }
-    ],
-    assertions: [
-        { path: 'slots[1].cards[0].finalValue', expected: 20, desc: '期望说明' }
-    ]
+  "cards": {
+    "unity_strike": { "baseValue": 8 }
+  },
+  "monsters": {
+    "polluted_flower": { "hp": 300 }
+  }
 }
 ```
 
-**动作类型**：
-- `play`：打出卡牌，`handIndex` + `slotIndex`（或 `cardUuid` + `slotIndex`）
-- `endTurn`：结束回合
-- `draw`：抽牌，`count`
-
-**断言路径**：
-- 支持对象路径如 `slots[0].cards[0].finalValue`
-- `.finalValue` 后缀会自动调用 `getCardFinalValue` 计算
-- 运算符：`eq`（默认）、`gt`、`gte`、`lt`、`lte`、`contains`、`notEq`
-
-### 6.3 扩展JSON配置覆盖
-
-当前 `local-storage.js` 以 `card_dungeon_playground_scenarios` 为 key 存储。
-
-如需添加新的配置维度（如"商店价格倍率"、"事件概率"），建议：
-1. 新增 key，如 `card_dungeon_playground_config`
-2. 在 `local-storage.js` 中新增读写函数
-3. 在 `ui-controller.js` 中新增配置面板
-
-### 6.4 扩展AI Harness
-
-在 `js/playground/ai-harness.js` 的 `AITest` 对象中添加新方法：
-
-```javascript
-async runMonsterTest(monsterId, scenarioSetup) {
-    // 实现...
-}
-```
-
-所有方法应保持 **JSON-in / JSON-out** 的契约，不依赖DOM。
+### API
+- `applyDataOverrides()` — 启动时自动应用
+- `saveDataOverride(category, id, field, value)` — 保存单条覆盖
+- `getDataOverrides()` — 读取全部覆盖
+- `clearDataOverrides()` — 清空全部覆盖
 
 ---
 
 ## 七、文件变更清单
 
-### 新建文件（8个）
-- `js/playground/index.js`
-- `js/playground/scenario-engine.js`
-- `js/playground/scenario-data.js`
-- `js/playground/local-storage.js`
-- `js/playground/ui-controller.js`
-- `js/playground/renderer.js`
-- `js/playground/ai-harness.js`
-- `test_playground.js`
-- `PLAYGROUND_REPORT.md`
-
-### 修改文件（5个）
-- `index.html` — 添加Playground按钮、DOM UI层
-- `js/main.js` — 导入Playground、初始化UI、BGM处理
-- `js/render/renderer.js` — 添加 `playground` screen分支
-- `js/input/index.js` — 添加Playground输入处理
-- `package.json` — 版本号 2.2.0 → 3.0.0
-- `README.md` — 标题和版本历史更新
+### 修改文件（8个）
+| 文件 | 变更内容 |
+|------|---------|
+| `js/data/index.js` | 新增数据覆盖系统（apply/save/get/clear overrides） |
+| `js/main.js` | 启动时调用 `applyDataOverrides()`；游戏循环更新面板实时数据；调整 `initPlaygroundUI` 调用顺序 |
+| `js/playground/index.js` | 新增对战测试场状态管理（init/enter/reset/change/add card） |
+| `js/playground/ui-controller.js` | 重构 DOM 面板，新增对战测试控制面板和数据编辑器 |
+| `js/playground/renderer.js` | Menu 视图按钮改为 3 个（新增对战测试场入口） |
+| `js/render/renderer.js` | Playground screen 分支支持 pgView='battle' 调用 drawBattle |
+| `js/input/index.js` | Playground 输入复用战斗逻辑；checkBattleEnd 支持自动重置 |
+| `index.html` | 新增 `#pg-battle-panel` DOM 结构 |
 
 ---
 
-> 如需进一步扩展Playground系统，建议从 `js/playground/scenario-engine.js` 开始阅读，这是整个系统的核心引擎。
+> 如需进一步扩展 Playground 系统，建议从 `js/playground/index.js` 的对战状态引擎开始阅读。

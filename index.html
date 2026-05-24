@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡牌地下城（暂定）v3.0</title>
+    <title>卡牌地下城（暂定）v3.1</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -92,6 +92,54 @@
                 </div>
                 <input type="file" id="pg-file-input" accept=".json" style="display:none;">
                 <div id="pg-results-area" style="margin-top:8px;padding:10px;background:#1a1025;border:1px solid #444;border-radius:4px;min-height:60px;max-height:200px;overflow:auto;font-size:13px;"></div>
+            </div>
+            <!-- 对战测试场控制面板 -->
+            <div id="pg-battle-panel" style="display:none;position:absolute;top:60px;right:10px;width:260px;max-height:640px;background:rgba(20,10,30,0.92);border:1px solid #444;border-radius:8px;padding:12px;overflow-y:auto;z-index:101;color:#fff;font-size:13px;box-sizing:border-box;">
+                <h3 style="margin:0 0 10px 0;font-size:15px;color:#f39c12;">🎮 测试控制台</h3>
+                
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;margin-bottom:4px;color:#aaa;font-size:12px;">对手</label>
+                    <select id="pg-monster-select" style="width:100%;padding:5px 8px;font-size:13px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:4px;"></select>
+                    <button id="pg-change-monster" style="width:100%;margin-top:6px;padding:5px 0;background:#2980b9;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">切换对手</button>
+                </div>
+                
+                <div style="margin-bottom:12px;display:flex;gap:6px;">
+                    <button id="pg-reset-hp" style="flex:1;padding:5px 0;background:#27ae60;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">重置血量</button>
+                    <button id="pg-clear-board" style="flex:1;padding:5px 0;background:#c0392b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">清空格子</button>
+                </div>
+                
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;margin-bottom:4px;color:#aaa;font-size:12px;">添加手牌</label>
+                    <select id="pg-card-select" style="width:100%;padding:5px 8px;font-size:13px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:4px;"></select>
+                    <div style="display:flex;gap:6px;margin-top:6px;">
+                        <button id="pg-add-card" style="flex:1;padding:5px 0;background:#8e44ad;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">添加到手牌</button>
+                        <button id="pg-draw-random" style="flex:1;padding:5px 0;background:#16a085;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">随机抽1张</button>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:12px;padding:8px;background:rgba(255,255,255,0.05);border-radius:4px;">
+                    <div style="font-size:12px;color:#aaa;">回合: <span id="pg-info-turn" style="color:#fff;font-weight:bold;">1</span></div>
+                    <div style="font-size:12px;color:#aaa;margin-top:2px;">当前伤害: <span id="pg-info-damage" style="color:#ff6666;font-weight:bold;">0</span></div>
+                    <div style="font-size:12px;color:#aaa;margin-top:2px;">怪物HP: <span id="pg-info-monster-hp" style="color:#2ecc71;font-weight:bold;">0</span></div>
+                </div>
+                
+                <details style="margin-bottom:12px;">
+                    <summary style="cursor:pointer;color:#3498db;font-size:13px;user-select:none;">⚙️ 参数配置</summary>
+                    <div style="margin-top:8px;">
+                        <div style="display:flex;gap:4px;margin-bottom:8px;">
+                            <button id="pg-tab-cards" style="flex:1;padding:4px 0;background:#2c3e50;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:12px;">卡牌</button>
+                            <button id="pg-tab-monsters" style="flex:1;padding:4px 0;background:#1a1025;color:#aaa;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:12px;">怪物</button>
+                        </div>
+                        <div id="pg-data-editor" style="max-height:280px;overflow-y:auto;"></div>
+                        <div style="display:flex;gap:6px;margin-top:8px;">
+                            <button id="pg-export-overrides" style="flex:1;padding:4px 0;background:#7f8c8d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;">导出JSON</button>
+                            <button id="pg-import-overrides" style="flex:1;padding:4px 0;background:#7f8c8d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;">导入JSON</button>
+                        </div>
+                        <button id="pg-clear-overrides" style="width:100%;margin-top:6px;padding:4px 0;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;">重置全部修改</button>
+                    </div>
+                </details>
+                
+                <button id="pg-exit-battle" style="width:100%;padding:6px 0;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← 退出到主菜单</button>
             </div>
         </div>
         <div id="tooltip" class="hidden"></div>

@@ -15,7 +15,63 @@ export { RELIC_DEFS, EVENT_NAMES, pickRandomEvent } from './relics.js';
 export { createShopStock, createBlacksmithStock } from './shop.js';
 
 import { CARD_DEFS } from './cards.js';
+import { MONSTER_DEFS } from './monsters.js';
 import { CLASS_DEFS } from './classes.js';
+
+// ===== 数据覆盖系统（LocalStorage 持久化）=====
+
+const OVERRIDE_KEY = 'card_dungeon_data_overrides';
+
+export function applyDataOverrides() {
+    try {
+        const raw = localStorage.getItem(OVERRIDE_KEY);
+        if (!raw) return;
+        const overrides = JSON.parse(raw);
+        if (overrides.cards) {
+            for (const [id, changes] of Object.entries(overrides.cards)) {
+                if (CARD_DEFS[id]) Object.assign(CARD_DEFS[id], changes);
+            }
+        }
+        if (overrides.monsters) {
+            for (const [id, changes] of Object.entries(overrides.monsters)) {
+                if (MONSTER_DEFS[id]) Object.assign(MONSTER_DEFS[id], changes);
+            }
+        }
+    } catch (e) {
+        console.error('[DataOverrides] 应用覆盖失败:', e);
+    }
+}
+
+export function saveDataOverride(category, id, field, value) {
+    try {
+        const raw = localStorage.getItem(OVERRIDE_KEY) || '{}';
+        const overrides = JSON.parse(raw);
+        if (!overrides[category]) overrides[category] = {};
+        if (!overrides[category][id]) overrides[category][id] = {};
+        overrides[category][id][field] = value;
+        localStorage.setItem(OVERRIDE_KEY, JSON.stringify(overrides));
+        if (category === 'cards' && CARD_DEFS[id]) {
+            CARD_DEFS[id][field] = value;
+        } else if (category === 'monsters' && MONSTER_DEFS[id]) {
+            MONSTER_DEFS[id][field] = value;
+        }
+    } catch (e) {
+        console.error('[DataOverrides] 保存覆盖失败:', e);
+    }
+}
+
+export function getDataOverrides() {
+    try {
+        const raw = localStorage.getItem(OVERRIDE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+export function clearDataOverrides() {
+    localStorage.removeItem(OVERRIDE_KEY);
+}
 
 /**
  * 创建卡牌实例

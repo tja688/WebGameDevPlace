@@ -2,18 +2,29 @@
  * 卡牌地下城 - Playground DOM UI 控制器
  *
  * 提供：
- * - 场景选择器
- * - JSON 编辑器（textarea）
- * - 控制按钮（运行/保存/导出/导入/返回）
+ * - 场景选择器、JSON 编辑器、控制按钮（AI 测试用）
+ * - 对战测试场控制面板（人类测试用）
+ * - 数据参数配置面板（数值修改持久化）
  * - 结果展示
  * - 与 localStorage 联动
  */
 
-import { PlaygroundState, getAllScenarios, getScenarioById, runScenario, runCurrentScenarioFromEditor, saveScenarioFromEditor, backToPlaygroundMenu } from './index.js';
+import {
+    PlaygroundState, getAllScenarios, getScenarioById, runScenario,
+    runCurrentScenarioFromEditor, saveScenarioFromEditor, backToPlaygroundMenu,
+    enterPlaygroundBattle, resetPlaygroundBattle, addCardToPlaygroundHand,
+    changePlaygroundMonster
+} from './index.js';
 import { exportScenarioToJson, importScenarioFromFile, exportAllScenariosToJson } from './local-storage.js';
 import { AITest } from './ai-harness.js';
+import {
+    saveDataOverride, getDataOverrides, clearDataOverrides, applyDataOverrides
+} from '../data/index.js';
+import { CARD_DEFS, MONSTER_DEFS } from '../data/index.js';
+import { drawCards } from '../core/battle-core.js';
+import { calculateTotalBoardDamage } from '../systems/board.js';
 
-// ===== DOM 引用 =====
+// ===== DOM 引用（AI 测试） =====
 
 let uiRoot = null;
 let menuPanel = null;
@@ -30,6 +41,30 @@ let btnBack = null;
 let resultsArea = null;
 let fileInput = null;
 
+// ===== DOM 引用（对战测试场） =====
+
+let battlePanel = null;
+let monsterSelect = null;
+let btnChangeMonster = null;
+let btnResetHp = null;
+let btnClearBoard = null;
+let cardSelect = null;
+let btnAddCard = null;
+let btnDrawRandom = null;
+let infoTurn = null;
+let infoDamage = null;
+let infoMonsterHp = null;
+let btnTabCards = null;
+let btnTabMonsters = null;
+let dataEditor = null;
+let btnExportOverrides = null;
+let btnImportOverrides = null;
+let btnClearOverrides = null;
+let btnExitBattle = null;
+
+let _gameStateRef = null;
+let _dataEditorTab = 'cards';
+
 // ===== 初始化 =====
 
 export function initPlaygroundUI(gameState) {
@@ -39,6 +74,9 @@ export function initPlaygroundUI(gameState) {
         return;
     }
 
+    _gameStateRef = gameState;
+
+    // AI 测试面板
     menuPanel = document.getElementById('pg-menu-panel');
     effectPanel = document.getElementById('pg-effect-panel');
     scenarioSelect = document.getElementById('pg-scenario-select');
@@ -53,11 +91,51 @@ export function initPlaygroundUI(gameState) {
     resultsArea = document.getElementById('pg-results-area');
     fileInput = document.getElementById('pg-file-input');
 
+    // 对战测试场面板
+    battlePanel = document.getElementById('pg-battle-panel');
+    monsterSelect = document.getElementById('pg-monster-select');
+    btnChangeMonster = document.getElementById('pg-change-monster');
+    btnResetHp = document.getElementById('pg-reset-hp');
+    btnClearBoard = document.getElementById('pg-clear-board');
+    cardSelect = document.getElementById('pg-card-select');
+    btnAddCard = document.getElementById('pg-add-card');
+    btnDrawRandom = document.getElementById('pg-draw-random');
+    infoTurn = document.getElementById('pg-info-turn');
+    infoDamage = document.getElementById('pg-info-damage');
+    infoMonsterHp = document.getElementById('pg-info-monster-hp');
+    btnTabCards = document.getElementById('pg-tab-cards');
+    btnTabMonsters = document.getElementById('pg-tab-monsters');
+    dataEditor = document.getElementById('pg-data-editor');
+    btnExportOverrides = document.getElementById('pg-export-overrides');
+    btnImportOverrides = document.getElementById('pg-import-overrides');
+    btnClearOverrides = document.getElementById('pg-clear-overrides');
+    btnExitBattle = document.getElementById('pg-exit-battle');
+
     bindEvents(gameState);
+    populateStaticSelects();
+}
+
+function populateStaticSelects() {
+    // 填充怪物下拉框
+    if (monsterSelect) {
+        let html = '';
+        for (const [id, def] of Object.entries(MONSTER_DEFS)) {
+            html += `<option value="${id}">${def.name}</option>`;
+        }
+        monsterSelect.innerHTML = html;
+    }
+    // 填充卡牌下拉框
+    if (cardSelect) {
+        let html = '';
+        for (const [id, def] of Object.entries(CARD_DEFS)) {
+            html += `<option value="${id}">${def.name} (${def.baseValue}点)</option>`;
+        }
+        cardSelect.innerHTML = html;
+    }
 }
 
 function bindEvents(gameState) {
-    // 场景选择
+    // ===== AI 测试面板事件 =====
     if (scenarioSelect) {
         scenarioSelect.addEventListener('change', e => {
             const id = e.target.value;
@@ -70,8 +148,6 @@ function bindEvents(gameState) {
             }
         });
     }
-
-    // 运行当前场景
     if (btnRun) {
         btnRun.addEventListener('click', () => {
             if (!editorTextarea) return;
@@ -85,8 +161,6 @@ function bindEvents(gameState) {
             }
         });
     }
-
-    // 运行全部场景
     if (btnRunAll) {
         btnRunAll.addEventListener('click', () => {
             showMessage('正在运行全部场景...');
@@ -96,8 +170,6 @@ function bindEvents(gameState) {
             }, 50);
         });
     }
-
-    // 保存到本地
     if (btnSave) {
         btnSave.addEventListener('click', () => {
             if (!editorTextarea) return;
@@ -110,8 +182,6 @@ function bindEvents(gameState) {
             }
         });
     }
-
-    // 导出当前场景
     if (btnExport) {
         btnExport.addEventListener('click', () => {
             if (!editorTextarea) return;
@@ -124,8 +194,6 @@ function bindEvents(gameState) {
             }
         });
     }
-
-    // 导入场景
     if (btnImport && fileInput) {
         btnImport.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', async e => {
@@ -145,8 +213,6 @@ function bindEvents(gameState) {
             fileInput.value = '';
         });
     }
-
-    // 导出全部场景
     if (btnExportAll) {
         btnExportAll.addEventListener('click', () => {
             const all = getAllScenarios();
@@ -154,19 +220,140 @@ function bindEvents(gameState) {
             showMessage(`已导出 ${all.length} 个场景`);
         });
     }
-
-    // 返回菜单
     if (btnBack) {
         btnBack.addEventListener('click', () => {
             backToPlaygroundMenu(gameState);
             updateUIView('menu');
         });
     }
-
-    // 编辑器内容同步
     if (editorTextarea) {
         editorTextarea.addEventListener('input', e => {
             PlaygroundState.ui.editorContent = e.target.value;
+        });
+    }
+
+    // ===== 对战测试场面板事件 =====
+    if (btnChangeMonster) {
+        btnChangeMonster.addEventListener('click', () => {
+            const monsterId = monsterSelect?.value;
+            if (monsterId && gameState) {
+                changePlaygroundMonster(gameState, monsterId);
+                updateBattleInfo();
+            }
+        });
+    }
+    if (btnResetHp) {
+        btnResetHp.addEventListener('click', () => {
+            if (!gameState) return;
+            gameState.monster.hp = gameState.monster.maxHp;
+            gameState.player.hearts = gameState.player.maxHearts;
+            gameState.message = '血量已重置';
+            gameState.messageTimer = 60;
+            updateBattleInfo();
+        });
+    }
+    if (btnClearBoard) {
+        btnClearBoard.addEventListener('click', () => {
+            if (!gameState) return;
+            const allCards = [
+                ...gameState.deck, ...gameState.hand, ...gameState.discard,
+                ...gameState.slots.flatMap(s => s.cards)
+            ];
+            for (const c of allCards) { c.tempBonus = 0; c.dedicateTriggered = false; }
+            gameState.deck = allCards.filter(c => !c.isDerived);
+            gameState.hand = [];
+            gameState.discard = [];
+            for (const slot of gameState.slots) {
+                slot.cards = [];
+                slot.nextCardBonus = 0;
+                slot.roundMultiplierBonus = 0;
+            }
+            gameState.turnDamage = 0;
+            gameState.message = '格子已清空';
+            gameState.messageTimer = 60;
+            updateBattleInfo();
+        });
+    }
+    if (btnAddCard) {
+        btnAddCard.addEventListener('click', () => {
+            const defId = cardSelect?.value;
+            if (defId && gameState) {
+                addCardToPlaygroundHand(gameState, defId);
+                updateBattleInfo();
+            }
+        });
+    }
+    if (btnDrawRandom) {
+        btnDrawRandom.addEventListener('click', () => {
+            if (!gameState) return;
+            drawCards(gameState, 1);
+            updateBattleInfo();
+        });
+    }
+    if (btnTabCards) {
+        btnTabCards.addEventListener('click', () => {
+            _dataEditorTab = 'cards';
+            renderDataEditor();
+        });
+    }
+    if (btnTabMonsters) {
+        btnTabMonsters.addEventListener('click', () => {
+            _dataEditorTab = 'monsters';
+            renderDataEditor();
+        });
+    }
+    if (btnExportOverrides) {
+        btnExportOverrides.addEventListener('click', () => {
+            const overrides = getDataOverrides();
+            const blob = new Blob([JSON.stringify(overrides, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'card_dungeon_overrides.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }
+    if (btnImportOverrides) {
+        btnImportOverrides.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const overrides = JSON.parse(text);
+                    localStorage.setItem('card_dungeon_data_overrides', JSON.stringify(overrides));
+                    applyDataOverrides();
+                    populateStaticSelects();
+                    renderDataEditor();
+                    alert('配置已导入并生效，刷新页面后完全生效');
+                } catch (err) {
+                    alert('导入失败: ' + err.message);
+                }
+            };
+            input.click();
+        });
+    }
+    if (btnClearOverrides) {
+        btnClearOverrides.addEventListener('click', () => {
+            if (confirm('确定要清除所有数值修改吗？此操作不可撤销。')) {
+                clearDataOverrides();
+                renderDataEditor();
+                alert('已清除所有修改，刷新页面后完全生效');
+            }
+        });
+    }
+    if (btnExitBattle) {
+        btnExitBattle.addEventListener('click', () => {
+            backToPlaygroundMenu(gameState);
+            if (gameState) {
+                gameState.screen = 'title';
+                gameState.data = {};
+            }
+            updateUIView('hidden');
         });
     }
 }
@@ -180,12 +367,9 @@ export function updateUIView(view) {
         uiRoot.classList.remove('hidden');
         const pgView = PlaygroundState.view;
 
-        if (menuPanel) {
-            menuPanel.style.display = pgView === 'menu' ? 'block' : 'none';
-        }
-        if (effectPanel) {
-            effectPanel.style.display = pgView === 'effect' ? 'flex' : 'none';
-        }
+        if (menuPanel) menuPanel.style.display = pgView === 'menu' ? 'block' : 'none';
+        if (effectPanel) effectPanel.style.display = pgView === 'effect' ? 'flex' : 'none';
+        if (battlePanel) battlePanel.style.display = pgView === 'battle' ? 'block' : 'none';
 
         if (pgView === 'effect') {
             refreshScenarioSelect();
@@ -196,10 +380,111 @@ export function updateUIView(view) {
                 showResults(PlaygroundState.lastResult);
             }
         }
+        if (pgView === 'battle') {
+            updateBattleInfo();
+            renderDataEditor();
+        }
     } else {
         uiRoot.classList.add('hidden');
+        if (battlePanel) battlePanel.style.display = 'none';
+        if (effectPanel) effectPanel.style.display = 'none';
+        if (menuPanel) menuPanel.style.display = 'none';
     }
 }
+
+function updateBattleInfo() {
+    const state = _gameStateRef;
+    if (!state || state.screen !== 'playground') return;
+    if (infoTurn) infoTurn.textContent = state.turn || 1;
+    if (infoDamage) infoDamage.textContent = state.turnDamage || 0;
+    if (infoMonsterHp) {
+        const hp = state.monster ? Math.max(0, state.monster.hp) : 0;
+        const maxHp = state.monster ? state.monster.maxHp : 0;
+        infoMonsterHp.textContent = `${hp}/${maxHp}`;
+    }
+}
+
+// 供外部每帧调用，更新实时数据
+export function updateBattlePanelRealtime(state) {
+    if (!state || state.screen !== 'playground' || PlaygroundState.view !== 'battle') return;
+    if (infoTurn) infoTurn.textContent = state.turn || 1;
+    if (infoDamage) infoDamage.textContent = state.turnDamage || 0;
+    if (infoMonsterHp && state.monster) {
+        infoMonsterHp.textContent = `${Math.max(0, state.monster.hp)}/${state.monster.maxHp}`;
+    }
+}
+
+// ===== 数据编辑器 =====
+
+function renderDataEditor() {
+    if (!dataEditor) return;
+
+    if (btnTabCards && btnTabMonsters) {
+        if (_dataEditorTab === 'cards') {
+            btnTabCards.style.background = '#2c3e50';
+            btnTabCards.style.color = '#fff';
+            btnTabMonsters.style.background = '#1a1025';
+            btnTabMonsters.style.color = '#aaa';
+        } else {
+            btnTabMonsters.style.background = '#2c3e50';
+            btnTabMonsters.style.color = '#fff';
+            btnTabCards.style.background = '#1a1025';
+            btnTabCards.style.color = '#aaa';
+        }
+    }
+
+    let html = '';
+    if (_dataEditorTab === 'cards') {
+        for (const [id, def] of Object.entries(CARD_DEFS)) {
+            html += `<div style="margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:4px;">`;
+            html += `<div style="font-weight:bold;margin-bottom:6px;color:#f39c12;">${def.name} <span style="color:#666;font-size:11px;font-weight:normal;">(${id})</span></div>`;
+            html += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">`;
+            html += `<label style="width:60px;font-size:11px;color:#aaa;">基础数值</label>`;
+            html += `<input type="number" data-cat="cards" data-id="${id}" data-field="baseValue" value="${def.baseValue}" style="flex:1;padding:3px 6px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:3px;font-size:12px;">`;
+            html += `<button class="pg-save-field" style="padding:3px 8px;background:#27ae60;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;">保存</button>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
+    } else {
+        for (const [id, def] of Object.entries(MONSTER_DEFS)) {
+            html += `<div style="margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:4px;">`;
+            html += `<div style="font-weight:bold;margin-bottom:6px;color:#e74c3c;">${def.name} <span style="color:#666;font-size:11px;font-weight:normal;">(${id})</span></div>`;
+            html += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">`;
+            html += `<label style="width:60px;font-size:11px;color:#aaa;">HP</label>`;
+            html += `<input type="number" data-cat="monsters" data-id="${id}" data-field="hp" value="${def.hp}" style="flex:1;padding:3px 6px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:3px;font-size:12px;">`;
+            html += `<button class="pg-save-field" style="padding:3px 8px;background:#27ae60;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;">保存</button>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
+    }
+    dataEditor.innerHTML = html;
+
+    // 绑定保存按钮
+    dataEditor.querySelectorAll('.pg-save-field').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const input = e.target.previousElementSibling;
+            if (!input) return;
+            const cat = input.dataset.cat;
+            const id = input.dataset.id;
+            const field = input.dataset.field;
+            let value = input.value;
+            if (input.type === 'number') value = Number(value);
+            saveDataOverride(cat, id, field, value);
+            e.target.textContent = '✓';
+            setTimeout(() => { e.target.textContent = '保存'; }, 800);
+            // 如果正在战斗，同步更新当前状态中的数值
+            if (_gameStateRef && _gameStateRef._playgroundBattle) {
+                if (cat === 'monsters' && field === 'hp' && _gameStateRef.monster && _gameStateRef.data?.pgMonsterId === id) {
+                    const diff = value - _gameStateRef.monster.maxHp;
+                    _gameStateRef.monster.maxHp = value;
+                    _gameStateRef.monster.hp = Math.max(0, _gameStateRef.monster.hp + diff);
+                }
+            }
+        });
+    });
+}
+
+// ===== AI 测试相关 =====
 
 function refreshScenarioSelect() {
     if (!scenarioSelect) return;
@@ -220,8 +505,6 @@ function updateGameStateResult(gameState, result) {
         gameState.data.pgResult = result;
     }
 }
-
-// ===== 结果展示 =====
 
 function showResults(result) {
     if (!resultsArea) return;
@@ -252,7 +535,6 @@ function showResults(result) {
         html += '</div>';
     }
 
-    // 日志
     if (result.logs && result.logs.length > 0) {
         html += '<details style="margin-top:8px;"><summary style="color:#888;font-size:12px;cursor:pointer;">执行日志</summary>';
         html += '<pre style="background:#1a1025;padding:8px;font-size:11px;color:#aaa;max-height:150px;overflow:auto;margin-top:4px;">';

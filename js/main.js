@@ -9,8 +9,8 @@ import { Renderer } from './render/renderer.js';
 import { initBattleFromRun } from './systems/battle.js';
 import { GameAudio } from './audio.js';
 import { FX as RenderFX } from './render/fx.js';
-import { KEYWORDS } from './data/index.js';
-import { initPlaygroundUI, updateUIView } from './playground/ui-controller.js';
+import { KEYWORDS, applyDataOverrides } from './data/index.js';
+import { initPlaygroundUI, updateUIView, updateBattlePanelRealtime } from './playground/ui-controller.js';
 import { enterPlayground } from './playground/index.js';
 
 // 挂载到全局，供各系统使用
@@ -24,15 +24,16 @@ window.gameState = null;
 let _lastScreen = null;
 
 function init() {
+    applyDataOverrides();
     Renderer.init('gameCanvas');
     GameAudio.init();
     initKeywordPanel();
     bindKeys();
     bindVolumeControls();
-    initPlaygroundUI(window.gameState);
 
     window.gameState = createGameState('title');
     Input.init(window.gameState, Renderer);
+    initPlaygroundUI(window.gameState);
 
     // Playground 主菜单按钮（DOM事件）
     const pgBtn = document.getElementById('btn-playground');
@@ -159,6 +160,11 @@ function gameLoop() {
         }
 
         Renderer.render(window.gameState);
+
+        // 对战测试场面板实时数据更新
+        if (window.gameState.screen === 'playground') {
+            updateBattlePanelRealtime(window.gameState);
+        }
 
         if (window.gameState.messageTimer > 0) {
             window.gameState.messageTimer--;

@@ -13,11 +13,11 @@ import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { resolveBattleEnd, generatePostBattleEvents } from '../systems/post-battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
-import { createCardInstance, KEYWORDS, CARD_DEFS, createCardRewardOptions } from '../data/index.js';
+import { createCardInstance, KEYWORDS, CARD_DEFS, MONSTER_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
-import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios } from '../playground/index.js';
+import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios, enterPlaygroundBattle, resetPlaygroundBattle } from '../playground/index.js';
 
 export const Input = {
     state: null,
@@ -83,7 +83,13 @@ export const Input = {
             case 'act_transition': this.handleActTransitionClick(pos); break;
             case 'victory': this.handleGameOverClick(pos); break;
             case 'game_over': this.handleGameOverClick(pos); break;
-            case 'playground': this.handlePlaygroundClick(pos); break;
+            case 'playground':
+    if (this.state.data?.pgView === 'battle') {
+        this.handleBattleMouseDown(pos);
+    } else {
+        this.handlePlaygroundClick(pos);
+    }
+    break;
         }
     },
 
@@ -109,7 +115,13 @@ export const Input = {
             case 'act_transition': this.handleActTransitionHover(pos, state); break;
             case 'victory': this.handleGameOverHover(pos, state); break;
             case 'game_over': this.handleGameOverHover(pos, state); break;
-            case 'playground': this.handlePlaygroundHover(pos, state); break;
+            case 'playground':
+    if (state.data?.pgView === 'battle') {
+        this.handleBattleMouseMove(pos);
+    } else {
+        this.handlePlaygroundHover(pos, state);
+    }
+    break;
         }
     },
 
@@ -1320,6 +1332,23 @@ export const Input = {
                 setTimeout(() => isWin ? GameAudio.playWin() : GameAudio.playLose(), 300);
             }
 
+            // Playground 对战测试场：自动重置，不跳屏
+            if (this.state.screen === 'playground' || this.state._playgroundBattle) {
+                setTimeout(() => {
+                    if (this.state.phase !== 'ended') return;
+                    if (isWin) {
+                        this.state.message = '💀 击杀成功！自动重置战斗';
+                    } else {
+                        this.state.message = '💔 战斗失败！已自动恢复血量';
+                    }
+                    this.state.messageTimer = 90;
+                    setTimeout(() => {
+                        resetPlaygroundBattle(this.state);
+                    }, 1200);
+                }, 800);
+                return;
+            }
+
             setTimeout(() => {
                 if (this.state.phase !== 'ended' || this.state.result !== (isWin ? 'win' : 'lose')) {
                     return;
@@ -1555,7 +1584,11 @@ export const Input = {
             for (const btn of buttons) {
                 if (this.hitTest(pos, btn)) {
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                    if (btn.id === 'effect') {
+                    if (btn.id === 'battle') {
+                        const monsterIds = Object.keys(MONSTER_DEFS);
+                        const defaultMonster = monsterIds.length > 0 ? monsterIds[0] : 'lone_rat';
+                        enterPlaygroundBattle(this.state, defaultMonster);
+                    } else if (btn.id === 'effect') {
                         // 进入词条效果沙盒，默认选中第一个场景
                         const scenarios = (typeof getAllScenarios !== 'undefined' ? getAllScenarios() : []);
                         const firstId = scenarios.length > 0 ? scenarios[0].id : 'mighty_basic';
