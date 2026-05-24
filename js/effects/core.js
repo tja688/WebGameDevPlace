@@ -1,223 +1,245 @@
 /**
- * 卡牌地下城 - 效果系统核心
- * 
+ * 卡牌地下城 - 效果系统核心（重构版）
+ *
  * 设计哲学：
- * 1. 所有卡牌效果都通过"触发时机(Trigger) + 效果处理器(Handler)"模型实现
- * 2. 新增效果只需：定义处理器 → 注册到系统 → 在卡牌定义中关联关键词或效果ID
- * 3. 效果之间通过 EffectContext 共享状态，完全解耦
+ * 1. 无 class、无 Map、无 Set —— 纯对象 + 数组 + 函数
+ * 2. 所有效果处理器为纯对象：{ id, triggers, priority, condition, execute }
+ * 3. 效果上下文为纯对象，通过工厂函数创建
+ * 4. 注册表为普通对象：{ [trigger]: handler[] }
+ * 5. AI 未来迁移时，可直接翻译为 C# 的 Dictionary + switch + struct
  */
 
 import { Trigger } from '../core/constants.js';
 
+// ===== 全局注册表（纯对象） =====
+const _handlers = [];
+const _triggerMap = {};
+
 /**
- * 效果上下文 - 每次触发效果时传递的上下文对象
- * 包含效果执行所需的全部信息，效果处理器通过此对象读取和修改游戏状态
+ * 注册一个效果处理器
+ * @param {object} handler - { id, triggers, priority, condition, execute }
  */
-export class EffectContext {
-    constructor({
-        state,
-        trigger,
-        card = null,           // 当前触发效果的卡牌
-        slotIndex = -1,        // 当前格子索引
-        targetCard = null,     // 目标卡牌（如给相邻牌加点数）
-        targetSlotIndex = -1,  // 目标格子索引
-        amount = 0,            // 通用数值参数
-        value = 0,             // 计算链中的当前数值
-        extra = {}             // 扩展字段，用于特殊需求
-    } = {}) {
-        this.state = state;
-        this.trigger = trigger;
-        this.card = card;
-        this.slotIndex = slotIndex;
-        this.targetCard = targetCard;
-        this.targetSlotIndex = targetSlotIndex;
-        this.amount = amount;
-        this.value = value;
-        this.extra = extra;
-        this.results = [];     // 效果执行结果日志
-        this.cancelled = false; // 是否取消后续操作
+export function registerEffect(handler) {
+    if (!handler || !handler.id) {
+        console.warn('[EffectSystem] 注册失败：handler 缺少 id');
+        return;
     }
-
-    /** 快捷日志 */
-    log(msg) {
-        if (this.state && this.state.combatLog) {
-            const turn = this.state.turn || 0;
-            this.state.combatLog.push(`[T${turn}] ${msg}`);
-            if (this.state.combatLog.length > 50) this.state.combatLog.shift();
-        }
-    }
-
-    /** 获取卡牌当前所在格子索引（从牌桌映射中查找） */
-    getCardSlotIndex(targetCard = this.card) {
-        if (!targetCard) return -1;
-        for (const slot of this.state.slots) {
-            if (slot.cards.some(c => c.uuid === targetCard.uuid)) {
-                return slot.index;
+    // 防重复：同名 id 覆盖旧注册
+    const existingIndex = _handlers.findIndex(h => h.id === handler.id);
+    if (existingIndex !== -1) {
+        const oldHandler = _handlers[existingIndex];
+        // 从旧 triggerMap 中移除
+        for (const t of oldHandler.triggers) {
+            const arr = _triggerMap[t];
+            if (arr) {
+                const idx = arr.indexOf(oldHandler);
+                if (idx !== -1) arr.splice(idx, 1);
             }
         }
-        return -1;
+        _handlers.splice(existingIndex, 1);
     }
 
-    /** 获取某张牌的基础值（含永久/临时加成） */
-    getCardBaseValue(targetCard = this.card) {
-        if (!targetCard) return 0;
-        return targetCard.baseValue + targetCard.permanentBonus + (targetCard.tempBonus || 0);
-    }
+    const normalized = {
+        id: handler.id,
+        triggers: Array.isArray(handler.triggers) ? handler.triggers : [handler.triggers],
+        priority: handler.priority ?? 500,
+        condition: handler.condition || (() => true),
+        execute: handler.execute || (() => {})
+    };
 
-    /** 获取所有在牌桌上的卡牌 */
-    getBoardCards() {
-        return this.state.slots.flatMap(s => s.cards);
-    }
-
-    /** 构建卡牌到格子的映射表 */
-    buildCardSlotMap() {
-        const map = new Map();
-        for (const slot of this.state.slots) {
-            for (const card of slot.cards) {
-                map.set(card.uuid, slot.index);
-            }
-        }
-        return map;
-    }
-
-    /** 获取相邻格子 */
-    getAdjacentSlots(centerIndex) {
-        const results = [];
-        if (centerIndex > 0) results.push(this.state.slots[centerIndex - 1]);
-        if (centerIndex < this.state.slots.length - 1) results.push(this.state.slots[centerIndex + 1]);
-        return results;
-    }
-
-    /** 获取某格最上方的卡牌 */
-    getTopCard(slotIndex) {
-        const slot = this.state.slots[slotIndex];
-        if (!slot || slot.cards.length === 0) return null;
-        return slot.cards[slot.cards.length - 1];
-    }
-
-    /** 从牌组中查找指定条件的卡牌 */
-    findCardsInDeck(predicate) {
-        return this.state.deck.filter(predicate);
-    }
-
-    /** 从手牌中移除指定卡牌 */
-    removeFromHand(card) {
-        const idx = this.state.hand.findIndex(c => c.uuid === card.uuid);
-        if (idx !== -1) {
-            this.state.hand.splice(idx, 1);
-            return true;
-        }
-        return false;
-    }
-
-    /** 将卡牌放入弃牌堆 */
-    moveToDiscard(card) {
-        this.state.discard.push(card);
-    }
-
-    /** 将卡牌放回牌组 */
-    moveToDeck(card) {
-        this.state.deck.push(card);
+    _handlers.push(normalized);
+    for (const t of normalized.triggers) {
+        if (!_triggerMap[t]) _triggerMap[t] = [];
+        _triggerMap[t].push(normalized);
     }
 }
 
 /**
- * 效果处理器定义
+ * 触发指定时机的所有效果
+ * @param {string} trigger - 触发时机常量
+ * @param {object} ctx - 效果上下文（纯对象）
  */
-export class EffectHandler {
-    constructor({
-        id,
-        triggers = [],
-        priority = 500,
-        condition = null,      // (ctx) => boolean
-        execute                // (ctx) => void
-    }) {
-        this.id = id;
-        this.triggers = Array.isArray(triggers) ? triggers : [triggers];
-        this.priority = priority;
-        this.condition = condition || (() => true);
-        this.execute = execute;
+export function fireEffects(trigger, ctx) {
+    const handlers = (_triggerMap[trigger] || [])
+        .filter(h => h.condition(ctx))
+        .sort((a, b) => a.priority - b.priority);
+
+    for (const h of handlers) {
+        if (ctx.cancelled) break;
+        h.execute(ctx);
     }
 
-    canTrigger(ctx) {
-        return this.condition(ctx);
-    }
-}
-
-/**
- * 效果系统 - 单例，管理所有效果处理器并负责触发
- */
-export class EffectSystem {
-    constructor() {
-        /** @type {Map<string, EffectHandler>} */
-        this.handlers = new Map();
-        /** @type {Map<string, string[]>} trigger -> handlerId[] */
-        this.triggerMap = new Map();
-    }
-
-    /** 注册一个效果处理器 */
-    register(handler) {
-        if (this.handlers.has(handler.id)) {
-            console.warn(`EffectHandler ${handler.id} already registered, overwriting`);
-        }
-        this.handlers.set(handler.id, handler);
-        for (const trigger of handler.triggers) {
-            if (!this.triggerMap.has(trigger)) {
-                this.triggerMap.set(trigger, []);
-            }
-            this.triggerMap.get(trigger).push(handler.id);
-        }
-    }
-
-    /** 触发指定时机的所有效果 */
-    fire(trigger, ctx) {
-        const ids = this.triggerMap.get(trigger) || [];
-        const handlers = ids
-            .map(id => this.handlers.get(id))
-            .filter(h => h && h.canTrigger(ctx));
-        
-        handlers.sort((a, b) => a.priority - b.priority);
-        
+    // 回响：ON_PLAY 时，若卡牌有 echo 词条，效果再触发一次
+    if (trigger === Trigger.ON_PLAY && ctx.card && ctx.card.keywords.includes('echo')) {
         for (const h of handlers) {
             if (ctx.cancelled) break;
             h.execute(ctx);
         }
-        
-        // 回响：ON_PLAY 时，若卡牌有 echo 词条，效果再触发一次
-        if (trigger === Trigger.ON_PLAY && ctx.card && ctx.card.keywords.includes('echo')) {
-            for (const h of handlers) {
-                if (ctx.cancelled) break;
-                h.execute(ctx);
-            }
-        }
-    }
-
-    /** 获取某张卡牌应触发的所有效果ID（基于关键词和专属效果） */
-    getCardEffectIds(card) {
-        // 基础：关键词映射到效果ID
-        const ids = [];
-        for (const kw of card.keywords) {
-            ids.push(kw);
-        }
-        // 卡牌定义的专属效果
-        if (card.extraEffects) {
-            ids.push(...card.extraEffects);
-        }
-        // defId 作为专属效果标识（如果存在对应处理器）
-        if (this.handlers.has(card.defId)) {
-            ids.push(card.defId);
-        }
-        return [...new Set(ids)];
     }
 }
 
 /**
- * 计算成长效果的最终数值（含训练痕迹、猛训练、集体训练加成）
- * @param {object} card - 卡牌实例
- * @param {number} slotIndex - 所在格子索引
- * @param {object} state - 游戏状态
- * @returns {number}
+ * 获取某张卡牌应触发的所有效果ID（基于关键词和专属效果）
+ * @param {object} card - 卡牌实例（纯对象）
+ * @returns {string[]}
  */
+export function getCardEffectIds(card) {
+    const ids = [];
+    for (const kw of card.keywords || []) {
+        ids.push(kw);
+    }
+    if (card.extraEffects) {
+        ids.push(...card.extraEffects);
+    }
+    // defId 作为专属效果标识（如果存在对应处理器）
+    const hasHandler = _handlers.some(h => h.id === card.defId);
+    if (hasHandler) {
+        ids.push(card.defId);
+    }
+    return [...new Set(ids)];
+}
+
+// ===== 效果上下文工厂函数 =====
+
+export function createEffectContext({
+    state,
+    trigger,
+    card = null,
+    slotIndex = -1,
+    targetCard = null,
+    targetSlotIndex = -1,
+    amount = 0,
+    value = 0,
+    extra = {}
+} = {}) {
+    return {
+        state,
+        trigger,
+        card,
+        slotIndex,
+        targetCard,
+        targetSlotIndex,
+        amount,
+        value,
+        extra,
+        results: [],
+        cancelled: false,
+
+        /** 快捷日志 */
+        log(msg) {
+            if (this.state && this.state.combatLog) {
+                const turn = this.state.turn || 0;
+                this.state.combatLog.push(`[T${turn}] ${msg}`);
+                if (this.state.combatLog.length > 50) this.state.combatLog.shift();
+            }
+        },
+
+        /** 获取卡牌当前所在格子索引 */
+        getCardSlotIndex(targetCard = this.card) {
+            if (!targetCard) return -1;
+            for (const slot of this.state.slots) {
+                if (slot.cards.some(c => c.uuid === targetCard.uuid)) {
+                    return slot.index;
+                }
+            }
+            return -1;
+        },
+
+        /** 获取某张牌的基础值（含永久/临时加成） */
+        getCardBaseValue(targetCard = this.card) {
+            if (!targetCard) return 0;
+            return targetCard.baseValue + targetCard.permanentBonus + (targetCard.tempBonus || 0);
+        },
+
+        /** 获取所有在牌桌上的卡牌 */
+        getBoardCards() {
+            return this.state.slots.flatMap(s => s.cards);
+        },
+
+        /** 构建卡牌到格子的映射表 */
+        buildCardSlotMap() {
+            const map = {};
+            for (const slot of this.state.slots) {
+                for (const card of slot.cards) {
+                    map[card.uuid] = slot.index;
+                }
+            }
+            return map;
+        },
+
+        /** 获取相邻格子 */
+        getAdjacentSlots(centerIndex) {
+            const results = [];
+            if (centerIndex > 0) results.push(this.state.slots[centerIndex - 1]);
+            if (centerIndex < this.state.slots.length - 1) results.push(this.state.slots[centerIndex + 1]);
+            return results;
+        },
+
+        /** 获取某格最上方的卡牌 */
+        getTopCard(slotIndex) {
+            const slot = this.state.slots[slotIndex];
+            if (!slot || slot.cards.length === 0) return null;
+            return slot.cards[slot.cards.length - 1];
+        },
+
+        /** 从牌组中查找指定条件的卡牌 */
+        findCardsInDeck(predicate) {
+            return this.state.deck.filter(predicate);
+        },
+
+        /** 从手牌中移除指定卡牌 */
+        removeFromHand(card) {
+            const idx = this.state.hand.findIndex(c => c.uuid === card.uuid);
+            if (idx !== -1) {
+                this.state.hand.splice(idx, 1);
+                return true;
+            }
+            return false;
+        },
+
+        /** 将卡牌放入弃牌堆 */
+        moveToDiscard(card) {
+            this.state.discard.push(card);
+        },
+
+        /** 将卡牌放回牌组 */
+        moveToDeck(card) {
+            this.state.deck.push(card);
+        }
+    };
+}
+
+// ===== 兼容旧接口（类名改为工厂函数） =====
+
+/** @deprecated 使用 createEffectContext 或直接传入纯对象 */
+export function EffectContext(props) {
+    return createEffectContext(props);
+}
+
+/** @deprecated 直接传入纯对象即可 */
+export function EffectHandler(props) {
+    return {
+        id: props.id,
+        triggers: Array.isArray(props.triggers) ? props.triggers : [props.triggers],
+        priority: props.priority ?? 500,
+        condition: props.condition || (() => true),
+        execute: props.execute || (() => {})
+    };
+}
+
+/** @deprecated 使用 { fire: fireEffects, register: registerEffect } */
+export function EffectSystem() {
+    return FX;
+}
+
+/** 全局效果系统实例（纯对象） */
+export const FX = {
+    fire: fireEffects,
+    register: registerEffect
+};
+
+// ===== 成长数值计算（训练体系） =====
+
 export function calculateGrowAmount(card, slotIndex, state) {
     const slot = state.slots[slotIndex];
     if (!slot) return 0;
@@ -248,6 +270,3 @@ export function calculateGrowAmount(card, slotIndex, state) {
 
     return amount;
 }
-
-/** 全局效果系统实例 */
-export const FX = new EffectSystem();

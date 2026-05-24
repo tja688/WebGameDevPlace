@@ -1,6 +1,7 @@
-# 卡牌地下城 - 重构版 v3.6
+# 卡牌地下城 - 重构版 v3.7
 
-> 纯前端网页游戏。当前实现以 `C:\Users\jinji\Desktop\文档\MyNote\游戏开发项目\卡牌地下城\第二版设计` 为权威设计来源。
+> 纯前端网页游戏，以 `C:\Users\jinji\Desktop\文档\MyNote\游戏开发项目\卡牌地下城\第二版设计` 为权威设计来源。
+> 本版本完成效果系统去类化重构，全部核心逻辑改用**纯对象 + 纯函数**，为后续 Unity 迁移提供最小摩擦的代码基座。
 
 ## 快速开始
 
@@ -12,22 +13,156 @@ node serve.js
 
 启动后访问 `http://localhost:8080`。
 
-也可以在 Windows 上双击 `dev.bat`，它会检查 Node.js 与 8080 端口，并打开本地页面。
+Windows 上也可双击 `dev.bat`，它会检查 Node.js 与 8080 端口，并打开本地页面。
 
 ## 测试
 
 ```bash
-npm test
-npm run test:engine
-npm run test:render
-node test_playground.js
-node test_battle_end.cjs
-node test_monster_switch.cjs
-node test_param_panel.cjs
-node test_playground_screenshots.cjs
+npm test              # 引擎断言 + 非战斗界面渲染回归
+npm run test:engine   # 仅引擎测试
+npm run test:render   # 仅渲染回归测试
+node test_playground.js      # Playground 场景引擎验证
+node test_simulate.js        # 自动战斗胜率模拟
+node test_battle_end.cjs     # 浏览器截图：战斗结束流程（需本地服务）
+node test_monster_switch.cjs # 浏览器截图：怪物切换（需本地服务）
+node test_param_panel.cjs    # 浏览器截图：参数面板（需本地服务）
+node test_playground_screenshots.cjs # Playground 截图（需本地服务）
 ```
 
-`npm test` 当前覆盖引擎断言与非战斗界面渲染回归。Playground 与浏览器截图相关脚本需要本地服务已运行。
+## 架构概览：为 AI 翻译而设计
+
+本项目遵循三条核心原则，确保 Web 代码对 AI 足够清晰，未来迁移 Unity 时可直接翻译：
+
+### 原则 1：数据置顶（Data on Top）
+
+所有卡牌、敌人、效果、Buff 的定义均为顶层纯对象常量，不埋在函数或 DOM 操作里。
+
+```javascript
+// js/data/cards.js
+export const CARD_DEFS = {
+  fireball: {
+    id: 'fireball',
+    name: '火球术',
+    baseValue: 10,
+    keywords: ['grow'],
+    rarity: 'white'
+  }
+};
+```
+
+### 原则 2：效果用"配置 + 工厂"，不用类继承
+
+效果系统无 `class`、无 `Map`、无 `Set`。效果处理器是纯对象，注册到全局触发器表。
+
+```javascript
+// js/effects/play.js
+registerEffect({
+  id: 'grow',
+  triggers: 'on_play',
+  priority: 700,
+  condition: (ctx) => ctx.card.keywords.includes('grow'),
+  execute: (ctx) => {
+    ctx.card.permanentBonus += 1;
+  }
+});
+```
+
+触发时按 `trigger -> priority` 排序执行：
+
+```javascript
+// js/systems/board.js
+FX.fire(Trigger.ON_PLAY, createEffectContext({ state, trigger, card, slotIndex }));
+```
+
+### 原则 3：状态保持"JSON 可打印"
+
+战斗状态（player、enemies、hand、deck、slots 等）全部为纯对象/数组，无闭包、无 DOM 引用。
+
+```javascript
+let state = {
+  screen: 'battle',
+  phase: 'playing',
+  player: { name: '老兵', maxHearts: 4, hearts: 4 },
+  monster: { name: '荒原狼', maxHp: 150, hp: 150, ... },
+  slots: [
+    { index: 0, multiplier: 1, cards: [] },
+    { index: 1, multiplier: 1, cards: [] },
+    { index: 2, multiplier: 1, cards: [] }
+  ],
+  hand: [...],
+  deck: [...],
+  discard: [],
+  turn: 1
+};
+```
+
+---
+
+## 项目结构
+
+```text
+WebGameDevPlace/
+├── index.html
+├── css/style.css
+├── serve.js
+├── dev.bat
+├── package.json
+├── REFACTOR_NOTES.md        # 超出设计文档的实现记录（重构核对用）
+├── test_engine.js           # 引擎单元测试（44 项断言）
+├── test_render_screens.js   # 渲染回归测试
+├── test_simulate.js         # 自动战斗胜率模拟
+├── test_*.cjs               # 浏览器截图测试（Playwright）
+└── js/
+    ├── audio.js             # BGM / 音效 / 音量控制
+    ├── autotest.js          # 调试面板 + 控制台后门命令
+    ├── main.js              # 主入口、游戏循环、全局挂载
+    ├── core/                # 核心引擎（无渲染依赖）
+    │   ├── battle-core.js   # 抽牌、洗牌、战斗日志
+    │   ├── constants.js     # 全局常量（格子数、手牌上限、触发时机、优先级）
+    │   ├── state.js         # 状态工厂函数（createInitialState、createRunData）
+    │   └── utils.js         # 工具函数（shuffle、pickRandom、UUID）
+    ├── data/                # 数据层（纯对象常量）
+    │   ├── cards.js         # 卡牌定义、奖励卡池
+    │   ├── classes.js       # 职业定义（当前仅老兵）
+    │   ├── index.js         # 数据统一入口、覆盖系统、卡牌工厂
+    │   ├── keywords.js      # 词条定义与稀有度
+    │   ├── monsters.js      # 三层八节点怪物池
+    │   ├── relics.js        # 装备与事件数据（效果字段为占位）
+    │   ├── shop.js          # 商店/铁匠库存生成
+    │   └── stages.js        # 关卡配置
+    ├── effects/             # 效果系统（纯函数 + 纯对象）
+    │   ├── core.js          # 注册表、fireEffects、createEffectContext
+    │   ├── index.js         # 统一入口（导入即完成注册）
+    │   ├── play.js          # ON_PLAY 效果（连携、双生、成长、奉献...）
+    │   ├── calc.js          # ON_CALC_VALUE / ON_CALC_FINAL / ON_SLOT_CALC
+    │   ├── turn.js          # ON_TURN_START 效果
+    │   ├── exit.js          # ON_EXIT（第二版已废除，保留空结构）
+    │   └── slot.js          # ON_SLOT_CALC（格子效果占位）
+    ├── input/               # 输入处理（鼠标、拖拽、触摸、快捷键）
+    │   └── index.js         # 所有界面的点击/悬停/拖拽逻辑
+    ├── playground/          # AI Playground / 测试场
+    │   ├── ai-harness.js    # AI 后门 API：AITest.run / runAll / report
+    │   ├── index.js         # Playground 入口、对战测试场状态管理
+    │   ├── local-storage.js # 自定义场景本地持久化
+    │   ├── renderer.js      # Playground Canvas 渲染
+    │   ├── scenario-data.js # 18 个预设测试场景
+    │   ├── scenario-engine.js # 纯逻辑场景执行引擎
+    │   └── ui-controller.js # Playground DOM 面板
+    ├── render/              # Canvas 渲染层
+    │   ├── battle.js        # 战斗界面渲染
+    │   ├── core.js          # 渲染工具
+    │   ├── fx.js            # 粒子特效、屏幕震动、伤害数字
+    │   ├── renderer.js      # 主渲染器（screen 分发）
+    │   └── screens.js       # 所有非战斗界面渲染
+    └── systems/             # 游戏系统逻辑
+        ├── battle.js        # 战斗初始化、结束回合、怪物技能解析
+        ├── board.js         # 放牌、点数计算、伤害计算、计策刷新
+        ├── post-battle.js   # 战后奖励与事件池
+        ├── shop.js          # 商店/铁匠库存缓存与刷新
+        └── strategy.js      # 计策定义与精确匹配
+```
+
+---
 
 ## 当前玩法事实
 
@@ -37,7 +172,7 @@ node test_playground_screenshots.cjs
 战斗 -> 牌店/铁匠 -> 随机事件 -> 下一场战斗
 ```
 
-战斗目标是在出牌回合内通过卡牌点数、倍率格和计策削减怪物血量。怪物血量归零则胜利；人群数归零则失败。老兵初始装备“老伙计们”提供人群数 +1，因此开局为 4 人群。
+战斗目标是在出牌回合内通过卡牌点数、倍率格和计策削减怪物血量。怪物血量归零则胜利；人群数归零则失败。老兵初始装备"老伙计们"提供人群数 +1，因此开局为 4 人群。
 
 基础战斗参数：
 
@@ -58,6 +193,8 @@ node test_playground_screenshots.cjs
 总伤害 = 所有倍率格伤害之和 * 额外指数
 ```
 
+---
+
 ## 计策系统
 
 计策只在三个倍率格的卡牌数量精确满足二版设计表时生效。条件不满足时，当前计策立即清空，不保留上一轮加成。
@@ -68,11 +205,13 @@ node test_playground_screenshots.cjs
 
 计策强化等级保存在 `runData.strategyLevels`，商店与事件可提升随机计策等级。
 
+---
+
 ## 词条系统
 
 当前词条以二版设计为准：
 
-| 词条 | 触发 | 当前实现 |
+| 词条 | 触发时机 | 当前实现 |
 |---|---|---|
 | 伟力 | 最终点数计算 | 本牌点数无条件翻倍 |
 | 回响 | 打出时 | 本牌其他打出时效果再执行一次 |
@@ -86,6 +225,8 @@ node test_playground_screenshots.cjs
 | 合群 | 在场上时 | 相邻倍率格每有一张其他卡牌，本牌点数 +1 |
 | 齐心 | 在场上时 | 同倍率格每有一张其他卡牌，本牌点数 +1 |
 
+词条结算顺序：**在场上时 > 打出时 > 回合结束**
+
 衍生牌规则：双生和蔓延生成的卡牌只用于当前战斗或 Playground 当前测试轮，不会写回永久牌组。
 
 训练体系专属效果：
@@ -96,36 +237,11 @@ node test_playground_screenshots.cjs
 | 猛训练 | 已在倍率格后，同倍率格后续打出的成长效果多触发一次 |
 | 集体训练 | 已在倍率格后，同倍率格后续打出的卡牌获得成长2 |
 
-## 数据与流程
-
-主要数据文件：
-
-| 文件 | 内容 |
-|---|---|
-| `js/data/cards.js` | 卡牌定义、奖励卡池、衍生牌定义 |
-| `js/data/keywords.js` | 二版词条说明 |
-| `js/data/monsters.js` | 三层八节点怪物池 |
-| `js/data/classes.js` | 老兵职业与初始牌组 |
-| `js/data/stages.js` | 三层八节点战斗与战后流转 |
-| `js/data/relics.js` | 装备与事件数据；内部变量仍沿用 `relic` 命名以保持存档结构稳定 |
-| `js/data/shop.js` | 牌店与铁匠库存生成 |
-
-主要系统文件：
-
-| 文件 | 内容 |
-|---|---|
-| `js/systems/board.js` | 放牌、点数计算、伤害计算、计策刷新 |
-| `js/systems/battle.js` | 战斗初始化、结束回合、怪物技能解析 |
-| `js/systems/strategy.js` | 计策定义与精确匹配 |
-| `js/systems/shop.js` | 商店/铁匠库存缓存与刷新 |
-| `js/systems/post-battle.js` | 战后奖励与事件池 |
-| `js/effects/*.js` | 词条与专属效果注册 |
-| `js/render/*.js` | Canvas 渲染 |
-| `js/input/index.js` | 鼠标、拖拽、屏幕点击逻辑 |
+---
 
 ## 商店与铁匠
 
-牌店：
+### 牌店
 
 | 服务 | 当前实现 |
 |---|---|
@@ -136,7 +252,7 @@ node test_playground_screenshots.cjs
 | 删牌 | 从牌组移除 1 张牌，费用每次翻倍 |
 | 刷新 | 重新生成牌店库存，费用递增 |
 
-铁匠：
+### 铁匠
 
 | 服务 | 当前实现 |
 |---|---|
@@ -144,7 +260,9 @@ node test_playground_screenshots.cjs
 | 词条附魔 | 每次提供两个不重复词条选项 |
 | 刷新装备+词条 | 刷新后词条尽量避开上一组，费用递增；首次刷新免费 |
 
-## Playground
+---
+
+## Playground 与 AI 后门
 
 Playground 从主界面按钮进入，包含两个用途：
 
@@ -153,42 +271,25 @@ Playground 从主界面按钮进入，包含两个用途：
 | 词条效果测试 | 使用 `js/playground/scenario-data.js` 中的预设场景批量验证词条 |
 | 对战测试场 | 复用真实战斗渲染与输入，可切换怪物、重置血量、清空格子、添加手牌、编辑卡牌/怪物数值 |
 
-Playground 对战测试场与正式主线战斗状态隔离：测试场结束后会自动重置怪物血量与人群数，正式主线战斗仍按正常奖励/失败流程结算，不会触发 Playground 的自动重置。
+Playground 对战测试场与正式主线战斗状态隔离：测试场结束后会自动重置怪物血量与人群数，正式主线战斗仍按正常奖励/失败流程结算。
 
-事件中的“立即打怪/挑战精英”战斗也与后续正式主线战斗状态隔离：事件战斗只在当前事件内走特殊奖励与回流逻辑，后续正常关卡不会残留事件战斗标记，也不会被误判为事件结算。
+事件中的"立即打怪/挑战精英"战斗也与后续正式主线战斗状态隔离。
 
 数据覆盖系统使用 `localStorage` key `card_dungeon_data_overrides`。参数配置面板中的卡牌和怪物数值修改会即时应用，并在浏览器会话间保留。
 
 浏览器控制台可用：
 
 ```javascript
-await AITest.run('mighty_basic');
-await AITest.runAll();
-await AITest.report();
+await AITest.run('mighty_basic');   // 运行单个场景
+await AITest.runAll();               // 运行所有场景
+await AITest.report();               // 生成完整测试报告
+await AITest.quickTest({ keywords: ['mighty'], baseValue: 5 }); // 快速验证
+AutoTest.autoPlayOptimal();          // 自动出牌
+godMode();                           // 上帝模式
+simulateBattles(100);                // 模拟 100 场自动战斗
 ```
 
-## 项目结构
-
-```text
-WebGameDevPlace/
-├── index.html
-├── css/style.css
-├── serve.js
-├── dev.bat
-├── package.json
-├── test_engine.js
-├── test_render_screens.js
-├── test_simulate.js
-├── test_*.cjs
-└── js/
-    ├── core/
-    ├── data/
-    ├── effects/
-    ├── systems/
-    ├── render/
-    ├── input/
-    └── playground/
-```
+---
 
 ## 版本历史
 
@@ -202,3 +303,13 @@ WebGameDevPlace/
 | v3.4 | 2026-05-24 | 修复 Playground 对战标记污染正式主线战斗的问题，确保测试场自动重置只作用于 Playground，自增回归测试覆盖该路径 |
 | v3.5 | 2026-05-24 | 修复事件打怪/精英战斗标记污染后续正式主线战斗的问题，清理残留事件结算元数据并补充回归测试 |
 | v3.6 | 2026-05-24 | 新增游玩过程中查看当前牌组功能，支持战斗/地图/商店/事件/战后等全部流程界面，V键快捷键与界面按钮双触发 |
+| v3.7 | 2026-05-24 | 效果系统去类化重构：EffectSystem/EffectHandler/EffectContext 改为纯对象 + 纯函数 + 全局注册表；保留全部功能并通过引擎/场景/AI 后门三重验证 |
+
+---
+
+## 与二版设计文档的关系
+
+权威游戏设计文档位于：
+`C:\Users\jinji\Desktop\文档\MyNote\游戏开发项目\卡牌地下城\第二版设计`
+
+当前代码严格以该目录为事实来源。所有超出设计范围的实现已记录在 `REFACTOR_NOTES.md` 中，重构后逐项核对确保无丢失。

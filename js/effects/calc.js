@@ -1,14 +1,16 @@
 /**
- * 卡牌地下城 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（第二版）
+ * 卡牌地下城 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（重构版）
+ *
+ * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */
 
-import { EffectHandler, FX } from './core.js';
+import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 
 // ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
 // 合群（social）：相邻格每有一张其他卡牌+1
-FX.register(new EffectHandler({
+registerEffect({
     id: 'social_aura',
     triggers: Trigger.ON_CALC_VALUE,
     priority: Priority.VALUE_AURA + 2,
@@ -32,10 +34,10 @@ FX.register(new EffectHandler({
             ctx.value += bonus;
         }
     }
-}));
+});
 
 // 齐心（unison）：同格每有一张其他卡牌+1
-FX.register(new EffectHandler({
+registerEffect({
     id: 'unison_aura',
     triggers: Trigger.ON_CALC_VALUE,
     priority: Priority.VALUE_AURA + 3,
@@ -54,12 +56,12 @@ FX.register(new EffectHandler({
             ctx.value += others;
         }
     }
-}));
+});
 
 // ===== ON_CALC_FINAL：计算最终点数（翻倍、惩罚阶段） =====
 
 // 伟力（mighty）：将本牌点数翻倍
-FX.register(new EffectHandler({
+registerEffect({
     id: 'mighty',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_MIGHTY,
@@ -67,10 +69,10 @@ FX.register(new EffectHandler({
     execute: (ctx) => {
         ctx.value *= 2;
     }
-}));
+});
 
 // 最左最右格-5（怪物技能）
-FX.register(new EffectHandler({
+registerEffect({
     id: 'edge_penalty_5',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_PENALTY + 1,
@@ -84,10 +86,10 @@ FX.register(new EffectHandler({
         ctx.value -= 5;
         if (ctx.value < 0) ctx.value = 0;
     }
-}));
+});
 
 // 最左格-10（怪物技能）
-FX.register(new EffectHandler({
+registerEffect({
     id: 'left_penalty_10',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_PENALTY + 2,
@@ -101,10 +103,10 @@ FX.register(new EffectHandler({
         ctx.value -= 10;
         if (ctx.value < 0) ctx.value = 0;
     }
-}));
+});
 
 // 数值最高倍率格-1（怪物技能）
-FX.register(new EffectHandler({
+registerEffect({
     id: 'max_slot_penalty',
     triggers: Trigger.ON_SLOT_CALC,
     priority: Priority.SLOT_MODIFIER - 5,
@@ -124,10 +126,10 @@ FX.register(new EffectHandler({
             ctx.value -= ctx.state.monster.maxSlotPenalty;
         }
     }
-}));
+});
 
 // 数值最低倍率格-1（怪物技能）
-FX.register(new EffectHandler({
+registerEffect({
     id: 'min_slot_penalty',
     triggers: Trigger.ON_SLOT_CALC,
     priority: Priority.SLOT_MODIFIER - 5,
@@ -147,10 +149,10 @@ FX.register(new EffectHandler({
             ctx.value -= ctx.state.monster.minSlotPenalty;
         }
     }
-}));
+});
 
 // 每回合第一张打出牌点数-5（怪物技能）
-FX.register(new EffectHandler({
+registerEffect({
     id: 'first_card_value_penalty',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_PENALTY + 3,
@@ -163,4 +165,4 @@ FX.register(new EffectHandler({
         ctx.value -= ctx.state.monster.firstCardValuePenalty;
         if (ctx.value < 0) ctx.value = 0;
     }
-}));
+});

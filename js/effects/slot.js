@@ -1,8 +1,10 @@
 /**
- * 卡牌地下城 - 格子效果 (ON_SLOT_CALC)（第二版）
+ * 卡牌地下城 - 格子效果 (ON_SLOT_CALC)（重构版）
+ *
+ * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */
 
-import { EffectHandler, FX } from './core.js';
+import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 
 // 豪华装备（luxury_gear）：相邻格倍率+1（可叠加，通过roundMultiplierBonus实现）

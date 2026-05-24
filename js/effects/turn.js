@@ -1,14 +1,16 @@
 /**
- * 卡牌地下城 - 回合效果 (ON_TURN_START / ON_TURN_END)（第二版）
+ * 卡牌地下城 - 回合效果 (ON_TURN_START / ON_TURN_END)（重构版）
+ *
+ * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */
 
-import { EffectHandler, FX } from './core.js';
+import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 
 // ===== ON_TURN_START：回合开始 =====
 
 // 留场牌继续保留在倍率格上
-FX.register(new EffectHandler({
+registerEffect({
     id: 'remain_persist',
     triggers: Trigger.ON_TURN_START,
     priority: Priority.CLEANUP,
@@ -17,10 +19,10 @@ FX.register(new EffectHandler({
         // 留场牌保留在场上，无需额外处理
         // 回合开始时的其他效果可在此添加
     }
-}));
+});
 
 // 怪物每回合恢复血量
-FX.register(new EffectHandler({
+registerEffect({
     id: 'monster_heal',
     triggers: Trigger.ON_TURN_START,
     priority: Priority.SLOT_MODIFIER - 20,
@@ -30,4 +32,4 @@ FX.register(new EffectHandler({
         ctx.state.monster.hp = Math.min(ctx.state.monster.maxHp, ctx.state.monster.hp + heal);
         ctx.log(`${ctx.state.monster.name} 恢复了 ${heal} 点血量`);
     }
-}));
+});
