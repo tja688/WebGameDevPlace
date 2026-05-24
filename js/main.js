@@ -148,6 +148,16 @@ function gameLoop() {
             updateUIView('hidden');
         }
 
+        // Playground 主菜单入口按钮显示控制
+        const pgBtn = document.getElementById('btn-playground');
+        if (pgBtn) {
+            if (window.gameState.screen === 'title') {
+                pgBtn.classList.remove('hidden');
+            } else {
+                pgBtn.classList.add('hidden');
+            }
+        }
+
         Renderer.render(window.gameState);
 
         if (window.gameState.messageTimer > 0) {

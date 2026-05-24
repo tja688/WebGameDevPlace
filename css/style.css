@@ -66,6 +66,33 @@ body {
     box-shadow: 0 4px 16px rgba(255,255,255,0.1);
 }
 
+#btn-playground {
+    position: absolute;
+    top: 64px;
+    right: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background: linear-gradient(180deg, #2a3a2a 0%, #1a2a1a 100%);
+    border: 2px solid #558855;
+    border-radius: 10px;
+    color: #aaffaa;
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    font-family: inherit;
+}
+
+#btn-playground:hover {
+    background: linear-gradient(180deg, #3a5a3a 0%, #2a4a2a 100%);
+    border-color: #88cc88;
+    box-shadow: 0 4px 16px rgba(255,255,255,0.1);
+}
+
+#btn-playground.hidden {
+    display: none;
+}
+
 #keyword-panel {
     position: absolute;
     top: 64px;
