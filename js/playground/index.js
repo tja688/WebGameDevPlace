@@ -35,6 +35,8 @@ export const PlaygroundState = {
         running: false,
         hoverScenario: null,
         hoverButton: null,
+        hoverSlot: null,
+        hoverCard: null,
         message: null,
         messageTimer: 0
     }
