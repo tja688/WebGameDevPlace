@@ -55,9 +55,12 @@ registerEffect({
         const copy = createCardInstance(ctx.card.defId);
         copy.permanentBonus = ctx.card.permanentBonus;
         copy.baseValue = ctx.card.baseValue;
+        copy.growAmount = ctx.card.growAmount;
+        copy.chainCount = ctx.card.chainCount;
         copy.isDerived = true;
         // 复制牌移除双生词条，避免无限复制
-        copy.keywords = copy.keywords.filter(k => k !== 'twin');
+        // 从实例keywords过滤，保留运行时添加的词条
+        copy.keywords = (ctx.card.keywords || []).filter(k => k !== 'twin');
         ctx.state.hand.push(copy);
         ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌（已移除双生）`);
     }

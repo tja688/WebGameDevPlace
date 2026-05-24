@@ -16,10 +16,10 @@ import { detectStrategy } from './strategy.js';
 // ===== 工具函数 =====
 
 export function buildCardSlotMap(state) {
-    const map = new Map();
+    const map = {};
     for (const slot of state.slots) {
         for (const card of slot.cards) {
-            map.set(card.uuid, slot.index);
+            map[card.uuid] = slot.index;
         }
     }
     return map;

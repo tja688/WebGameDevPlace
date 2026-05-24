@@ -115,6 +115,11 @@ export function initBattleFromRun(runData) {
         GameAudio.playBGM(bgmType);
     }
 
+    // 触发第一回合开始效果（怪物恢复等）
+    FX.fire(Trigger.ON_TURN_START, new EffectContext({
+        state, trigger: Trigger.ON_TURN_START
+    }));
+
     return state;
 }
 
@@ -167,13 +172,6 @@ export function endTurn(state) {
         if (origDmg !== totalDmg) {
             logCombat(state, `${state.monster.name} 闪避了 ${origDmg - totalDmg} 点伤害`);
         }
-    }
-
-    // 怪物每回合恢复
-    if (state.monster.healPerTurn > 0) {
-        const heal = state.monster.healPerTurn;
-        state.monster.hp = Math.min(state.monster.maxHp, state.monster.hp + heal);
-        logCombat(state, `${state.monster.name} 恢复了 ${heal} 点血量`);
     }
 
     state.turnDamage = totalDmg;
