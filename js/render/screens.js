@@ -287,6 +287,10 @@ export function drawMap(renderer, ctx, state) {
         ctx.textAlign = 'center';
         ctx.fillText(`点击节点进入 ${curKey} - ${typeLabels[curConfig.type]}战斗`, cx, renderer.height - 30);
     }
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, renderer.width - 140, renderer.height - 80, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawBossRelic(renderer, ctx, state) {
@@ -359,6 +363,10 @@ export function drawBossRelic(renderer, ctx, state) {
 
         state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, type: 'relic', data: relic });
     }
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, renderer.width - 140, renderer.height - 80, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawPostBattle(renderer, ctx, state) {
@@ -398,6 +406,10 @@ export function drawPostBattle(renderer, ctx, state) {
     } else if (data.type === 'shop_choice') {
         drawShopChoiceOptions(renderer, ctx, state, data.postBattleData.options);
     }
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, renderer.width - 140, renderer.height - 80, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 function drawEventOptions(renderer, ctx, state, options) {
@@ -635,6 +647,10 @@ export function drawCardPick(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.fillText('跳过', cx, skipY + 29);
     state.data.skipRect = { x: skipX, y: skipY, w: skipW, h: skipH };
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, skipX + skipW + 20, skipY, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawCardSelect(renderer, ctx, state) {
@@ -903,6 +919,10 @@ export function drawShop(renderer, ctx, state) {
     }
 
     drawBackButton(ctx, state, '返回地图', renderer.width, renderer.height);
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, 190, renderer.height - 80, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawBlacksmith(renderer, ctx, state) {
@@ -1036,6 +1056,10 @@ export function drawBlacksmith(renderer, ctx, state) {
     }
 
     drawBackButton(ctx, state, '返回地图', renderer.width, renderer.height);
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, 190, renderer.height - 80, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawEvent(renderer, ctx, state) {
@@ -1126,6 +1150,10 @@ export function drawEvent(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.fillText('离开', cx, btnY + 29);
     state.data.skipRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawTreasure(renderer, ctx, state) {
@@ -1205,6 +1233,10 @@ export function drawTreasure(renderer, ctx, state) {
         ctx.fillText('收下', cx, btnY + 30);
 
         state.data.treasureAcceptRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+        // 查看牌组按钮
+        const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
+        if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
     }
 }
 
@@ -1264,6 +1296,10 @@ export function drawActTransition(renderer, ctx, state) {
     ctx.fillText(`进入${nextActNames[act] || '下一关'}`, cx, btnY + 35);
 
     state.data.transitionBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawVictory(renderer, ctx, state) {
@@ -1318,6 +1354,10 @@ export function drawVictory(renderer, ctx, state) {
     ctx.fillText('返回主菜单', cx, btnY + 35);
 
     state.data.restartBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // 查看牌组按钮
+    const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
+    if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
 
 export function drawGameOver(renderer, ctx, state) {
@@ -1357,6 +1397,176 @@ export function drawGameOver(renderer, ctx, state) {
     ctx.fillText('重新开始', cx, btnY + 35);
 
     state.data.restartBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+}
+
+function getRunDataFromState(state) {
+    if (state.runDataRef) return state.runDataRef;
+    if (state.data && state.data.runData) return state.data.runData;
+    return null;
+}
+
+export function drawDeckViewButton(ctx, state, x, y, w, h) {
+    const runData = getRunDataFromState(state);
+    if (!runData) return null;
+
+    const isHover = state.data && state.data.hoverDeckViewBtn;
+    ctx.fillStyle = isHover ? 'rgba(60,50,30,0.95)' : 'rgba(40,35,25,0.9)';
+    ctx.strokeStyle = isHover ? '#ffd700' : '#b8860b';
+    ctx.lineWidth = isHover ? 2 : 1;
+    roundRect(ctx, x, y, w, h, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = isHover ? '#ffcc88' : '#ffd700';
+    ctx.font = 'bold 14px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText(`📜 牌组 ${runData.deck.length}`, x + w / 2, y + h / 2 + 5);
+
+    return { x, y, w, h };
+}
+
+export function drawDeckViewOverlay(renderer, ctx, state) {
+    if (!state.data || !state.data.viewingDeck) return;
+
+    const runData = getRunDataFromState(state);
+    if (!runData) return;
+
+    const width = renderer.width;
+    const height = renderer.height;
+    const cx = width / 2;
+
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0,0,0,0.88)';
+    ctx.fillRect(0, 0, width, height);
+
+    // 标题
+    drawGlowText(ctx, `📜 当前牌组（${runData.deck.length} 张）`, cx, 60, {
+        color: '#ffd700',
+        glowColor: '#b8860b',
+        glowBlur: 12,
+        font: 'bold 30px Microsoft YaHei',
+        align: 'center'
+    });
+
+    // 提示文字
+    ctx.fillStyle = '#888';
+    ctx.font = '14px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText('悬停查看详情 | 滚轮滚动 | V键/ESC/点击按钮关闭', cx, 90);
+
+    const cards = runData.deck || [];
+    const cardW = 160;
+    const cardH = 240;
+    const gap = 24;
+    const perRow = Math.min(cards.length, 6);
+    const totalW = perRow * cardW + (perRow - 1) * gap;
+    let startX = cx - totalW / 2;
+    let startY = 120;
+    const scrollY = state.data.deckViewScrollY || 0;
+
+    const rows = Math.ceil(cards.length / perRow);
+    const contentBottom = startY + rows * (cardH + 30);
+    const visibleBottom = height - 100;
+    state.data.deckViewMaxScroll = Math.max(0, contentBottom - visibleBottom);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 110, width, visibleBottom - 110);
+    ctx.clip();
+
+    state.data.deckViewCardRects = [];
+
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const col = i % perRow;
+        const row = Math.floor(i / perRow);
+        const x = startX + col * (cardW + gap);
+        const y = startY + row * (cardH + 30) - scrollY;
+        const isHover = state.data.deckViewHoverCard === i;
+
+        if (y + cardH < 110 || y > visibleBottom) {
+            const originalY = startY + row * (cardH + 30);
+            state.data.deckViewCardRects.push({ x, y: originalY, w: cardW, h: cardH, index: i, card });
+            continue;
+        }
+
+        ctx.globalAlpha = isHover ? 0.95 : 0.85;
+        const grad = ctx.createLinearGradient(x, y, x, y + cardH);
+        grad.addColorStop(0, card.color);
+        grad.addColorStop(1, darkenColor(card.color, -40));
+        ctx.fillStyle = grad;
+        roundRect(ctx, x, y, cardW, cardH, 10);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.strokeStyle = isHover ? '#fff' : card.accentColor;
+        ctx.lineWidth = isHover ? 3 : 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(card.name, x + cardW / 2, y + 26);
+
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 22px Microsoft YaHei';
+        ctx.fillText(getCardBaseValue(card), x + cardW / 2, y + 58);
+
+        let tagY = y + 82;
+        for (const kw of card.keywords) {
+            const kwData = KEYWORDS[kw];
+            if (!kwData) continue;
+            const tagW = ctx.measureText(kwData.name).width + 10;
+            const tagX = x + (cardW - tagW) / 2;
+            ctx.fillStyle = kwData.color + '33';
+            ctx.strokeStyle = kwData.color;
+            ctx.lineWidth = 1;
+            ctx.fillRect(tagX, tagY, tagW, 16);
+            ctx.strokeRect(tagX, tagY, tagW, 16);
+            ctx.fillStyle = kwData.color;
+            ctx.font = '10px Microsoft YaHei';
+            ctx.fillText(kwData.name, x + cardW / 2, tagY + 12);
+            tagY += 20;
+        }
+
+        ctx.fillStyle = '#ccc';
+        ctx.font = '11px Microsoft YaHei';
+        wrapText(ctx, card.description, x + cardW / 2, tagY + 10, cardW - 16, 18);
+
+        const originalY = startY + row * (cardH + 30);
+        state.data.deckViewCardRects.push({ x, y: originalY, w: cardW, h: cardH, index: i, card });
+    }
+
+    ctx.restore();
+
+    // 滚动条
+    const maxScroll = state.data.deckViewMaxScroll;
+    if (maxScroll > 0) {
+        const scrollBarH = Math.max(40, (visibleBottom - 110) * (visibleBottom - 110) / (contentBottom - 110));
+        const scrollBarY = 110 + ((visibleBottom - 110) - scrollBarH) * (scrollY / maxScroll);
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(width - 12, scrollBarY, 6, scrollBarH);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(width - 12, scrollBarY, 6, scrollBarH);
+    }
+
+    // 关闭按钮
+    const closeW = 160;
+    const closeH = 45;
+    const closeX = cx - closeW / 2;
+    const closeY = height - 70;
+    const closeHover = state.data.deckViewHoverClose;
+    ctx.fillStyle = closeHover ? 'rgba(80,50,50,0.95)' : 'rgba(60,40,40,0.9)';
+    ctx.strokeStyle = closeHover ? '#cc8888' : '#aa6666';
+    ctx.lineWidth = closeHover ? 3 : 2;
+    roundRect(ctx, closeX, closeY, closeW, closeH, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = closeHover ? '#ffcccc' : '#ffaaaa';
+    ctx.font = 'bold 16px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText('关闭 (V)', cx, closeY + 29);
+    state.data.deckViewCloseRect = { x: closeX, y: closeY, w: closeW, h: closeH };
 }
 
 export function drawMessages(ctx, state, width, height) {

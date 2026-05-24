@@ -76,6 +76,22 @@ function bindKeys() {
             return; // Playground 不响应全局快捷键
         }
 
+        // V键：查看牌组
+        if (e.key === 'v' || e.key === 'V') {
+            if (typeof Input !== 'undefined' && Input.toggleDeckView) {
+                Input.toggleDeckView();
+            }
+        }
+
+        // ESC键：关闭牌组视图
+        if (e.key === 'Escape') {
+            if (window.gameState.data && window.gameState.data.viewingDeck) {
+                if (typeof Input !== 'undefined' && Input.toggleDeckView) {
+                    Input.toggleDeckView();
+                }
+            }
+        }
+
         if (window.gameState.screen === 'battle') {
             if (e.key === 'e' || e.key === 'E') {
                 if (window.gameState.phase === 'playing') {

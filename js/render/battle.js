@@ -1170,7 +1170,26 @@ function drawUI(renderer, ctx, state) {
 
     drawButton(ctx, btnX, btnY, btnW, btnH, btnText, btnOptions);
 
-    // 伤害预览面板已移除
+    // 查看牌组按钮
+    const deckBtnW = 100;
+    const deckBtnH = 36;
+    const deckBtnX = renderer.width - 170 - deckBtnW - 12;
+    const deckBtnY = renderer.height - 85;
+    const runData = state.runDataRef;
+    if (runData) {
+        const isHover = state.data && state.data.hoverDeckViewBtn;
+        ctx.fillStyle = isHover ? 'rgba(60,50,30,0.95)' : 'rgba(40,35,25,0.9)';
+        ctx.strokeStyle = isHover ? '#ffd700' : '#b8860b';
+        ctx.lineWidth = isHover ? 2 : 1;
+        roundRect(ctx, deckBtnX, deckBtnY, deckBtnW, deckBtnH, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = isHover ? '#ffcc88' : '#ffd700';
+        ctx.font = 'bold 13px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(`📜 牌组 ${runData.deck.length}`, deckBtnX + deckBtnW / 2, deckBtnY + deckBtnH / 2 + 4);
+        if (state.data) state.data.deckViewBtnRect = { x: deckBtnX, y: deckBtnY, w: deckBtnW, h: deckBtnH };
+    }
 }
 
 // ============================================================

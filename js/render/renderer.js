@@ -9,7 +9,7 @@ import {
     drawTitle, drawClassSelect, drawMap, drawPostBattle,
     drawCardPick, drawCardSelect, drawShop, drawBlacksmith,
     drawEvent, drawTreasure, drawActTransition, drawVictory,
-    drawGameOver, drawMessages, drawBossRelic
+    drawGameOver, drawMessages, drawBossRelic, drawDeckViewOverlay
 } from './screens.js';
 import { FX } from './fx.js';
 import { drawPlayground } from '../playground/renderer.js';
@@ -83,6 +83,7 @@ export const Renderer = {
 
         FX.screenShake.restore(ctx);
         FX.drawPost(ctx);
+        drawDeckViewOverlay(this, ctx, state);
         drawMessages(ctx, state, this.width, this.height);
     }
 };

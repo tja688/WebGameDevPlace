@@ -67,6 +67,17 @@ export const Input = {
         const pos = this.getCanvasPos(e.clientX, e.clientY);
         const state = this.state;
 
+        if (state.data && state.data.viewingDeck) {
+            this.handleDeckViewMouseDown(pos);
+            return;
+        }
+
+        // 通用查看牌组按钮检测
+        if (state.data && state.data.deckViewBtnRect && this.hitTest(pos, state.data.deckViewBtnRect)) {
+            this.toggleDeckView();
+            return;
+        }
+
         switch (state.screen) {
             case 'title': this.handleTitleClick(pos); break;
             case 'class_select': this.handleClassSelectClick(pos); break;
@@ -98,6 +109,18 @@ export const Input = {
         const state = this.state;
 
         this.clearAllHovers(state);
+
+        if (state.data && state.data.viewingDeck) {
+            this.handleDeckViewMouseMove(pos);
+            return;
+        }
+
+        // 通用查看牌组按钮悬停检测
+        if (state.data && state.data.deckViewBtnRect && this.hitTest(pos, state.data.deckViewBtnRect)) {
+            state.data.hoverDeckViewBtn = true;
+            this.canvas.style.cursor = 'pointer';
+            return;
+        }
 
         switch (state.screen) {
             case 'title': this.handleTitleHover(pos, state); break;
@@ -185,6 +208,9 @@ export const Input = {
         state.data.hoverRestartBtn = false;
         state.data.hoverBack = false;
         state.data.hoverRelic = null;
+        state.data.hoverDeckViewBtn = false;
+        state.data.deckViewHoverCard = null;
+        state.data.deckViewHoverClose = false;
     },
 
     hitTest(pos, rect) {
@@ -1156,6 +1182,12 @@ export const Input = {
 
     // ===== 战斗输入 =====
     handleBattleMouseDown(pos) {
+        // 检测查看牌组按钮（任何阶段都可点击）
+        if (this.state.data && this.state.data.deckViewBtnRect && this.hitTest(pos, this.state.data.deckViewBtnRect)) {
+            this.toggleDeckView();
+            return;
+        }
+
         if (this.state.phase !== 'playing') {
             this.canvas.style.cursor = 'default';
             return;
@@ -1182,6 +1214,14 @@ export const Input = {
     },
 
     handleBattleMouseMove(pos) {
+        // 检测查看牌组按钮悬停
+        if (this.state.data && this.state.data.deckViewBtnRect && this.hitTest(pos, this.state.data.deckViewBtnRect)) {
+            this.state.data.hoverDeckViewBtn = true;
+            this.canvas.style.cursor = 'pointer';
+            this.hideTooltip();
+            return;
+        }
+
         if (this.state.phase !== 'playing') {
             this.state.selectedCard = null;
             this.state.hoveredSlot = null;
@@ -1525,6 +1565,93 @@ export const Input = {
             newScroll = Math.max(0, Math.min(newScroll, maxScroll));
             state.data.cardSelectScrollY = newScroll;
         }
+        if (state.data && state.data.viewingDeck) {
+            e.preventDefault();
+            const scrollY = state.data.deckViewScrollY || 0;
+            const maxScroll = state.data.deckViewMaxScroll || 0;
+            let newScroll = scrollY + e.deltaY;
+            newScroll = Math.max(0, Math.min(newScroll, maxScroll));
+            state.data.deckViewScrollY = newScroll;
+        }
+    },
+
+    toggleDeckView() {
+        const state = this.state;
+        if (!state.data) state.data = {};
+        const canView = this._canViewDeck(state);
+        if (!canView) return;
+
+        if (state.data.viewingDeck) {
+            state.data.viewingDeck = false;
+            state.data.deckViewScrollY = 0;
+            this.hideTooltip();
+        } else {
+            state.data.viewingDeck = true;
+            state.data.deckViewScrollY = 0;
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+        }
+    },
+
+    _canViewDeck(state) {
+        const screen = state.screen;
+        const runData = state.runDataRef || (state.data && state.data.runData);
+        if (!runData) return false;
+        // 在以下界面可以查看牌组
+        const allowedScreens = ['battle', 'map', 'shop', 'blacksmith', 'event', 'treasure', 'post_battle', 'card_pick', 'boss_relic', 'act_transition', 'card_select'];
+        return allowedScreens.includes(screen);
+    },
+
+    handleDeckViewMouseDown(pos) {
+        const state = this.state;
+        if (!state.data) return;
+
+        // 关闭按钮
+        if (state.data.deckViewCloseRect && this.hitTest(pos, state.data.deckViewCloseRect)) {
+            this.toggleDeckView();
+            return;
+        }
+
+        // 点击卡牌不做选择，只播放音效
+        const scrollY = state.data.deckViewScrollY || 0;
+        const adjustedPos = { x: pos.x, y: pos.y + scrollY };
+        if (state.data.deckViewCardRects) {
+            for (const rect of state.data.deckViewCardRects) {
+                if (this.hitTest(adjustedPos, rect)) {
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    return;
+                }
+            }
+        }
+    },
+
+    handleDeckViewMouseMove(pos) {
+        const state = this.state;
+        if (!state.data) return;
+
+        const scrollY = state.data.deckViewScrollY || 0;
+        const adjustedPos = { x: pos.x, y: pos.y + scrollY };
+
+        // 检测卡牌悬停
+        if (state.data.deckViewCardRects) {
+            for (const rect of state.data.deckViewCardRects) {
+                if (this.hitTest(adjustedPos, rect)) {
+                    state.data.deckViewHoverCard = rect.index;
+                    this.canvas.style.cursor = 'default';
+                    this.updateTooltip(rect.card, pos.x, pos.y);
+                    return;
+                }
+            }
+        }
+
+        // 检测关闭按钮悬停
+        if (state.data.deckViewCloseRect && this.hitTest(pos, state.data.deckViewCloseRect)) {
+            state.data.deckViewHoverClose = true;
+            this.canvas.style.cursor = 'pointer';
+            return;
+        }
+
+        this.canvas.style.cursor = 'default';
+        this.hideTooltip();
     },
 
     // ===== Playground =====
