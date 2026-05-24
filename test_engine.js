@@ -6,6 +6,7 @@ import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEff
 import { createCardInstance, createBlacksmithStock } from './js/data/index.js';
 import { detectStrategy } from './js/systems/strategy.js';
 import { enterPlaygroundBattle } from './js/playground/index.js';
+import { Input } from './js/input/index.js';
 
 // 必须导入以触发效果注册
 import './js/effects/index.js';
@@ -180,6 +181,21 @@ Object.assign(s16, mainBattle16);
 s16.screen = 'battle';
 s16.data = {};
 assert(!s16._playgroundBattle, '正式主线战斗不应残留 Playground 标记');
+
+// Test 17: 事件战斗标记不应污染后续正式主线战斗
+const s17 = createGameState('event');
+const run17 = createRunData('veteran');
+run17.pendingEventPool = { tier: 'high', count: 2 };
+Input.state = s17;
+s17.data = { runData: run17 };
+Input._startEventBattle(run17, 'normal');
+assert(s17._eventBattle === true, '事件打怪会标记为事件战斗');
+const mainBattle17 = initBattleFromRun(run17);
+Object.assign(s17, mainBattle17);
+s17.screen = 'battle';
+s17.data = {};
+assert(!s17._eventBattle, '正式主线战斗不应残留事件战斗标记');
+assert(s17._originalStageIndex === undefined, '正式主线战斗不应残留事件原始关卡索引');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);

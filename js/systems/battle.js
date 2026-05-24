@@ -90,7 +90,10 @@ export function initBattleFromRun(runData) {
         firstTurnKill: false,
         pendingPlaceEffects: [],
         pendingGrowthEffects: [],
-        _playgroundBattle: false
+        _playgroundBattle: false,
+        _eventBattle: false,
+        _eventBattleReward: null,
+        _originalStageIndex: undefined
     };
 
     // 解析怪物技能
