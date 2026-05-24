@@ -12,6 +12,7 @@ import {
     drawGameOver, drawMessages, drawBossRelic
 } from './screens.js';
 import { FX } from './fx.js';
+import { drawPlayground } from '../playground/renderer.js';
 
 export const Renderer = {
     canvas: null,
@@ -63,6 +64,7 @@ export const Renderer = {
             case 'act_transition': drawActTransition(this, ctx, state); break;
             case 'victory': drawVictory(this, ctx, state); break;
             case 'game_over': drawGameOver(this, ctx, state); break;
+            case 'playground': drawPlayground(this, ctx, state); break;
             default:
                 ctx.fillStyle = '#0f0a14';
                 ctx.fillRect(0, 0, this.width, this.height);

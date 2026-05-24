@@ -10,6 +10,8 @@ import { initBattleFromRun } from './systems/battle.js';
 import { GameAudio } from './audio.js';
 import { FX as RenderFX } from './render/fx.js';
 import { KEYWORDS } from './data/index.js';
+import { initPlaygroundUI, updateUIView } from './playground/ui-controller.js';
+import { enterPlayground } from './playground/index.js';
 
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
@@ -27,9 +29,19 @@ function init() {
     initKeywordPanel();
     bindKeys();
     bindVolumeControls();
+    initPlaygroundUI(window.gameState);
 
     window.gameState = createGameState('title');
     Input.init(window.gameState, Renderer);
+
+    // Playground 主菜单按钮（DOM事件）
+    const pgBtn = document.getElementById('btn-playground');
+    if (pgBtn) {
+        pgBtn.addEventListener('click', () => {
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            enterPlayground(window.gameState);
+        });
+    }
 
     if (typeof AutoTest !== 'undefined') {
         AutoTest.init(window.gameState);
@@ -57,6 +69,10 @@ function bindKeys() {
 
         if (e.key === 'd' || e.key === 'D') {
             document.getElementById('keyword-panel').classList.toggle('hidden');
+        }
+
+        if (window.gameState.screen === 'playground') {
+            return; // Playground 不响应全局快捷键
         }
 
         if (window.gameState.screen === 'battle') {
@@ -119,10 +135,17 @@ function gameLoop() {
     if (window.gameState) {
         // BGM 自动切换：非战斗界面播放平时音乐
         if (window.gameState.screen !== _lastScreen) {
-            if (window.gameState.screen !== 'battle' && typeof GameAudio !== 'undefined') {
+            if (window.gameState.screen !== 'battle' && window.gameState.screen !== 'playground' && typeof GameAudio !== 'undefined') {
                 GameAudio.playBGM('normal');
             }
             _lastScreen = window.gameState.screen;
+        }
+
+        // Playground UI 显示/隐藏同步
+        if (window.gameState.screen === 'playground') {
+            updateUIView('playground');
+        } else {
+            updateUIView('hidden');
         }
 
         Renderer.render(window.gameState);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡牌地下城（暂定）v2.1</title>
+    <title>卡牌地下城（暂定）v3.0</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -45,6 +45,7 @@
                     </ul>
                 </div>
                 <button id="btn-start" class="primary">开始战斗</button>
+                <button id="btn-playground" class="secondary" style="margin-top:12px;">🧪 Playground</button>
             </div>
         </div>
         <canvas id="gameCanvas"></canvas>
@@ -71,6 +72,27 @@
                 </div>
             </div>
             <button id="btn-toggle-keyword" title="词条说明书">📖</button>
+        </div>
+        <!-- Playground UI 覆盖层 -->
+        <div id="playground-ui" class="hidden">
+            <div id="pg-menu-panel" style="display:none;"></div>
+            <div id="pg-effect-panel" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(15,10,20,0.95);z-index:100;flex-direction:column;padding:12px;box-sizing:border-box;">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                    <select id="pg-scenario-select" style="flex:1;padding:6px 10px;font-size:14px;background:#1a1025;color:#fff;border:1px solid #444;border-radius:4px;"></select>
+                </div>
+                <textarea id="pg-editor-textarea" style="flex:1;width:100%;resize:none;background:#1a1025;color:#ddd;border:1px solid #444;border-radius:4px;padding:10px;font-family:monospace;font-size:13px;box-sizing:border-box;" spellcheck="false"></textarea>
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                    <button id="pg-btn-run" class="pg-btn" style="padding:6px 14px;background:#27ae60;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">▶ 运行测试</button>
+                    <button id="pg-btn-run-all" class="pg-btn" style="padding:6px 14px;background:#2980b9;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">▶▶ 运行全部</button>
+                    <button id="pg-btn-save" class="pg-btn" style="padding:6px 14px;background:#8e44ad;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">💾 保存到本地</button>
+                    <button id="pg-btn-export" class="pg-btn" style="padding:6px 14px;background:#d35400;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">📤 导出JSON</button>
+                    <button id="pg-btn-import" class="pg-btn" style="padding:6px 14px;background:#d35400;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">📥 导入JSON</button>
+                    <button id="pg-btn-export-all" class="pg-btn" style="padding:6px 14px;background:#7f8c8d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">📦 导出全部</button>
+                    <button id="pg-btn-back" class="pg-btn" style="padding:6px 14px;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← 返回菜单</button>
+                </div>
+                <input type="file" id="pg-file-input" accept=".json" style="display:none;">
+                <div id="pg-results-area" style="margin-top:8px;padding:10px;background:#1a1025;border:1px solid #444;border-radius:4px;min-height:60px;max-height:200px;overflow:auto;font-size:13px;"></div>
+            </div>
         </div>
         <div id="tooltip" class="hidden"></div>
         <div id="modal-overlay" class="hidden">

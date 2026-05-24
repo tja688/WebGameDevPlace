@@ -17,6 +17,7 @@ import { createCardInstance, KEYWORDS, CARD_DEFS, createCardRewardOptions } from
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
+import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios } from '../playground/index.js';
 
 export const Input = {
     state: null,
@@ -82,6 +83,7 @@ export const Input = {
             case 'act_transition': this.handleActTransitionClick(pos); break;
             case 'victory': this.handleGameOverClick(pos); break;
             case 'game_over': this.handleGameOverClick(pos); break;
+            case 'playground': this.handlePlaygroundClick(pos); break;
         }
     },
 
@@ -107,6 +109,7 @@ export const Input = {
             case 'act_transition': this.handleActTransitionHover(pos, state); break;
             case 'victory': this.handleGameOverHover(pos, state); break;
             case 'game_over': this.handleGameOverHover(pos, state); break;
+            case 'playground': this.handlePlaygroundHover(pos, state); break;
         }
     },
 
@@ -1539,6 +1542,53 @@ export const Input = {
             let newScroll = scrollY + e.deltaY;
             newScroll = Math.max(0, Math.min(newScroll, maxScroll));
             state.data.cardSelectScrollY = newScroll;
+        }
+    },
+
+    // ===== Playground =====
+
+    handlePlaygroundClick(pos) {
+        const pgView = this.state.data?.pgView || 'menu';
+
+        if (pgView === 'menu') {
+            const buttons = this.state.data?.pgMenuButtons || [];
+            for (const btn of buttons) {
+                if (this.hitTest(pos, btn)) {
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    if (btn.id === 'effect') {
+                        // 进入词条效果沙盒，默认选中第一个场景
+                        const scenarios = (typeof getAllScenarios !== 'undefined' ? getAllScenarios() : []);
+                        const firstId = scenarios.length > 0 ? scenarios[0].id : 'mighty_basic';
+                        enterEffectSandbox(this.state, firstId);
+                    } else if (btn.id === 'back') {
+                        backToPlaygroundMenu(this.state);
+                        // 返回主菜单
+                        switchScreen(this.state, 'title', {});
+                    }
+                    return;
+                }
+            }
+        }
+    },
+
+    handlePlaygroundHover(pos, state) {
+        const pgView = state.data?.pgView || 'menu';
+
+        if (pgView === 'menu') {
+            const buttons = state.data?.pgMenuButtons || [];
+            let hovered = false;
+            for (const btn of buttons) {
+                if (this.hitTest(pos, btn)) {
+                    PlaygroundState.ui.hoverButton = btn.id;
+                    this.canvas.style.cursor = 'pointer';
+                    hovered = true;
+                    break;
+                }
+            }
+            if (!hovered) {
+                PlaygroundState.ui.hoverButton = null;
+                this.canvas.style.cursor = 'default';
+            }
         }
     }
 };
