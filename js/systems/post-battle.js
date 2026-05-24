@@ -100,7 +100,7 @@ export function resolveBattleEnd(battleState) {
         for (const c of allCards) {
             c.tempBonus = 0;
         }
-        runData.deck = allCards;
+        runData.deck = allCards.filter(c => !c.isDerived);
 
         // 设置待处理的事件类型
         runData.pendingEventPool = getEventPool(config.postBattle);

@@ -53,6 +53,7 @@ FX.register(new EffectHandler({
         const copy = createCardInstance(ctx.card.defId);
         copy.permanentBonus = ctx.card.permanentBonus;
         copy.baseValue = ctx.card.baseValue;
+        copy.isDerived = true;
         // 复制牌移除双生词条，避免无限复制
         copy.keywords = copy.keywords.filter(k => k !== 'twin');
         ctx.state.hand.push(copy);
@@ -68,6 +69,7 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.keywords.includes('spread'),
     execute: (ctx) => {
         const diffusion = createCardInstance('diffusion');
+        diffusion.isDerived = true;
         ctx.state.hand.push(diffusion);
         ctx.log(`${ctx.card.name} 蔓延效果触发，加入一张扩散牌`);
     }
@@ -97,10 +99,9 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'messenger',
     execute: (ctx) => {
         if (ctx.state.deck.length > 0) {
-            const idx = Math.floor(Math.random() * ctx.state.deck.length);
-            const card = ctx.state.deck.splice(idx, 1)[0];
+            const card = ctx.state.deck.pop();
             ctx.state.hand.push(card);
-            ctx.log(`${ctx.card.name} 传令效果触发，从牌组随机抽来 ${card.name}`);
+            ctx.log(`${ctx.card.name} 传令效果触发，从牌组抽来 ${card.name}`);
         } else {
             ctx.log(`${ctx.card.name} 传令效果触发，但牌组已空`);
         }
@@ -135,8 +136,10 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'cogito_ergo_sum',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
-        ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
+        if (slot.cards.length > 1) {
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
+            ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
+        }
     }
 }));
 
@@ -148,13 +151,15 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'training_trace',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        for (const s of ctx.state.slots) {
-            if (Math.abs(s.index - ctx.slotIndex) === 1) {
-                for (const c of s.cards) {
-                    if (c.keywords.includes('grow')) {
-                        const amount = calculateGrowAmount(c, s.index, ctx.state);
-                        c.permanentBonus += amount;
-                        ctx.log(`${c.name} 受到训练痕迹加持，额外成长+${amount}！`);
+        if (slot.cards.length > 1) {
+            for (const s of ctx.state.slots) {
+                if (Math.abs(s.index - ctx.slotIndex) === 1) {
+                    for (const c of s.cards) {
+                        if (c.keywords.includes('grow')) {
+                            const amount = calculateGrowAmount(c, s.index, ctx.state);
+                            c.permanentBonus += amount;
+                            ctx.log(`${c.name} 受到训练痕迹加持，额外成长+${amount}！`);
+                        }
                     }
                 }
             }
@@ -171,8 +176,10 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'intense_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        slot.intenseTrainingActive = true;
-        ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
+        if (slot.cards.length > 1) {
+            slot.intenseTrainingActive = true;
+            ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
+        }
     }
 }));
 
@@ -184,7 +191,9 @@ FX.register(new EffectHandler({
     condition: (ctx) => ctx.card.defId === 'group_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        slot.groupTrainingActive = true;
-        ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
+        if (slot.cards.length > 1) {
+            slot.groupTrainingActive = true;
+            ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
+        }
     }
 }));

@@ -63,10 +63,11 @@ export function createRunData(classId) {
         blacksmithStock: null,
         slotUpgrades: {},
         // 商店费用追踪
-        shopUpgradeCost: 1,         // 数值强化基础费用
+        shopUpgradeCost: 1,         // 数值强化基础费用（兼容旧存档）
         shopUpgradeCosts: {},       // 每张卡牌的强化费用 {cardId: cost}
         shopRefreshCost: 5,
         shopRefreshCount: 0,
+        shopRemoveCost: 2,          // 删牌服务费用（每次翻倍）
         firstUpgradeDiscount: true, // 首次强化-1金币
         // 铁匠费用追踪
         blacksmithSlotCosts: [0, 0, 0], // 每格升级费用累积

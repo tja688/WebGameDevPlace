@@ -48,19 +48,18 @@ export function drawCards(state, count) {
  */
 
 /**
- * 将弃牌堆洗牌回牌库
+ * 将弃牌堆洗牌回牌库（与剩余牌库合并后整体洗牌）
  */
 export function shuffleDiscardToDeck(state) {
     if (state.discard.length > 0) {
-        const shuffled = [];
-        const discard = [...state.discard];
-        for (let i = discard.length - 1; i > 0; i--) {
+        const combined = [...state.deck, ...state.discard];
+        for (let i = combined.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [discard[i], discard[j]] = [discard[j], discard[i]];
+            [combined[i], combined[j]] = [combined[j], combined[i]];
         }
-        state.deck.push(...discard);
+        state.deck = combined;
         state.discard = [];
-        logCombat(state, `弃牌堆 ${discard.length} 张牌洗回牌库`);
+        logCombat(state, `弃牌堆洗牌回牌库，牌库共 ${state.deck.length} 张`);
     }
 }
 

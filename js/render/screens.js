@@ -873,9 +873,10 @@ export function drawShop(renderer, ctx, state) {
     const btnH = 45;
     const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
     const services = [
-        { key: 'remove_card', text: `🗑️ 删牌服务 (1金币)`, x: 60, cost: 1 },
-        { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (${upgradeCost}金币)`, x: 280, cost: upgradeCost },
-        { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}金币)`, x: 500, cost: runData.shopRefreshCost },
+        { key: 'remove_card', text: `🗑️ 删牌服务 (${runData.shopRemoveCost || 2}金币)`, x: 60, cost: runData.shopRemoveCost || 2 },
+        { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (1金币起)`, x: 240, cost: 0 },
+        { key: 'buy_strategy', text: `📜 计策等级提升 (4金币)`, x: 440, cost: 4 },
+        { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}金币)`, x: 640, cost: runData.shopRefreshCost },
     ];
     state.data.shopServiceRects = [];
     for (const svc of services) {
@@ -963,7 +964,8 @@ export function drawBlacksmith(renderer, ctx, state) {
 
     const enchantCost = runData.blacksmithEnchantCost;
     const refreshCost = runData.firstBlacksmithRefreshFree ? 0 : runData.blacksmithRefreshCost;
-    const kwData = stock.enchantKeyword ? KEYWORDS[stock.enchantKeyword] : null;
+    const enchantKeywords = stock.enchantKeywords || [];
+    const kwData = enchantKeywords.length > 0 ? KEYWORDS[enchantKeywords[0]] : null;
     columns[2].items.push({
         type: 'enchant',
         name: kwData ? `附魔【${kwData.name}】` : '附魔词条',

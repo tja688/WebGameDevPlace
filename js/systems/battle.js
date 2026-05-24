@@ -31,8 +31,7 @@ export function initBattleFromRun(runData) {
         slotUpgrades: runData.slotUpgrades
     });
 
-    const deck = [...runData.deck];
-    shuffleArray(deck);
+    const deck = shuffleArray([...runData.deck]);
 
     const state = {
         screen: 'battle',
