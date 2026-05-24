@@ -1,8 +1,11 @@
 import { createInitialState, startBattle } from './js/core/state.js';
+import { createGameState, createRunData } from './js/core/state.js';
 import { drawCards, endTurn } from './js/systems/battle.js';
+import { initBattleFromRun } from './js/systems/battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier, getCardBaseValue } from './js/systems/board.js';
 import { createCardInstance, createBlacksmithStock } from './js/data/index.js';
 import { detectStrategy } from './js/systems/strategy.js';
+import { enterPlaygroundBattle } from './js/playground/index.js';
 
 // 必须导入以触发效果注册
 import './js/effects/index.js';
@@ -166,6 +169,17 @@ const s15c = makeTestState(['training_trace', 'war_training']);
 playCardToSlot(s15c.hand[0], 1, s15c);
 playCardToSlot(s15c.hand[0], 0, s15c);
 assert(s15c.slots[0].cards[0].permanentBonus === 4, '训练痕迹在场后，相邻格成长2多触发一次为+4');
+
+// Test 16: Playground 战斗标记不应污染正式主线战斗
+const s16 = createGameState('title');
+enterPlaygroundBattle(s16, 'training_dummy');
+assert(s16._playgroundBattle === true, 'Playground 对战会标记为沙盒战斗');
+const run16 = createRunData('veteran');
+const mainBattle16 = initBattleFromRun(run16);
+Object.assign(s16, mainBattle16);
+s16.screen = 'battle';
+s16.data = {};
+assert(!s16._playgroundBattle, '正式主线战斗不应残留 Playground 标记');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);

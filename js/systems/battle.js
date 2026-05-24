@@ -89,7 +89,8 @@ export function initBattleFromRun(runData) {
         heartsLost: 0,
         firstTurnKill: false,
         pendingPlaceEffects: [],
-        pendingGrowthEffects: []
+        pendingGrowthEffects: [],
+        _playgroundBattle: false
     };
 
     // 解析怪物技能
