@@ -70,6 +70,7 @@ let paramSearch = null;
 
 let _gameStateRef = null;
 let _dataEditorTab = 'cards';
+let _lastRenderedView = null;
 
 // ===== 初始化 =====
 
@@ -352,6 +353,7 @@ function bindEvents(gameState) {
         btnClearOverrides.addEventListener('click', () => {
             if (confirm('确定要清除所有数值修改吗？此操作不可撤销。')) {
                 clearDataOverrides();
+                populateStaticSelects();
                 renderDataEditor();
                 alert('已清除所有修改，刷新页面后完全生效');
             }
@@ -425,10 +427,14 @@ export function updateUIView(view) {
         }
         if (pgView === 'battle') {
             updateBattleInfo();
-            renderDataEditor();
+            // 只在首次进入 battle 视图或从其他视图切换回来时渲染编辑器，避免每帧重建 DOM
+            if (_lastRenderedView !== 'battle') {
+                renderDataEditor();
+            }
         } else {
             if (paramPanel) paramPanel.classList.add('hidden');
         }
+        _lastRenderedView = pgView;
     } else {
         uiRoot.classList.add('hidden');
         if (battlePanel) battlePanel.style.display = 'none';
@@ -595,7 +601,12 @@ function renderDataEditor() {
                     delete ov[cat];
                 }
                 localStorage.setItem('card_dungeon_data_overrides', JSON.stringify(ov));
-                applyDataOverrides();
+                // 直接恢复原始定义（applyDataOverrides 只应用覆盖，不会恢复已修改的定义）
+                if (cat === 'cards' && CARD_DEFS[id]) {
+                    CARD_DEFS[id][field] = orig;
+                } else if (cat === 'monsters' && MONSTER_DEFS[id]) {
+                    MONSTER_DEFS[id][field] = orig;
+                }
                 populateStaticSelects();
                 renderDataEditor();
                 // 同步战斗状态
@@ -639,6 +650,7 @@ function _saveField(input, btn) {
             _gameStateRef.monster.hp = Math.max(0, _gameStateRef.monster.hp + diff);
         }
     }
+    populateStaticSelects();
     renderDataEditor();
 }
 
