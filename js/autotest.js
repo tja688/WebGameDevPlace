@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 自动测试与调试工具
+ * 卡牌地下城 - 自动测试与调试工具（第二版）
  */
 
 if (typeof window === 'undefined') {
@@ -8,11 +8,9 @@ if (typeof window === 'undefined') {
 
 import { createInitialState, startBattle } from './core/state.js';
 import { drawCards, endTurn, logCombat } from './systems/battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard } from './systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, getPlacementPreview, canPlaceCard } from './systems/board.js';
 import { createCardInstance } from './data/index.js';
 import { Input } from './input/index.js';
-import { resolveBattleEnd } from './systems/post-battle.js';
-import { FX } from './effects/core.js';
 
 const AutoTest = {
     state: null,
@@ -23,12 +21,12 @@ const AutoTest = {
     },
 
     bindDebugPanel() {
-        document.getElementById('btn-toggle-debug').addEventListener('click', () => {
+        document.getElementById('btn-toggle-debug')?.addEventListener('click', () => {
             const panel = document.getElementById('debug-panel');
-            panel.classList.toggle('hidden');
+            panel?.classList.toggle('hidden');
         });
 
-        document.getElementById('btn-auto-play').addEventListener('click', () => {
+        document.getElementById('btn-auto-play')?.addEventListener('click', () => {
             if (this.state.screen === 'battle') {
                 this.autoPlayOptimal();
             } else {
@@ -36,30 +34,30 @@ const AutoTest = {
             }
         });
 
-        document.getElementById('btn-auto-end').addEventListener('click', () => {
+        document.getElementById('btn-auto-end')?.addEventListener('click', () => {
             if (this.state.screen === 'battle' && this.state.phase === 'playing') {
                 endTurn(this.state);
                 this.checkEnd();
             }
         });
 
-        document.getElementById('btn-cheat-hand').addEventListener('click', () => {
+        document.getElementById('btn-cheat-hand')?.addEventListener('click', () => {
             if (this.state.screen === 'battle') {
                 this.cheatHand();
             }
         });
 
-        document.getElementById('btn-refill-deck').addEventListener('click', () => {
+        document.getElementById('btn-refill-deck')?.addEventListener('click', () => {
             if (this.state.screen === 'battle') {
                 while (this.state.deck.length < 5) {
-                    this.state.deck.push(createCardInstance('precise_strike'));
+                    this.state.deck.push(createCardInstance('brute_force'));
                 }
                 logCombat(this.state, '调试: 牌库已补满');
                 this.log('牌库已补满');
             }
         });
 
-        document.getElementById('btn-kill-monster').addEventListener('click', () => {
+        document.getElementById('btn-kill-monster')?.addEventListener('click', () => {
             if (this.state.screen === 'battle') {
                 this.state.monster.hp = 0;
                 this.state.phase = 'ended';
@@ -69,31 +67,27 @@ const AutoTest = {
             }
         });
 
-        document.getElementById('btn-heal-player').addEventListener('click', () => {
+        document.getElementById('btn-heal-player')?.addEventListener('click', () => {
             if (this.state.screen === 'battle') {
                 this.state.player.hearts = this.state.player.maxHearts;
                 this.log('玩家生命回满');
             }
         });
 
-        document.getElementById('btn-reset-battle').addEventListener('click', () => {
+        document.getElementById('btn-reset-battle')?.addEventListener('click', () => {
             restartGame();
             this.log('战斗已重置');
         });
 
-        document.getElementById('btn-set-mul').addEventListener('click', () => {
+        document.getElementById('btn-set-mul')?.addEventListener('click', () => {
             if (this.state.screen !== 'battle') return;
-            const m0 = parseInt(document.getElementById('slot0-mul').value) || 0;
-            const m1 = parseInt(document.getElementById('slot1-mul').value) || 1;
-            const m2 = parseInt(document.getElementById('slot2-mul').value) || 2;
-            const m3 = parseInt(document.getElementById('slot3-mul').value) || 1;
-            const m4 = parseInt(document.getElementById('slot4-mul').value) || 0;
+            const m0 = parseInt(document.getElementById('slot0-mul')?.value) || 0;
+            const m1 = parseInt(document.getElementById('slot1-mul')?.value) || 1;
+            const m2 = parseInt(document.getElementById('slot2-mul')?.value) || 1;
             if (this.state.slots[0]) this.state.slots[0].multiplier = m0;
             if (this.state.slots[1]) this.state.slots[1].multiplier = m1;
             if (this.state.slots[2]) this.state.slots[2].multiplier = m2;
-            if (this.state.slots[3]) this.state.slots[3].multiplier = m3;
-            if (this.state.slots[4]) this.state.slots[4].multiplier = m4;
-            this.log(`倍率已设置: [${m0}X, ${m1}X, ${m2}X, ${m3}X, ${m4}X]`);
+            this.log(`倍率已设置: [${m0}X, ${m1}X, ${m2}X]`);
         });
     },
 
@@ -160,23 +154,22 @@ const AutoTest = {
         if (this.state.screen !== 'battle') return;
         const choice = prompt(
             '输入想要的手牌组合（用逗号分隔）：\n' +
-            '1=精确打击, 2=佯攻, 3=保养装备\n' +
-            '6=战时训练, 7=炫耀肌肉, 8=训练痕迹, 9=训练技巧, 10=再训练\n' +
-            '11=30小时训练, 12=持续训练, 13=激素训练, 14=训练纲领, 15=合理训练\n' +
-            '16=肌肉不会背叛你, 17=爱护装备, 18=理清头绪, 19=忆往昔, 20=豪华装备\n' +
-            '例如: 1,1,3,2,6',
-            '1,1,3,2,6'
+            '1=蛮力, 2=思考, 3=爬藤\n' +
+            '4=备战, 5=坚守, 6=共同目标, 7=友好交流\n' +
+            '8=大蛮力, 9=理清头绪, 10=搭把手, 11=传令\n' +
+            '12=豪华装备, 13=终极蛮力, 14=我思故我在\n' +
+            '15=战时训练, 16=训练痕迹, 17=猛训练, 18=集体训练\n' +
+            '例如: 1,1,3,2,15',
+            '1,1,3,2,15'
         );
         if (!choice) return;
 
         const map = {
-            '1': 'precise_strike', '2': 'feint', '3': 'maintain_gear',
-            '4': 'wild_strike', '5': 'shield_bash',
-            '6': 'war_training', '7': 'show_muscle', '8': 'training_trace',
-            '9': 'hone_skill', '10': 're_training', '11': 'thirty_hour_training',
-            '12': 'extra_training', '13': 'training_hormone', '14': 'training_program',
-            '15': 'proper_training', '16': 'muscle_never_betrays', '17': 'surging_anger',
-            '18': 'clear_mind', '19': 'recall_past', '20': 'perfect_state'
+            '1': 'brute_force', '2': 'ponder', '3': 'vine_climb',
+            '4': 'prepare_battle', '5': 'hold_position', '6': 'common_goal', '7': 'friendly_chat',
+            '8': 'big_brute_force', '9': 'clear_mind', '10': 'lend_hand', '11': 'messenger',
+            '12': 'luxury_gear', '13': 'ultimate_brute', '14': 'cogito_ergo_sum',
+            '15': 'war_training', '16': 'training_trace', '17': 'intense_training', '18': 'group_training'
         };
         const ids = choice.split(',').map(s => map[s.trim()]).filter(id => id);
 
@@ -194,37 +187,25 @@ const AutoTest = {
     runSmokeTest() {
         this.log('=== 冒烟测试开始 ===');
         const testState = createInitialState();
-        drawCards(testState, 4);
+        drawCards(testState, 5);
 
-        console.assert(testState.player.hearts === 3, '初始生命应为3');
-        console.assert(testState.slots[2].multiplier === 2, '中间格应为2X');
+        console.assert(testState.player.hearts === 4, '初始生命应为4');
+        console.assert(testState.slots[1].multiplier === 1, '中间格应为1X');
         this.log('测试1 通过: 初始状态正确');
 
-        const strike = testState.hand.find(c => c.defId === 'precise_strike');
-        if (strike) {
-            playCardToSlot(strike, 2, testState);
+        const brute = testState.hand.find(c => c.defId === 'brute_force');
+        if (brute) {
+            playCardToSlot(brute, 1, testState);
             const dmg = calculateTotalBoardDamage(testState);
-            console.assert(dmg === 16, `精确打击在2X格应为16，实际${dmg}`);
-            this.log('测试2 通过: 精确打击基础伤害正确');
+            console.assert(dmg === 15, `蛮力在1X格应为15，实际${dmg}`);
+            this.log('测试2 通过: 蛮力基础伤害正确');
         }
 
-        const feint = testState.hand.find(c => c.defId === 'feint');
-        if (feint) {
-            playCardToSlot(feint, 1, testState);
-            const strikeOnBoard = testState.slots[2].cards.find(c => c.defId === 'precise_strike');
-            if (strikeOnBoard) {
-                const val = getCardEffectiveValue(strikeOnBoard, testState);
-                console.assert(val === 6, `佯攻光环后精确打击应为6，实际${val}`);
-                this.log('测试3 通过: 驻场光环正确');
-            }
-        }
-
-        const strike2 = testState.hand.find(c => c.defId === 'precise_strike');
-        if (strike2) {
-            playCardToSlot(strike2, 3, testState);
-            const val = getCardFinalValue(strike2, testState);
-            console.assert(val === 10, `伟力应翻倍为10，实际${val}`);
-            this.log('测试4 通过: 伟力翻倍正确');
+        const vet = testState.hand.find(c => c.defId === 'veteran_ambition');
+        if (vet) {
+            playCardToSlot(vet, 0, testState);
+            const val = calculateTotalBoardDamage(testState);
+            this.log('测试3 通过: 老兵雄心伟力翻倍正确');
         }
 
         this.log('=== 冒烟测试结束 ===');
@@ -247,7 +228,7 @@ window.godMode = function() {
     AutoTest.log('上帝模式已开启');
 };
 
-window.fullHand = function(type = 'precise_strike', count = 5) {
+window.fullHand = function(type = 'brute_force', count = 5) {
     if (!window.gameState || window.gameState.screen !== 'battle') return;
     for (let i = 0; i < count; i++) {
         window.gameState.hand.push(createCardInstance(type));
@@ -271,7 +252,7 @@ window.simulateBattles = function(count = 100, verbose = false) {
     let totalTurns = 0;
     for (let i = 0; i < count; i++) {
         const s = startBattle();
-        drawCards(s, 4);
+        drawCards(s, 5);
         let safety = 50;
         while (s.phase !== 'ended' && safety-- > 0) {
             let played = 0;

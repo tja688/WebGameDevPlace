@@ -868,7 +868,7 @@ export const Input = {
                 if (runData.gold < (param || 1)) { showPlaceholderToast('金币不足！'); return; }
                 runData.gold -= (param || 1);
                 // 随机奖励池卡牌
-                const pool = ['war_training', 'show_muscle', 'social_strike', 'spread_seed', 'dedicated_guard'];
+                const pool = ['war_training', 'brute_force', 'ponder', 'vine_climb', 'clear_mind'];
                 const randomDef = pool[Math.floor(Math.random() * pool.length)];
                 const newCard = createCardInstance(randomDef);
                 runData.deck.push(newCard);
@@ -876,7 +876,7 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
             case 'gain_random_card':
-                const freePool = ['war_training', 'show_muscle', 'social_strike', 'spread_seed', 'dedicated_guard'];
+                const freePool = ['war_training', 'brute_force', 'ponder', 'vine_climb', 'clear_mind'];
                 const freeRandomDef = freePool[Math.floor(Math.random() * freePool.length)];
                 const freeCard = createCardInstance(freeRandomDef);
                 runData.deck.push(freeCard);
