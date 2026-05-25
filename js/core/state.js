@@ -84,7 +84,7 @@ export function createRunData(classId) {
         // 计策强化等级
         strategyLevels: {},
         // 跨层保留
-        extraMultiplier: 1   // 额外指数（装备加成）
+        extraMultiplier: 1   // 额外指数（遗物加成）
     };
 }
 
@@ -146,7 +146,20 @@ export function createInitialState() {
             prevStrategyId: null,
             disableDedicate: false,
             yellowDomain: false,
-            yellowHeart: false
+            yellowHeart: false,
+            leftSlotBonus: 0,
+            centerCardPenalty: 0,
+            firstCardRandomSlotRemain: false,
+            notFirstSlotPenalty: 0,
+            firstCardSlotIndex: -1,
+            retainHandCard: false,
+            disableFrequentStrategy: false,
+            playDiffusionEvery3: 0,
+            cardsPlayedThisTurn: 0,
+            monsterGrow: 0,
+            disableRandomRelic: false,
+            disabledRelicEffect: null,
+            loseGoldPerTurn: 0
         },
         slots: slots,
         deck: deck,

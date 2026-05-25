@@ -12,6 +12,7 @@ import { logCombat, recordTimeline } from '../core/battle-core.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger } from '../core/constants.js';
 import { detectStrategy } from './strategy.js';
+import { createCardInstance } from '../data/index.js';
 
 // ===== 工具函数 =====
 
@@ -91,7 +92,7 @@ export function calculateTotalBoardDamage(state) {
         }
         total += slotDamage * slotMul;
     }
-    // 额外指数（装备加成等）
+    // 额外指数（遗物加成等）
     const extraMultiplier = state.runDataRef?.extraMultiplier || 1;
     return total * extraMultiplier;
 }
@@ -101,6 +102,9 @@ export function calculateTotalBoardDamage(state) {
 export function canPlaceCard(card, slot, state) {
     if (card.size > 1) {
         return { ok: false, reason: '多格卡暂未实现' };
+    }
+    if (card.retainDisabledThisTurn) {
+        return { ok: false, reason: '该卡牌本回合被禁用' };
     }
     return { ok: true };
 }
@@ -129,9 +133,39 @@ export function playCardToSlot(card, slotIndex, state) {
         slotIndex
     });
 
+    // 怪奇舞者——踢踏舞：第一张打出的卡牌随机打出在任意倍率格并留场
+    if (!state.firstCardPlayedThisTurn && state.monster.firstCardRandomSlotRemain) {
+        const randomSlot = Math.floor(Math.random() * state.slots.length);
+        if (randomSlot !== slotIndex) {
+            // 将卡牌从原slot移到随机slot
+            const oldIdx = slot.cards.findIndex(c => c.uuid === card.uuid);
+            if (oldIdx !== -1) {
+                slot.cards.splice(oldIdx, 1);
+                state.slots[randomSlot].cards.push(card);
+            }
+            recordTimeline(state, 'card_random_slot', {
+                cardUuid: card.uuid,
+                cardDefId: card.defId,
+                cardName: card.name,
+                fromSlot: slotIndex,
+                toSlot: randomSlot,
+                monsterName: state.monster.name
+            });
+            logCombat(state, `${state.monster.name} 的踢踏舞生效：${card.name} 被随机打到了第 ${randomSlot + 1} 格！`);
+        }
+        // 赋予留场效果
+        if (!card.keywords.includes('remain')) {
+            card.keywords.push('remain');
+        }
+        state.monster.firstCardSlotIndex = randomSlot;
+    }
+
     // 记录本回合第一张打出的牌（用于怪物技能）
     if (!state.firstCardPlayedThisTurn) {
         state.firstCardPlayedThisTurn = card;
+        if (state.monster.firstCardSlotIndex < 0) {
+            state.monster.firstCardSlotIndex = slotIndex;
+        }
     }
 
     // 怪物技能：第一张打出牌直接进弃牌堆（不触发ON_PLAY）
@@ -185,6 +219,26 @@ export function playCardToSlot(card, slotIndex, state) {
 
     // 检测计策变化；条件不满足时必须立刻清空旧计策
     state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+
+    // 蘑菇儿子——孢子云：每打出三张卡牌，打出一张【扩散】到任意倍率格
+    if (state.monster.playDiffusionEvery3 > 0) {
+        state.monster.cardsPlayedThisTurn++;
+        if (state.monster.cardsPlayedThisTurn % state.monster.playDiffusionEvery3 === 0) {
+            const diffusion = createCardInstance('diffusion');
+            if (diffusion) {
+                const randomSlot = Math.floor(Math.random() * state.slots.length);
+                diffusion.hasBeenPlayed = true;
+                state.slots[randomSlot].cards.push(diffusion);
+                recordTimeline(state, 'monster_play_diffusion', {
+                    cardUuid: diffusion.uuid,
+                    slotIndex: randomSlot,
+                    monsterName: state.monster.name
+                });
+                logCombat(state, `${state.monster.name} 的孢子云生效：一张【扩散】被打出到了第 ${randomSlot + 1} 格！`);
+                state.slotFlashes.push({ slotIndex: randomSlot, timer: 20 });
+            }
+        }
+    }
 
     return true;
 }

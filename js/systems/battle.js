@@ -71,7 +71,20 @@ export function initBattleFromRun(runData) {
             prevStrategyId: null,
             disableDedicate: false,
             yellowDomain: false,
-            yellowHeart: false
+            yellowHeart: false,
+            leftSlotBonus: 0,
+            centerCardPenalty: 0,
+            firstCardRandomSlotRemain: false,
+            notFirstSlotPenalty: 0,
+            firstCardSlotIndex: -1,
+            retainHandCard: false,
+            disableFrequentStrategy: false,
+            playDiffusionEvery3: 0,
+            cardsPlayedThisTurn: 0,
+            monsterGrow: 0,
+            disableRandomRelic: false,
+            disabledRelicEffect: null,
+            loseGoldPerTurn: 0
         },
         slots: slots,
         deck: deck,
@@ -115,6 +128,13 @@ export function initBattleFromRun(runData) {
         const allStrats = getAllStrategies();
         state.monster.prevStrategyId = pickRandom(allStrats.base).id;
     }
+
+    // 盗贼：遗物偷取——随机禁用一件遗物效果
+    if (state.monster.disableRandomRelic && state.player.relic) {
+        state.monster.disabledRelicEffect = { ...state.player.relic.effect };
+        state.player.relic.effect = null;
+        logCombat(state, `${state.monster.name} 的技能生效：${state.monster.disabledRelicEffect.type ? '你的遗物效果被偷走了！' : '但你的遗物似乎没什么可偷的...'}`);
+    }
     recordTimeline(state, 'battle_start', {
         stageKey,
         monsterName: state.monster.name,
@@ -136,7 +156,7 @@ export function initBattleFromRun(runData) {
     }
     drawCards(state, drawCount);
 
-    // 战场经验：首回合多抽牌（玩家装备效果）
+    // 战场经验：首回合多抽牌（玩家遗物效果）
     if (state.player.relic?.effect?.type === 'first_turn_extra_draw' && state.turn === 1) {
         const extraDraw = state.player.relic.effect.bonus || 1;
         drawCards(state, extraDraw);
@@ -179,6 +199,16 @@ function parseMonsterSkills(monster) {
             case 'disable_dedicate': monster.disableDedicate = true; break;
             case 'yellow_domain': monster.yellowDomain = true; break;
             case 'yellow_heart': monster.yellowHeart = true; break;
+            case 'left_slot_bonus_1': monster.leftSlotBonus = 1; break;
+            case 'center_card_penalty_5': monster.centerCardPenalty = 5; break;
+            case 'first_card_random_slot_remain': monster.firstCardRandomSlotRemain = true; break;
+            case 'not_first_slot_penalty_5': monster.notFirstSlotPenalty = 5; break;
+            case 'retain_hand_card': monster.retainHandCard = true; break;
+            case 'disable_frequent_strategy': monster.disableFrequentStrategy = true; break;
+            case 'play_diffusion_every_3': monster.playDiffusionEvery3 = 3; break;
+            case 'monster_grow_100': monster.monsterGrow = 100; break;
+            case 'disable_random_relic': monster.disableRandomRelic = true; break;
+            case 'lose_gold_per_turn': monster.loseGoldPerTurn = 1; break;
         }
     }
 }
@@ -192,6 +222,39 @@ export function endTurn(state) {
 
     // 检测当前计策
     state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+
+    // 梦中的你——噩梦：玩家无法触发最常用计策的加成效果
+    if (state.currentStrategy && state.monster.disableFrequentStrategy && state.runDataRef) {
+        if (!state.runDataRef.strategyCounts) state.runDataRef.strategyCounts = {};
+        // 先增加当前计策计数
+        const sid = state.currentStrategy.id;
+        state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
+        // 找出最常用计策
+        let maxCount = -1;
+        let frequentId = null;
+        for (const [id, count] of Object.entries(state.runDataRef.strategyCounts)) {
+            if (count > maxCount) {
+                maxCount = count;
+                frequentId = id;
+            }
+        }
+        // 如果当前计策是最常用的，禁用它
+        if (frequentId && state.currentStrategy.id === frequentId) {
+            recordTimeline(state, 'strategy_disabled', {
+                strategyId: state.currentStrategy.id,
+                strategyName: state.currentStrategy.name,
+                reason: 'disable_frequent_strategy'
+            });
+            logCombat(state, `梦中的你——噩梦生效：最常用的计策【${state.currentStrategy.name}】被禁用了！`);
+            state.currentStrategy = null;
+        }
+    } else if (state.currentStrategy && state.runDataRef) {
+        // 正常记录计策使用次数
+        if (!state.runDataRef.strategyCounts) state.runDataRef.strategyCounts = {};
+        const sid = state.currentStrategy.id;
+        state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
+    }
+
     if (state.currentStrategy) {
         recordTimeline(state, 'strategy_detected', {
             strategyId: state.currentStrategy.id,
@@ -359,6 +422,16 @@ export function endTurn(state) {
     state.turnDamage = 0;
     state.currentStrategy = null;
     state.firstCardPlayedThisTurn = null;
+    state.monster.firstCardSlotIndex = -1;
+    state.monster.cardsPlayedThisTurn = 0;
+
+    // 清除上回合被梦中的你禁用的卡牌标记
+    for (const card of state.hand) {
+        if (card.retainDisabledThisTurn) {
+            delete card.retainDisabledThisTurn;
+        }
+    }
+
     recordTimeline(state, 'turn_start', { turn: state.turn });
 
     // 弃牌堆洗回牌库，抽5张

@@ -68,3 +68,72 @@ registerEffect({
         ctx.log(`黄色君王的黄之心生效：${card.name} 被赋予了奉献词条`);
     }
 });
+
+// 蘑菇儿子——成长：每回合怪物血量提升100
+registerEffect({
+    id: 'monster_grow_100',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.SPECIAL + 15,
+    condition: (ctx) => ctx.state.monster.monsterGrow > 0,
+    execute: (ctx) => {
+        const grow = ctx.state.monster.monsterGrow;
+        const before = ctx.state.monster.hp;
+        ctx.state.monster.hp = Math.min(ctx.state.monster.maxHp, before + grow);
+        const actualGrow = ctx.state.monster.hp - before;
+        if (actualGrow > 0) {
+            recordTimeline(ctx.state, 'monster_grow', {
+                monsterName: ctx.state.monster.name,
+                amount: actualGrow,
+                hpBefore: before,
+                hpAfter: ctx.state.monster.hp
+            });
+            ctx.log(`${ctx.state.monster.name} 的成长生效：血量提升 ${actualGrow} 点`);
+        }
+    }
+});
+
+// 盗贼——顺手的事！：玩家每回合减少1金币
+registerEffect({
+    id: 'lose_gold_per_turn',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.state.monster.loseGoldPerTurn > 0 && ctx.state.runDataRef,
+    execute: (ctx) => {
+        const lost = Math.min(ctx.state.monster.loseGoldPerTurn, ctx.state.runDataRef.gold || 0);
+        if (lost > 0) {
+            ctx.state.runDataRef.gold -= lost;
+            recordTimeline(ctx.state, 'gold_lost', {
+                amount: lost,
+                goldAfter: ctx.state.runDataRef.gold
+            });
+            ctx.log(`${ctx.state.monster.name} 的技能生效：失去 ${lost} 金币`);
+        }
+    }
+});
+
+// 梦中的你——怀念：回合开始给一张手牌赋予保留词条
+registerEffect({
+    id: 'retain_hand_card',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.SPECIAL + 18,
+    condition: (ctx) => ctx.state.monster.retainHandCard && ctx.state.hand.length > 0,
+    execute: (ctx) => {
+        const hand = ctx.state.hand;
+        const candidates = hand.filter(card => !card.keywords.includes('retain'));
+        if (candidates.length <= 0) return;
+
+        const idx = Math.floor(Math.random() * candidates.length);
+        const card = candidates[idx];
+        if (!card.keywords.includes('retain')) {
+            card.keywords.push('retain');
+        }
+        card.retainDisabledThisTurn = true;
+        recordTimeline(ctx.state, 'card_keyword_added', {
+            cardUuid: card.uuid,
+            cardDefId: card.defId,
+            keyword: 'retain',
+            reason: 'retain_hand_card'
+        });
+        ctx.log(`梦中的你——怀念生效：${card.name} 被赋予了保留词条，本回合无法使用`);
+    }
+});

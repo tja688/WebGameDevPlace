@@ -70,7 +70,7 @@ export const MONSTER_DEFS = {
     face_plant: {
         id: 'face_plant',
         name: '人面草',
-        hp: 300,
+        hp: 200,
         description: '地下城中生长的诡异植物，会诱惑猎物靠近',
         keywords: ['center_grow_1', 'less_draw_1'],
         keywordDesc: '香甜诱饵：打出在最中间倍率格上的卡牌成长1；盘根：玩家每回合少抽一张牌',
@@ -79,39 +79,30 @@ export const MONSTER_DEFS = {
         shape: 'flower'
     },
 
-    // 1-2 普通怪池
-    rotten_rat: {
-        id: 'rotten_rat',
-        name: '腐化田鼠',
-        hp: 400,
-        description: '被污染农田里钻出的病鼠',
-        keywords: ['edge_penalty_5'],
-        keywordDesc: '放在最左和最右的倍率格子上的卡牌数值-5',
+    // 1-2 普通怪池（独臂巨人）
+    one_arm_giant: {
+        id: 'one_arm_giant',
+        name: '独臂巨人',
+        hp: 600,
+        description: '只剩下一只手臂的巨人，但力量依然惊人',
+        keywords: ['left_slot_bonus_1', 'center_card_penalty_5'],
+        keywordDesc: '左侧虚弱：最左侧倍率格点数+1；中丢石：打出在最中间倍率格上的卡牌点数-5',
         theme: 'normal',
         type: 'normal',
-        shape: 'rat'
+        shape: 'golem'
     },
-    mud_slime: {
-        id: 'mud_slime',
-        name: '泥浆软泥怪',
-        hp: 400,
-        description: '被污染的泥浆凝聚而成的怪物',
-        keywords: [],
-        keywordDesc: '',
-        theme: 'slime',
+
+    // 1-3 普通怪池（怪奇舞者）
+    strange_dancer: {
+        id: 'strange_dancer',
+        name: '怪奇舞者',
+        hp: 500,
+        description: '跳着诡异舞蹈的怪物，打乱你的节奏',
+        keywords: ['first_card_random_slot_remain', 'not_first_slot_penalty_5'],
+        keywordDesc: '踢踏舞：每回合打出的第一张卡牌随机打出在任意倍率格并使该卡牌留场；战舞：没打出在每回合第一张卡牌所在倍率格的卡牌点数-5',
+        theme: 'elite',
         type: 'normal',
-        shape: 'slime'
-    },
-    polluted_flower: {
-        id: 'polluted_flower',
-        name: '污染之花',
-        hp: 400,
-        description: '被地下城气息侵蚀的食人花',
-        keywords: [],
-        keywordDesc: '',
-        theme: 'flower',
-        type: 'normal',
-        shape: 'flower'
+        shape: 'bat'
     },
 
     // 1-3 普通怪池
@@ -162,7 +153,103 @@ export const MONSTER_DEFS = {
         shape: 'golem'
     },
 
-    // 1-5 普通怪池
+    // 1-5 普通怪池（梦中的你）
+    dream_self: {
+        id: 'dream_self',
+        name: '梦中的你',
+        hp: 800,
+        description: '你梦中的倒影，熟悉又陌生',
+        keywords: ['retain_hand_card', 'disable_frequent_strategy'],
+        keywordDesc: '怀念：回合开始给一张手牌赋予词条保留，该卡牌本回合无法使用；噩梦：玩家无法触发最常用计策的加成效果',
+        theme: 'bat',
+        type: 'normal',
+        shape: 'bat'
+    },
+
+    // 1-6 普通怪池（蘑菇儿子）
+    mushroom_son: {
+        id: 'mushroom_son',
+        name: '蘑菇儿子',
+        hp: 1200,
+        description: '一只会释放孢子的小蘑菇怪',
+        keywords: ['play_diffusion_every_3', 'monster_grow_100'],
+        keywordDesc: '孢子云：每打出三张卡牌，打出一张【扩散】到任意倍率格；成长：每回合怪物血量提升100',
+        theme: 'slime',
+        type: 'normal',
+        shape: 'slime'
+    },
+
+    // 1-2 旧怪物（保留供测试/Playground 使用）
+    rotten_rat: {
+        id: 'rotten_rat',
+        name: '腐化田鼠',
+        hp: 400,
+        description: '被污染农田里钻出的病鼠',
+        keywords: ['edge_penalty_5'],
+        keywordDesc: '放在最左和最右的倍率格子上的卡牌数值-5',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    mud_slime: {
+        id: 'mud_slime',
+        name: '泥浆软泥怪',
+        hp: 400,
+        description: '被污染的泥浆凝聚而成的怪物',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'slime',
+        type: 'normal',
+        shape: 'slime'
+    },
+    polluted_flower: {
+        id: 'polluted_flower',
+        name: '污染之花',
+        hp: 400,
+        description: '被地下城气息侵蚀的食人花',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'flower',
+        type: 'normal',
+        shape: 'flower'
+    },
+
+    // 1-3 旧怪物（保留供测试/Playground 使用）
+    gluttony_swarm: {
+        id: 'gluttony_swarm',
+        name: '暴食鼠群',
+        hp: 500,
+        description: '成群结队觅食的硕鼠',
+        keywords: ['left_penalty_10'],
+        keywordDesc: '放在最左倍率格子上的卡牌数值-10',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+    stone_guard: {
+        id: 'stone_guard',
+        name: '断墙守卫',
+        hp: 500,
+        description: '被魔法唤醒的石制守卫',
+        keywords: ['left_penalty_10'],
+        keywordDesc: '放在最左倍率格子上的卡牌数值-10',
+        theme: 'stone',
+        type: 'normal',
+        shape: 'golem'
+    },
+    blade_bro: {
+        id: 'blade_bro',
+        name: '白雾刀手',
+        hp: 500,
+        description: '在白雾中游荡的持刀怪物',
+        keywords: [],
+        keywordDesc: '',
+        theme: 'normal',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 1-5 旧怪物（保留供测试/Playground 使用）
     soul_thief: {
         id: 'soul_thief',
         name: '焦点扰乱者',
@@ -197,7 +284,7 @@ export const MONSTER_DEFS = {
         shape: 'slime'
     },
 
-    // 1-6 普通怪池
+    // 1-6 旧怪物（保留供测试/Playground 使用）
     shadow_assassin: {
         id: 'shadow_assassin',
         name: '暗影刺客',
@@ -232,7 +319,7 @@ export const MONSTER_DEFS = {
         shape: 'rat'
     },
 
-    // 1-7 普通怪池
+    // 1-7 旧怪物（保留供测试/Playground 使用）
     gold_eater: {
         id: 'gold_eater',
         name: '吞金兽',
@@ -263,6 +350,19 @@ export const MONSTER_DEFS = {
         keywords: ['steal_gold'],
         keywordDesc: '每造成一次伤害减少玩家1金币',
         theme: 'elite',
+        type: 'normal',
+        shape: 'rat'
+    },
+
+    // 1-7 普通怪池（盗贼）
+    thief: {
+        id: 'thief',
+        name: '盗贼',
+        hp: 1600,
+        description: '身手敏捷的盗贼，会偷走你的遗物和金币',
+        keywords: ['disable_random_relic', 'lose_gold_per_turn'],
+        keywordDesc: '遗物偷取：随机一件遗物效果失效；顺手的事！：玩家每回合减少1金币',
+        theme: 'normal',
         type: 'normal',
         shape: 'rat'
     },

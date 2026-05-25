@@ -619,7 +619,7 @@ function drawPlayerArea(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.fillText('⚔️', x + 60, badgeY + 12);
 
-    // 初始装备名称
+    // 初始遗物名称
     ctx.fillStyle = '#cc9955';
     ctx.font = 'bold 11px Microsoft YaHei';
     ctx.fillText(state.player.relic.name, x + 60, badgeY + 48);
@@ -652,7 +652,7 @@ function drawPlayerArea(renderer, ctx, state) {
 }
 
 // ============================================================
-// 装备栏（右上角，类似杀戮尖塔）
+// 遗物栏（右上角，类似杀戮尖塔）
 // ============================================================
 
 function drawRelicsBar(renderer, ctx, state) {

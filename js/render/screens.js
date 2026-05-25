@@ -134,7 +134,7 @@ export function drawClassSelect(renderer, ctx, state) {
 
         ctx.fillStyle = isAvailable ? '#b8860b' : '#444';
         ctx.font = '16px Microsoft YaHei';
-        ctx.fillText(`装备: ${cls.relic.name}`, x + cardW / 2, y + 270);
+        ctx.fillText(`遗物: ${cls.relic.name}`, x + cardW / 2, y + 270);
 
         ctx.fillStyle = isAvailable ? '#aaa' : '#444';
         ctx.font = '14px Microsoft YaHei';
@@ -277,7 +277,7 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 装备: ${runData.relics.length} 件 | 倍率格: 3格`, 30, renderer.height - 60);
+    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 件 | 倍率格: 3格`, 30, renderer.height - 60);
 
     if (runData.stageIndex < 8) {
         const curKey = getCurrentStageKey(runData);
@@ -298,7 +298,7 @@ export function drawBossRelic(renderer, ctx, state) {
     const data = state.data;
     const cx = renderer.width / 2;
 
-    drawGlowText(ctx, 'BOSS装备 - 选择一项奖励', cx, 100, {
+    drawGlowText(ctx, 'BOSS遗物 - 选择一项奖励', cx, 100, {
         color: '#ffd700',
         glowColor: '#b8860b',
         glowBlur: 15,
@@ -378,7 +378,7 @@ export function drawPostBattle(renderer, ctx, state) {
     ctx.fillRect(0, 0, renderer.width, renderer.height);
 
     let title = '战后休整';
-    if (data.type === 'treasure') title = '装备宝箱';
+    if (data.type === 'treasure') title = '遗物宝箱';
     else if (data.type === 'shop_choice') title = '选择你的前路';
 
     drawGlowText(ctx, title, cx, 100, {
@@ -886,7 +886,7 @@ export function drawShop(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = 'bold 18px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('装备', 60, 505);
+    ctx.fillText('遗物', 60, 505);
 
     const relicW = 270;
     const relicH = 58;
@@ -1008,7 +1008,7 @@ export function drawBlacksmith(renderer, ctx, state) {
     const startY = 100;
 
     const columns = [
-        { title: '🎁 装备', items: [] },
+        { title: '🎁 遗物', items: [] },
         { title: '⚡ 强化倍率格', items: [] },
         { title: '✨ 服务', items: [] }
     ];
@@ -1050,9 +1050,9 @@ export function drawBlacksmith(renderer, ctx, state) {
     }
     columns[2].items.push({
         type: 'refresh',
-        name: '刷新装备+词条',
+        name: '刷新遗物+词条',
         cost: refreshCost,
-        subText: runData.firstBlacksmithRefreshFree ? '首次免费！' : '重新生成装备和附魔词条'
+        subText: runData.firstBlacksmithRefreshFree ? '首次免费！' : '重新生成遗物和附魔词条'
     });
 
     for (let c = 0; c < columns.length; c++) {
@@ -1246,7 +1246,7 @@ export function drawTreasure(renderer, ctx, state) {
         ctx.fillStyle = '#ffd700';
         ctx.font = 'bold 28px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText('你获得了装备！', cx, cy - 120);
+        ctx.fillText('你获得了遗物！', cx, cy - 120);
 
         const cardW = 360;
         const cardH = 220;
@@ -1388,7 +1388,7 @@ export function drawVictory(renderer, ctx, state) {
     ctx.font = '20px Microsoft YaHei';
     ctx.fillText(`累计获得金币: ${runData ? runData.gold : 0}`, cx, cy + 10);
     ctx.fillText(`牌库数量: ${runData ? runData.deck.length : 0} 张`, cx, cy + 45);
-    ctx.fillText(`装备数量: ${runData ? runData.relics.length : 0} 件`, cx, cy + 80);
+    ctx.fillText(`遗物数量: ${runData ? runData.relics.length : 0} 件`, cx, cy + 80);
 
     const btnW = 220;
     const btnH = 55;

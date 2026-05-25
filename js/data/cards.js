@@ -137,7 +137,7 @@ export const CARD_DEFS = {
     big_brute_force: {
         id: 'big_brute_force',
         name: '大蛮力',
-        baseValue: 25,
+        baseValue: 30,
         size: 1,
         keywords: [],
         rarity: 'blue',

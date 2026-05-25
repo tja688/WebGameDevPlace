@@ -201,6 +201,16 @@ function parseMonsterSkills(monster) {
             case 'steal_gold': monster.stealGold = true; break;
             case 'first_card_value_penalty_5': monster.firstCardValuePenalty = 5; break;
             case 'dodge': monster.dodge = true; break;
+            case 'left_slot_bonus_1': monster.leftSlotBonus = 1; break;
+            case 'center_card_penalty_5': monster.centerCardPenalty = 5; break;
+            case 'first_card_random_slot_remain': monster.firstCardRandomSlotRemain = true; break;
+            case 'not_first_slot_penalty_5': monster.notFirstSlotPenalty = 5; break;
+            case 'retain_hand_card': monster.retainHandCard = true; break;
+            case 'disable_frequent_strategy': monster.disableFrequentStrategy = true; break;
+            case 'play_diffusion_every_3': monster.playDiffusionEvery3 = 3; break;
+            case 'monster_grow_100': monster.monsterGrow = 100; break;
+            case 'disable_random_relic': monster.disableRandomRelic = true; break;
+            case 'lose_gold_per_turn': monster.loseGoldPerTurn = 1; break;
         }
     }
 }
@@ -241,7 +251,20 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
             steadyPenalty: false,
             stealGold: false,
             firstCardValuePenalty: 0,
-            dodge: false
+            dodge: false,
+            leftSlotBonus: 0,
+            centerCardPenalty: 0,
+            firstCardRandomSlotRemain: false,
+            notFirstSlotPenalty: 0,
+            firstCardSlotIndex: -1,
+            retainHandCard: false,
+            disableFrequentStrategy: false,
+            playDiffusionEvery3: 0,
+            cardsPlayedThisTurn: 0,
+            monsterGrow: 0,
+            disableRandomRelic: false,
+            disabledRelicEffect: null,
+            loseGoldPerTurn: 0
         },
         slots: slots,
         deck: deck,

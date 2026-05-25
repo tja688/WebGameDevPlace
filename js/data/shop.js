@@ -63,7 +63,7 @@ function getRelicPrice(relic) {
 /**
  * 创建商店库存
  * - 5张卡牌可选
- * - 3件装备可选
+ * - 3件遗物可选
  */
 export function createShopStock() {
     const cards = [];
@@ -88,7 +88,7 @@ export function createShopStock() {
 
 /**
  * 创建铁匠库存
- * - 2件非BOSS装备
+ * - 2件非BOSS遗物
  * - 附魔词条选项（2个随机词条）
  */
 export function createBlacksmithStock(excludeEnchantKeywords = []) {

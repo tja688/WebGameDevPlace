@@ -212,3 +212,52 @@ registerEffect({
         ctx.value -= ctx.state.monster.prevStrategyPenalty;
     }
 });
+
+// 独臂巨人——左侧虚弱：最左侧倍率格点数+1
+registerEffect({
+    id: 'left_slot_bonus_1',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER + 5,
+    condition: (ctx) => ctx.state.monster.leftSlotBonus > 0 && ctx.slotIndex === 0,
+    execute: (ctx) => {
+        ctx.value += ctx.state.monster.leftSlotBonus;
+    }
+});
+
+// 独臂巨人——中丢石：打出在最中间倍率格上的卡牌点数-5
+registerEffect({
+    id: 'center_card_penalty_5',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_PENALTY + 4,
+    condition: (ctx) => {
+        if (ctx.state.monster.centerCardPenalty <= 0) return false;
+        if (!ctx.card) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return targetSlot === 1;
+    },
+    execute: (ctx) => {
+        ctx.value -= ctx.state.monster.centerCardPenalty;
+        if (ctx.value < 0) ctx.value = 0;
+    }
+});
+
+// 怪奇舞者——战舞：没打出在每回合第一张卡牌所在倍率格的卡牌点数-5
+registerEffect({
+    id: 'not_first_slot_penalty_5',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_PENALTY + 5,
+    condition: (ctx) => {
+        if (ctx.state.monster.notFirstSlotPenalty <= 0) return false;
+        if (!ctx.card) return false;
+        const firstIdx = ctx.state.monster.firstCardSlotIndex;
+        if (firstIdx < 0) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return targetSlot !== firstIdx;
+    },
+    execute: (ctx) => {
+        ctx.value -= ctx.state.monster.notFirstSlotPenalty;
+        if (ctx.value < 0) ctx.value = 0;
+    }
+});

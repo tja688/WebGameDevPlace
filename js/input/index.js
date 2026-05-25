@@ -552,7 +552,7 @@ export const Input = {
         }
     },
 
-    // ===== BOSS装备选择 =====
+    // ===== BOSS遗物选择 =====
     handleBossRelicClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
@@ -563,7 +563,7 @@ export const Input = {
                 if (this.hitTest(pos, rect)) {
                     if (typeof GameAudio !== 'undefined') GameAudio.playWin();
                     runData.relics.push(rect.data);
-                    showPlaceholderToast(`获得BOSS装备：${rect.data.name}`);
+                    showPlaceholderToast(`获得BOSS遗物：${rect.data.name}`);
                     data.processing = true;
                     setTimeout(() => {
                         data.processing = false;
@@ -694,7 +694,7 @@ export const Input = {
                             delete relic.price;
                             delete relic.bought;
                             runData.relics.push(relic);
-                            showPlaceholderToast(`获得装备：${relic.name}`);
+                            showPlaceholderToast(`获得遗物：${relic.name}`);
                         }
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else {
@@ -818,7 +818,7 @@ export const Input = {
                         delete relic.price;
                         delete relic.bought;
                         runData.relics.push(relic);
-                        showPlaceholderToast(`获得装备：${item.name}`);
+                        showPlaceholderToast(`获得遗物：${item.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'upgrade_slot') {
                         if (runData.blacksmithSlotUpgraded) {
@@ -972,13 +972,13 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
             case 'gain_relic':
-                runData.relics.push({ name: '随机装备', desc: '获得一个低级装备（占位）' });
-                showPlaceholderToast('获得随机低级装备！');
+                runData.relics.push({ name: '随机遗物', desc: '获得一个低级遗物（占位）' });
+                showPlaceholderToast('获得随机低级遗物！');
                 this._finishEvent(runData);
                 return;
             case 'gain_rare_relic':
-                runData.relics.push({ name: '高级装备', desc: '获得一个高级装备（占位）' });
-                showPlaceholderToast('获得随机高级装备！');
+                runData.relics.push({ name: '高级遗物', desc: '获得一个高级遗物（占位）' });
+                showPlaceholderToast('获得随机高级遗物！');
                 this._finishEvent(runData);
                 return;
             case 'random_strategy_level':
@@ -1025,8 +1025,8 @@ export const Input = {
                     const shuffled = [...relicPool].sort(() => Math.random() - 0.5);
                     const options = shuffled.slice(0, 3).map(r => ({ name: r.name, desc: r.desc || r.description, effect: 'direct_relic', param: r }));
                     switchScreen(this.state, 'event', {
-                        runData, title: opt.name || '出土装备',
-                        desc: '选择一件中级装备',
+                        runData, title: opt.name || '出土遗物',
+                        desc: '选择一件中级遗物',
                         options,
                         returnScreen: 'map', returnData: data
                     });
@@ -1091,7 +1091,7 @@ export const Input = {
             case 'direct_relic':
                 if (param) {
                     runData.relics.push(param);
-                    showPlaceholderToast(`获得装备：${param.name}`);
+                    showPlaceholderToast(`获得遗物：${param.name}`);
                 }
                 this._finishEvent(runData);
                 return;
@@ -1328,7 +1328,7 @@ export const Input = {
                 this.updatePlayerTooltip(pos.x, pos.y);
                 this._playHoverSound();
             } else {
-                // 检测装备悬停
+                // 检测遗物悬停
                 const relicHover = this._checkRelicHover(pos);
                 if (relicHover) {
                     this.state.selectedCard = null;
@@ -1542,7 +1542,7 @@ export const Input = {
         const player = this.state.player;
         let html = `<h4>${player.name}</h4>`;
         html += `<p>❤️ 生命: ${player.hearts}/${player.maxHearts}</p>`;
-        html += `<p>🏛️ 装备: <b style="color:#cc9955">${player.relic.name}</b></p>`;
+        html += `<p>🏛️ 遗物: <b style="color:#cc9955">${player.relic.name}</b></p>`;
         html += `<p style="color:#aaa;font-size:12px;margin-top:4px">${player.relic.description || ''}</p>`;
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
