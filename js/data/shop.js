@@ -54,9 +54,9 @@ function pickRelicByRarity(relicPool) {
 }
 
 function getRelicPrice(relic) {
-    if (relic.rarity === 'common') return 2 + Math.floor(Math.random() * 3); // 2-4
-    if (relic.rarity === 'rare') return 4 + Math.floor(Math.random() * 3); // 4-6
-    if (relic.rarity === 'epic') return 8 + Math.floor(Math.random() * 3); // 8-10
+    if (relic.rarity === 'common') return 2;
+    if (relic.rarity === 'rare') return 4;
+    if (relic.rarity === 'epic') return 8;
     return 2;
 }
 

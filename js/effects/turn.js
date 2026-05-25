@@ -59,6 +59,8 @@ registerEffect({
         const idx = Math.floor(Math.random() * candidates.length);
         const card = candidates[idx];
         card.keywords.push('dedicate');
+        card._monsterAddedKeywords = card._monsterAddedKeywords || [];
+        card._monsterAddedKeywords.push('dedicate');
         recordTimeline(ctx.state, 'card_keyword_added', {
             cardUuid: card.uuid,
             cardDefId: card.defId,
@@ -126,6 +128,8 @@ registerEffect({
         const card = candidates[idx];
         if (!card.keywords.includes('retain')) {
             card.keywords.push('retain');
+            card._monsterAddedKeywords = card._monsterAddedKeywords || [];
+            card._monsterAddedKeywords.push('retain');
         }
         card.retainDisabledThisTurn = true;
         recordTimeline(ctx.state, 'card_keyword_added', {

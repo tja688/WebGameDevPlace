@@ -751,9 +751,13 @@ function drawStrategyPanel(renderer, ctx, state) {
         ctx.fillText(totalCards > 0 ? '当前没有命中阵型' : '放牌后会实时提示阵型', x + 14, y + 76);
     }
 
+    ctx.fillStyle = '#8f8170';
+    ctx.font = '11px Microsoft YaHei';
+    ctx.fillText(`倍率格已打出卡牌数量: ${totalCards}`, x + 14, y + 106);
+
     const all = getAllStrategies();
     const rows = [...all.base, ...all.overdrive];
-    let rowY = y + 116;
+    let rowY = y + 124;
     ctx.font = '11px Microsoft YaHei';
     for (const strat of rows) {
         const isCurrent = current && current.id === strat.id;
@@ -764,9 +768,11 @@ function drawStrategyPanel(renderer, ctx, state) {
             ctx.fill();
         }
 
+        const count = state.runDataRef?.strategyCounts?.[strat.id] || 0;
+        const nameText = count > 0 ? `${strat.name} (${count})` : strat.name;
         ctx.fillStyle = isCurrent ? '#ffe08a' : (strat.condition ? '#c68686' : '#bca98b');
         ctx.textAlign = 'left';
-        ctx.fillText(strat.name, x + 14, rowY);
+        ctx.fillText(nameText, x + 14, rowY);
         ctx.textAlign = 'right';
         ctx.fillText(strat.req.join('-'), x + w - 14, rowY);
         rowY += rowH;
@@ -814,7 +820,8 @@ function drawAdventureCheatPanel(renderer, ctx, state) {
         { id: 'next_card', text: '>', x: x + 119, y: y + 80, w: 36, h: 28 },
         { id: 'draw_one', text: '抽 1 张', x: x + 10, y: y + 118, w: 68, h: 30 },
         { id: 'heal', text: '回满人群', x: x + 87, y: y + 118, w: 68, h: 30 },
-        { id: 'win', text: '直接获胜', x: x + 10, y: y + 158, w: 145, h: 34, primary: true }
+        { id: 'add_gold', text: '+10金币', x: x + 10, y: y + 158, w: 68, h: 30 },
+        { id: 'win', text: '直接获胜', x: x + 87, y: y + 158, w: 68, h: 30, primary: true }
     ];
 
     data.adventureCheatRects = btns;
@@ -1141,6 +1148,26 @@ function drawCard(ctx, card, x, y, w, h, state, options = {}) {
         ctx.textAlign = 'center';
         ctx.fillText(kwData.name, x + w / 2, tagY + 13);
         tagY += 22;
+    }
+
+    // 保留词条角标
+    if (card.keywords.includes('retain')) {
+        const badgeR = 14;
+        const badgeX = x + w - badgeR - 6;
+        const badgeY = y + badgeR + 6;
+        ctx.fillStyle = '#4488ff';
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#88ccff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('留', badgeX, badgeY);
+        ctx.textBaseline = 'alphabetic';
     }
 
     // 格子数

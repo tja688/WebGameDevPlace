@@ -1562,6 +1562,11 @@ export const Input = {
                 this.state.player.hearts = this.state.player.maxHearts;
                 this.state.heartsLost = 0;
                 break;
+            case 'add_gold':
+                if (this.state.runDataRef) {
+                    this.state.runDataRef.gold += 10;
+                }
+                break;
             case 'win':
                 this.state.monster.hp = 0;
                 this.state.phase = 'ended';

@@ -249,6 +249,7 @@ export function playCardToSlot(card, slotIndex, state) {
         if (state.monster.cardsPlayedThisTurn % state.monster.playDiffusionEvery3 === 0) {
             const diffusion = createCardInstance('diffusion');
             if (diffusion) {
+                diffusion.isDerived = true;
                 const randomSlot = Math.floor(Math.random() * state.slots.length);
                 diffusion.hasBeenPlayed = true;
                 state.slots[randomSlot].cards.push(diffusion);

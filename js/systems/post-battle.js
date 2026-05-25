@@ -9,7 +9,7 @@
 
 import { pickRandom } from '../core/utils.js';
 import { getCurrentStageKey } from '../core/state.js';
-import { STAGE_CONFIG, RELIC_DEFS, createCardRewardOptions } from '../data/index.js';
+import { STAGE_CONFIG, RELIC_DEFS, CARD_DEFS, createCardRewardOptions } from '../data/index.js';
 
 // ===== 事件池定义（按 7.事件池.md） =====
 const EVENT_POOLS = {
@@ -69,9 +69,16 @@ export function generatePostBattleEvents(runData) {
     if (!pending) return [];
     const count = pending.count || 2;
     const options = [];
+    const maxAttempts = 50;
     for (let i = 0; i < count; i++) {
-        const tier = pickEventTier(pending.tier);
-        options.push(pickEventFromPool(tier));
+        let attempts = 0;
+        let event;
+        do {
+            const tier = pickEventTier(pending.tier);
+            event = pickEventFromPool(tier);
+            attempts++;
+        } while (attempts < maxAttempts && options.some(o => o.name === event.name));
+        options.push(event);
     }
     return options;
 }
@@ -114,6 +121,17 @@ export function resolveBattleEnd(battleState) {
         for (const c of allCards) {
             c.tempBonus = 0;
             c.dedicateTriggered = false;
+            if (c._monsterAddedKeywords) {
+                const def = CARD_DEFS[c.defId];
+                const originalKeywords = def ? def.keywords : [];
+                for (const kw of c._monsterAddedKeywords) {
+                    if (!originalKeywords.includes(kw)) {
+                        const idx = c.keywords.indexOf(kw);
+                        if (idx !== -1) c.keywords.splice(idx, 1);
+                    }
+                }
+                delete c._monsterAddedKeywords;
+            }
         }
         runData.deck = allCards.filter(c => !c.isDerived);
 

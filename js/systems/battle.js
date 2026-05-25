@@ -500,7 +500,7 @@ export function endTurn(state) {
     drawCards(state, nextDrawCount);
 
     // 龙眼：每回合额外抽2张牌
-    const dragonEyeNext = runData.relics.find(r => r.effect?.type === 'extra_draw_hand_limit');
+    const dragonEyeNext = state.runDataRef?.relics?.find(r => r.effect?.type === 'extra_draw_hand_limit');
     if (dragonEyeNext) {
         const extraDraw = dragonEyeNext.effect.drawBonus || 2;
         drawCards(state, extraDraw);
