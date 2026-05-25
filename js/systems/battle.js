@@ -109,6 +109,13 @@ export function initBattleFromRun(runData) {
     }
     drawCards(state, drawCount);
 
+    // 战场经验：首回合多抽牌（玩家装备效果）
+    if (state.player.relic?.effect?.type === 'first_turn_extra_draw' && state.turn === 1) {
+        const extraDraw = state.player.relic.effect.bonus || 1;
+        drawCards(state, extraDraw);
+        logCombat(state, `${state.player.relic.name} 生效，额外抽 ${extraDraw} 张牌`);
+    }
+
     // 播放对应BGM
     if (typeof GameAudio !== 'undefined') {
         const bgmType = monsterDef.type === 'boss' ? 'boss' : 'normal';

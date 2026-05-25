@@ -34,7 +34,7 @@ function makeTestState(handDefIds) {
 // Test 1: 初始状态
 const s = createInitialState();
 drawCards(s, 5);
-assert(s.player.hearts === 4, '老兵初始生命为4（老伙计们+1）');
+assert(s.player.hearts === 3, '老兵初始生命为3');
 assert(s.slots.length === 3, '牌桌为3格');
 assert(s.slots[0].multiplier === 1, '左格倍率为1X');
 assert(s.slots[1].multiplier === 1, '中格倍率为1X');
@@ -81,13 +81,11 @@ assert(ok6.ok, '第二版任意牌可无限堆叠');
 // Test 7: 扣人群规则（每回合固定扣1）
 const s7 = makeTestState([]);
 endTurn(s7);
-assert(s7.player.hearts === 3, '第一回合结束扣1人群，剩余3');
+assert(s7.player.hearts === 2, '第一回合结束扣1人群，剩余2');
 endTurn(s7);
-assert(s7.player.hearts === 2, '第二回合结束扣1人群，剩余2');
+assert(s7.player.hearts === 1, '第二回合结束扣1人群，剩余1');
 endTurn(s7);
-assert(s7.player.hearts === 1, '第三回合结束扣1人群，剩余1');
-endTurn(s7);
-assert(s7.player.hearts === 0, '第四回合结束扣1人群，总计4人群扣完');
+assert(s7.player.hearts === 0, '第三回合结束扣1人群，总计3人群扣完');
 assert(s7.phase === 'ended', '玩家死亡');
 assert(s7.result === 'lose', '战斗失败');
 

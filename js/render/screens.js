@@ -980,16 +980,18 @@ export function drawBlacksmith(renderer, ctx, state) {
     }
     columns[1].items.push({ type: 'upgrade_slot', name: '随机强化倍率格', cost: slotUpgradeCost, subText: `当前累计+${totalSlotUpgrades}倍率` });
 
-    const enchantCost = runData.blacksmithEnchantCost;
+    // 附魔费用按词条稀有度定价：低级 2 / 中级 4 / 高级 8
+    const ENCHANT_COST_MAP = { basic: 2, medium: 4, advanced: 8 };
     const refreshCost = runData.firstBlacksmithRefreshFree ? 0 : runData.blacksmithRefreshCost;
     const enchantKeywords = stock.enchantKeywords || [];
     for (const keyword of enchantKeywords) {
         const kwData = KEYWORDS[keyword];
+        const cost = kwData ? (ENCHANT_COST_MAP[kwData.tier] || 2) : 2;
         columns[2].items.push({
             type: 'enchant',
             keyword,
             name: kwData ? `附魔【${kwData.name}】` : '附魔词条',
-            cost: enchantCost,
+            cost: cost,
             subText: kwData ? `效果：${kwData.desc}` : '选定卡牌添加词条'
         });
     }

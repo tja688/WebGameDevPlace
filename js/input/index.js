@@ -434,7 +434,6 @@ export const Input = {
                         } else {
                             showPlaceholderToast('该卡牌已有相同词条');
                         }
-                        runData.blacksmithEnchantCost += 1;
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                         data.processing = false;
                         switchScreen(this.state, 'blacksmith', data.returnData || { runData });
