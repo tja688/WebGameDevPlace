@@ -131,6 +131,7 @@ registerEffect({
             sourceDefId: ctx.card.defId,
             cardUuid: copy.uuid,
             cardDefId: copy.defId,
+            cardSnapshot: { ...copy },
             reason: 'twin'
         });
         ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌（已移除双生）`);
@@ -152,6 +153,7 @@ registerEffect({
             sourceDefId: ctx.card.defId,
             cardUuid: diffusion.uuid,
             cardDefId: diffusion.defId,
+            cardSnapshot: { ...diffusion },
             reason: 'spread'
         });
         ctx.log(`${ctx.card.name} 蔓延效果触发，加入一张扩散牌`);
@@ -229,6 +231,7 @@ registerEffect({
                 sourceDefId: ctx.card.defId,
                 cardUuid: card.uuid,
                 cardDefId: card.defId,
+                cardSnapshot: { ...card },
                 reason: 'messenger'
             });
             ctx.log(`${ctx.card.name} 传令效果触发，从牌组抽来 ${card.name}`);
@@ -447,6 +450,7 @@ registerEffect({
                 sourceDefId: ctx.card.defId,
                 cardUuid: target.uuid,
                 cardDefId: target.defId,
+                cardSnapshot: { ...target },
                 reason: 'regular_training'
             });
             ctx.log(`${ctx.card.name} 规律训练：从牌组抽来 ${target.name}`);

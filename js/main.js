@@ -95,7 +95,7 @@ function bindKeys() {
 
         if (window.gameState.screen === 'battle') {
             if (e.key === 'e' || e.key === 'E') {
-                if (window.gameState.phase === 'playing' && !AnimationEngine.isLocked) {
+                if (window.gameState.phase === 'playing') {
                     endTurn(window.gameState);
                     AnimationEngine.enqueueFromTimeline(window.gameState);
                     Input.checkBattleEnd();

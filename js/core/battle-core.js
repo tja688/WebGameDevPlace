@@ -47,7 +47,8 @@ export function drawCards(state, count) {
             cardUuid: card.uuid,
             cardDefId: card.defId,
             cardName: card.name,
-            handIndex: state.hand.length - 1
+            handIndex: state.hand.length - 1,
+            cardSnapshot: { ...card }
         });
         drawn++;
     }

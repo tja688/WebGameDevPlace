@@ -150,11 +150,6 @@ export const Input = {
     },
 
     onMouseUp(e) {
-        if (AnimationEngine.isLocked) {
-            this.isDragging = false;
-            this.state.draggedCard = null;
-            return;
-        }
         if (!this.isDragging || !this.state.draggedCard) {
             this.isDragging = false;
             return;
@@ -1243,10 +1238,6 @@ export const Input = {
             return;
         }
 
-        if (AnimationEngine.isLocked) {
-            this.canvas.style.cursor = 'default';
-            return;
-        }
         if (this.state.phase !== 'playing') {
             this.canvas.style.cursor = 'default';
             return;

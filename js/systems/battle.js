@@ -102,6 +102,7 @@ export function initBattleFromRun(runData) {
         pendingGrowthEffects: [],
         effectTimeline: [],
         timelineSeq: 0,
+        turnTransitioning: false,
         _playgroundBattle: false,
         _eventBattle: false,
         _eventBattleReward: null,
@@ -183,6 +184,8 @@ function parseMonsterSkills(monster) {
 
 export function endTurn(state) {
     if (state.phase !== 'playing') return;
+    if (state.turnTransitioning) return;
+    state.turnTransitioning = true;
     recordTimeline(state, 'turn_end_start', { turn: state.turn });
 
     // 检测当前计策

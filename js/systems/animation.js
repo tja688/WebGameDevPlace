@@ -111,7 +111,11 @@ registerAnim('draw_card', {
     duration: 0.4,
     start(ev, state, fx, audio) {
         const handIndex = ev.handIndex;
-        const card = state.hand[handIndex];
+        // 优先使用快照，避免动画期间 state.hand 被修改导致 undefined 或错误引用
+        let card = ev.cardSnapshot;
+        if (!card || !card.rarity) {
+            card = state.hand[handIndex];
+        }
         if (!card) return; // 防御性检查：手牌可能已被清空
         if (!state.drawAnimations) state.drawAnimations = [];
         state.drawAnimations.push({
@@ -132,12 +136,15 @@ registerAnim('create_card_in_hand', {
     start(ev, state, fx, audio) {
         const cardUuid = ev.cardUuid;
         const handIndex = _findCardInHand(state, cardUuid);
-        const card = handIndex >= 0 ? state.hand[handIndex] : null;
+        let card = ev.cardSnapshot;
+        if (!card || !card.rarity) {
+            card = handIndex >= 0 ? state.hand[handIndex] : null;
+        }
         if (card && !state.drawAnimations) state.drawAnimations = [];
         if (card) {
             state.drawAnimations.push({
                 card: card,
-                handIndex: handIndex,
+                handIndex: handIndex >= 0 ? handIndex : (state.hand.length - 1),
                 timer: 35,
                 maxTimer: 35,
                 delay: 0,
@@ -154,12 +161,15 @@ registerAnim('deck_to_hand', {
     start(ev, state, fx, audio) {
         const cardUuid = ev.cardUuid;
         const handIndex = _findCardInHand(state, cardUuid);
-        const card = handIndex >= 0 ? state.hand[handIndex] : null;
+        let card = ev.cardSnapshot;
+        if (!card || !card.rarity) {
+            card = handIndex >= 0 ? state.hand[handIndex] : null;
+        }
         if (card && !state.drawAnimations) state.drawAnimations = [];
         if (card) {
             state.drawAnimations.push({
                 card: card,
-                handIndex: handIndex,
+                handIndex: handIndex >= 0 ? handIndex : (state.hand.length - 1),
                 timer: 35,
                 maxTimer: 35,
                 delay: 0,
@@ -430,6 +440,9 @@ export const AnimationEngine = {
         this._current = null;
         this._isPlaying = false;
         this._elapsed = 0;
+        if (typeof window !== 'undefined' && window.gameState) {
+            window.gameState.turnTransitioning = false;
+        }
     },
 
     clear() {
@@ -437,6 +450,9 @@ export const AnimationEngine = {
         this._current = null;
         this._elapsed = 0;
         this._isPlaying = false;
+        if (typeof window !== 'undefined' && window.gameState) {
+            window.gameState.turnTransitioning = false;
+        }
     },
 
     reset() {
@@ -478,6 +494,7 @@ export const AnimationEngine = {
             this._isPlaying = false;
             this._current = null;
             this._elapsed = 0;
+            if (state) state.turnTransitioning = false;
             return;
         }
         this._current = this._queue.shift();

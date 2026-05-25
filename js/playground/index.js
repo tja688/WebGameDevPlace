@@ -341,6 +341,7 @@ export function resetPlaygroundBattle(gameState) {
     gameState.pendingGrowthEffects = [];
     gameState.effectTimeline = [];
     gameState.timelineSeq = 0;
+    gameState.turnTransitioning = false;
     if (gameState.data) gameState.data.battleEndProcessing = false;
 
     shuffleDiscardToDeck(gameState);
