@@ -353,6 +353,8 @@ export function endTurn(state) {
     }
     recordTimeline(state, 'turn_cleanup_done', { nextTurn: state.turn + 1 });
 
+    const prevStrategyId = state.currentStrategy ? state.currentStrategy.id : null;
+
     state.turn++;
     state.turnDamage = 0;
     state.currentStrategy = null;
@@ -369,7 +371,7 @@ export function endTurn(state) {
     drawCards(state, nextDrawCount);
 
     // 记录本回合计策，供下回合骷髅骑士武技判定
-    state.monster.prevStrategyId = state.currentStrategy ? state.currentStrategy.id : null;
+    state.monster.prevStrategyId = prevStrategyId;
 
     // 触发回合开始效果
     FX.fire(Trigger.ON_TURN_START, new EffectContext({

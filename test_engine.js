@@ -7,6 +7,8 @@ import { createCardInstance, createBlacksmithStock, addKeywordToCard } from './j
 import { detectStrategy } from './js/systems/strategy.js';
 import { enterPlaygroundBattle } from './js/playground/index.js';
 import { Input } from './js/input/index.js';
+import { FX, EffectContext } from './js/effects/core.js';
+import { Trigger } from './js/core/constants.js';
 
 // 必须导入以触发效果注册
 import './js/effects/index.js';
@@ -28,6 +30,12 @@ function makeTestState(handDefIds) {
         const card = createCardInstance(id);
         if (card) st.hand.push(card);
     }
+    return st;
+}
+
+function makeMonsterTestState(handDefIds, monsterPatch = {}) {
+    const st = makeTestState(handDefIds);
+    Object.assign(st.monster, monsterPatch);
     return st;
 }
 
@@ -235,6 +243,115 @@ assert(s21.effectTimeline.some(e => e.type === 'play_card_to_slot'), '时间线�
 assert(s21.effectTimeline.some(e => e.type === 'effect_start' && e.effectId === 'chain'), '时间线记录词条效果开始');
 endTurn(s21);
 assert(s21.effectTimeline.some(e => e.type === 'turn_start' && e.turn === 2), '下一回合开始记录在turn=2');
+
+// Test 22: 黄色君王 - 黄之王会禁用奉献
+const s22 = makeMonsterTestState(['support_strike', 'brute_force'], {
+    name: '黄色君王',
+    disableDedicate: true
+});
+playCardToSlot(s22.hand[0], 1, s22);
+playCardToSlot(s22.hand[0], 1, s22);
+assert(s22.slots[1].cards[1].tempBonus === 0, '黄之王激活时，同格后续牌不会获得奉献加成');
+assert(calculateTotalBoardDamage(s22) === 23, '黄之王激活时，辅助打击与蛮力同格总伤害应为23');
+
+// Test 23: 黄色君王 - 黄色领域会让无奉献牌触发反向奉献
+const s23 = makeMonsterTestState(['brute_force', 'brute_force'], {
+    name: '黄色君王',
+    yellowDomain: true
+});
+playCardToSlot(s23.hand[0], 1, s23);
+playCardToSlot(s23.hand[0], 1, s23);
+assert(s23.slots[1].cards[1].tempBonus === -7, '黄色领域会让后一张同格无奉献牌获得-7临时点数');
+assert(calculateTotalBoardDamage(s23) === 23, '黄色领域激活时，两张蛮力同格总伤害应为23');
+
+// Test 24: 黄色君王 - 黄之心会在回合开始给随机手牌赋予奉献
+const s24 = makeMonsterTestState(['brute_force', 'unity_strike'], {
+    name: '黄色君王',
+    yellowHeart: true
+});
+const originalRandom24 = Math.random;
+Math.random = () => 0;
+FX.fire(Trigger.ON_TURN_START, new EffectContext({
+    state: s24,
+    trigger: Trigger.ON_TURN_START
+}));
+Math.random = originalRandom24;
+assert(s24.hand[0].keywords.includes('dedicate'), '黄之心会给随机手牌添加奉献词条');
+
+// Test 25: 黄色君王 - 黄之心应优先赋予没有奉献的手牌
+const s25 = makeMonsterTestState(['support_strike', 'brute_force'], {
+    name: '黄色君王',
+    yellowHeart: true
+});
+const originalRandom25 = Math.random;
+Math.random = () => 0;
+FX.fire(Trigger.ON_TURN_START, new EffectContext({
+    state: s25,
+    trigger: Trigger.ON_TURN_START
+}));
+Math.random = originalRandom25;
+assert(s25.hand[1].keywords.includes('dedicate'), '黄之心遇到已有奉献手牌时，仍应给其他手牌赋予奉献');
+
+// Test 26: 人面草 - 香甜诱饵让中间格打出的牌成长+1
+const s26 = makeMonsterTestState(['brute_force'], {
+    name: '人面草',
+    centerGrow1: true
+});
+playCardToSlot(s26.hand[0], 1, s26);
+assert(s26.slots[1].cards[0].permanentBonus === 1, '人面草的香甜诱饵会让中间格打出的牌永久+1');
+
+// Test 27: 人面草 - 盘根让每回合少抽1张牌
+const s27 = makeMonsterTestState([], {
+    name: '人面草',
+    lessDraw: 1
+});
+s27.deck = [
+    createCardInstance('brute_force'),
+    createCardInstance('brute_force'),
+    createCardInstance('brute_force'),
+    createCardInstance('brute_force'),
+    createCardInstance('brute_force')
+];
+endTurn(s27);
+assert(s27.turn === 2 && s27.hand.length === 4, '人面草的盘根会让下一回合只抽4张牌');
+
+// Test 28: 骷髅骑士 - 亡者让所有卡牌点数-2
+const s28 = makeMonsterTestState(['brute_force'], {
+    name: '骷髅骑士',
+    allCardPenalty: 2
+});
+playCardToSlot(s28.hand[0], 0, s28);
+assert(getCardFinalValue(s28.slots[0].cards[0], s28) === 13, '骷髅骑士的亡者会让卡牌最终点数-2');
+
+// Test 29: 骷髅骑士 - 惊人伟力在无计策时让倍率格-10
+const s29 = makeMonsterTestState(['brute_force'], {
+    name: '骷髅骑士',
+    noStrategySlotPenalty: 10
+});
+playCardToSlot(s29.hand[0], 0, s29);
+assert(getSlotEffectiveMultiplier(s29.slots[0], s29) === -9, '骷髅骑士无计策时，所在倍率格应额外-10');
+
+// Test 30: 骷髅骑士 - 武技应记录上回合计策并在复现时生效
+const s30 = makeMonsterTestState(['brute_force', 'brute_force', 'brute_force'], {
+    name: '骷髅骑士',
+    prevStrategyPenalty: 5
+});
+playCardToSlot(s30.hand[0], 0, s30);
+playCardToSlot(s30.hand[0], 1, s30);
+playCardToSlot(s30.hand[0], 2, s30);
+endTurn(s30);
+assert(s30.monster.prevStrategyId === 'attempt_push', '骷髅骑士会记录玩家上回合生效的计策');
+s30.hand = [
+    createCardInstance('brute_force'),
+    createCardInstance('brute_force'),
+    createCardInstance('brute_force')
+];
+s30.deck = [];
+s30.discard = [];
+playCardToSlot(s30.hand[0], 0, s30);
+playCardToSlot(s30.hand[0], 1, s30);
+playCardToSlot(s30.hand[0], 2, s30);
+assert(getSlotEffectiveMultiplier(s30.slots[0], s30) === -4, '骷髅骑士复现上回合计策时，倍率格应额外-5');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);
