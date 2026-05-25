@@ -753,11 +753,11 @@ function drawStrategyPanel(renderer, ctx, state) {
 
     ctx.fillStyle = '#8f8170';
     ctx.font = '11px Microsoft YaHei';
-    ctx.fillText(`倍率格已打出卡牌数量: ${totalCards}`, x + 14, y + 106);
+    ctx.fillText('右侧数字排列为倍率格打出卡牌数量', x + 14, y + 110);
 
     const all = getAllStrategies();
     const rows = [...all.base, ...all.overdrive];
-    let rowY = y + 124;
+    let rowY = y + 130;
     ctx.font = '11px Microsoft YaHei';
     for (const strat of rows) {
         const isCurrent = current && current.id === strat.id;
