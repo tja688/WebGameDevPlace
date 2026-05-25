@@ -104,7 +104,7 @@ export function isRunComplete(runData) {
 export function createInitialState() {
     const cls = CLASS_DEFS.veteran;
     const deck = shuffleArray(createDeck(cls));
-    const monster = MONSTER_DEFS.lone_rat;
+    const monster = MONSTER_DEFS.face_plant;
 
     const slots = createBattleSlots({});
 

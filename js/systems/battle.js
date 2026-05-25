@@ -14,7 +14,7 @@ import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT } from '../core/constants.js';
 import { calculateTotalBoardDamage } from './board.js';
 import { createBattleSlots } from '../core/state.js';
-import { detectStrategy } from './strategy.js';
+import { detectStrategy, getAllStrategies } from './strategy.js';
 
 export { logCombat, drawCards } from '../core/battle-core.js';
 
@@ -55,6 +55,7 @@ export function initBattleFromRun(runData) {
             healPerTurn: 0,
             firstCardDiscard: false,
             firstTurnLessDraw: false,
+            lessDraw: 0,
             edgePenalty: 0,
             leftPenalty: 0,
             maxSlotPenalty: 0,
@@ -62,7 +63,15 @@ export function initBattleFromRun(runData) {
             steadyPenalty: false,
             stealGold: false,
             firstCardValuePenalty: 0,
-            dodge: false
+            dodge: false,
+            centerGrow1: false,
+            allCardPenalty: 0,
+            noStrategySlotPenalty: 0,
+            prevStrategyPenalty: 0,
+            prevStrategyId: null,
+            disableDedicate: false,
+            yellowDomain: false,
+            yellowHeart: false
         },
         slots: slots,
         deck: deck,
@@ -100,6 +109,12 @@ export function initBattleFromRun(runData) {
 
     // 解析怪物技能
     parseMonsterSkills(state.monster);
+
+    // 骷髅骑士：第一回合随机指定上回合计策
+    if (state.monster.prevStrategyPenalty > 0) {
+        const allStrats = getAllStrategies();
+        state.monster.prevStrategyId = pickRandom(allStrats.base).id;
+    }
     recordTimeline(state, 'battle_start', {
         stageKey,
         monsterName: state.monster.name,
@@ -109,8 +124,12 @@ export function initBattleFromRun(runData) {
 
     shuffleDiscardToDeck(state);
 
-    // 处理第一回合少抽牌（怪物技能）
+    // 处理少抽牌（怪物技能）
     let drawCount = DRAW_COUNT;
+    if (state.monster.lessDraw > 0) {
+        drawCount = Math.max(1, drawCount - state.monster.lessDraw);
+        logCombat(state, `${state.monster.name} 的技能生效：每回合少抽 ${state.monster.lessDraw} 张牌`);
+    }
     if (state.monster.firstTurnLessDraw && state.turn === 1) {
         drawCount = Math.max(1, drawCount - 1);
         logCombat(state, `${state.monster.name} 的技能生效：第一回合少抽一张牌`);
@@ -146,12 +165,20 @@ function parseMonsterSkills(monster) {
             case 'left_penalty_10': monster.leftPenalty = 10; break;
             case 'first_card_discard': monster.firstCardDiscard = true; break;
             case 'first_turn_less_draw': monster.firstTurnLessDraw = true; break;
+            case 'less_draw_1': monster.lessDraw = 1; break;
             case 'max_slot_penalty_1': monster.maxSlotPenalty = 1; break;
             case 'min_slot_penalty_1': monster.minSlotPenalty = 1; break;
             case 'steady_penalty': monster.steadyPenalty = true; break;
             case 'steal_gold': monster.stealGold = true; break;
             case 'first_card_value_penalty_5': monster.firstCardValuePenalty = 5; break;
             case 'dodge': monster.dodge = true; break;
+            case 'center_grow_1': monster.centerGrow1 = true; break;
+            case 'all_card_penalty_2': monster.allCardPenalty = 2; break;
+            case 'no_strategy_slot_penalty_10': monster.noStrategySlotPenalty = 10; break;
+            case 'prev_strategy_penalty_5': monster.prevStrategyPenalty = 5; break;
+            case 'disable_dedicate': monster.disableDedicate = true; break;
+            case 'yellow_domain': monster.yellowDomain = true; break;
+            case 'yellow_heart': monster.yellowHeart = true; break;
         }
     }
 }
@@ -334,7 +361,15 @@ export function endTurn(state) {
 
     // 弃牌堆洗回牌库，抽5张
     shuffleDiscardToDeck(state);
-    drawCards(state, DRAW_COUNT);
+    let nextDrawCount = DRAW_COUNT;
+    if (state.monster.lessDraw > 0) {
+        nextDrawCount = Math.max(1, nextDrawCount - state.monster.lessDraw);
+        logCombat(state, `${state.monster.name} 的技能生效：每回合少抽 ${state.monster.lessDraw} 张牌`);
+    }
+    drawCards(state, nextDrawCount);
+
+    // 记录本回合计策，供下回合骷髅骑士武技判定
+    state.monster.prevStrategyId = state.currentStrategy ? state.currentStrategy.id : null;
 
     // 触发回合开始效果
     FX.fire(Trigger.ON_TURN_START, new EffectContext({

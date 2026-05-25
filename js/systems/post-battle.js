@@ -21,7 +21,7 @@ const EVENT_POOLS = {
         { name: '及时的帮助', desc: '获得一次三选一卡牌的机会', effect: 'card_pick_three' }
     ],
     rare: [
-        { name: '抵御怪物', desc: '玩家立刻与X-5的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
+        { name: '抵御怪物', desc: '玩家立刻与X-7的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
         { name: '出土装备', desc: '获得一次三选一中级装备的机会', effect: 'pick_rare_relic' },
         { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 }
     ],

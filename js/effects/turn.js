@@ -44,3 +44,26 @@ registerEffect({
         }
     }
 });
+
+// 黄色君王——黄之心：回合开始时给一张随机手牌赋予奉献词条
+registerEffect({
+    id: 'yellow_heart',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.SPECIAL + 20,
+    condition: (ctx) => ctx.state.monster.yellowHeart && ctx.state.hand.length > 0,
+    execute: (ctx) => {
+        const hand = ctx.state.hand;
+        const idx = Math.floor(Math.random() * hand.length);
+        const card = hand[idx];
+        if (!card.keywords.includes('dedicate')) {
+            card.keywords.push('dedicate');
+            recordTimeline(ctx.state, 'card_keyword_added', {
+                cardUuid: card.uuid,
+                cardDefId: card.defId,
+                keyword: 'dedicate',
+                reason: 'yellow_heart'
+            });
+            ctx.log(`黄色君王的黄之心生效：${card.name} 被赋予了奉献词条`);
+        }
+    }
+});

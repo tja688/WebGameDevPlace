@@ -66,46 +66,24 @@ export const MONSTER_COLOR_THEMES = {
 
 // ===== 第一层怪物 =====
 export const MONSTER_DEFS = {
-    // 1-1 普通怪池
-    wasteland_wolf: {
-        id: 'wasteland_wolf',
-        name: '荒原狼',
-        hp: 150,
-        description: '徘徊在荒原上的野狼，成群出没',
-        keywords: ['heal_20'],
-        keywordDesc: '每回合开始，恢复自身血量20',
-        theme: 'normal',
+    // 1-1 普通怪池（人面草）
+    face_plant: {
+        id: 'face_plant',
+        name: '人面草',
+        hp: 300,
+        description: '地下城中生长的诡异植物，会诱惑猎物靠近',
+        keywords: ['center_grow_1', 'less_draw_1'],
+        keywordDesc: '香甜诱饵：打出在最中间倍率格上的卡牌成长1；盘根：玩家每回合少抽一张牌',
+        theme: 'flower',
         type: 'normal',
-        shape: 'rat'
-    },
-    cave_bat: {
-        id: 'cave_bat',
-        name: '洞穴蝙蝠',
-        hp: 150,
-        description: '在地下城深处栖息的蝙蝠',
-        keywords: ['dodge'],
-        keywordDesc: '闪避：每回合受到的前2点伤害无效',
-        theme: 'bat',
-        type: 'normal',
-        shape: 'bat'
-    },
-    lone_rat: {
-        id: 'lone_rat',
-        name: '雾化野兽',
-        hp: 150,
-        description: '被白雾侵蚀后游荡在农田边缘的野兽',
-        keywords: [],
-        keywordDesc: '',
-        theme: 'normal',
-        type: 'normal',
-        shape: 'rat'
+        shape: 'flower'
     },
 
     // 1-2 普通怪池
     rotten_rat: {
         id: 'rotten_rat',
         name: '腐化田鼠',
-        hp: 250,
+        hp: 400,
         description: '被污染农田里钻出的病鼠',
         keywords: ['edge_penalty_5'],
         keywordDesc: '放在最左和最右的倍率格子上的卡牌数值-5',
@@ -116,7 +94,7 @@ export const MONSTER_DEFS = {
     mud_slime: {
         id: 'mud_slime',
         name: '泥浆软泥怪',
-        hp: 250,
+        hp: 400,
         description: '被污染的泥浆凝聚而成的怪物',
         keywords: [],
         keywordDesc: '',
@@ -127,7 +105,7 @@ export const MONSTER_DEFS = {
     polluted_flower: {
         id: 'polluted_flower',
         name: '污染之花',
-        hp: 250,
+        hp: 400,
         description: '被地下城气息侵蚀的食人花',
         keywords: [],
         keywordDesc: '',
@@ -140,7 +118,7 @@ export const MONSTER_DEFS = {
     gluttony_swarm: {
         id: 'gluttony_swarm',
         name: '暴食鼠群',
-        hp: 400,
+        hp: 500,
         description: '成群结队觅食的硕鼠',
         keywords: ['left_penalty_10'],
         keywordDesc: '放在最左倍率格子上的卡牌数值-10',
@@ -151,7 +129,7 @@ export const MONSTER_DEFS = {
     stone_guard: {
         id: 'stone_guard',
         name: '断墙守卫',
-        hp: 400,
+        hp: 500,
         description: '被魔法唤醒的石制守卫',
         keywords: ['left_penalty_10'],
         keywordDesc: '放在最左倍率格子上的卡牌数值-10',
@@ -162,7 +140,7 @@ export const MONSTER_DEFS = {
     blade_bro: {
         id: 'blade_bro',
         name: '白雾刀手',
-        hp: 400,
+        hp: 500,
         description: '在白雾中游荡的持刀怪物',
         keywords: [],
         keywordDesc: '',
@@ -171,37 +149,15 @@ export const MONSTER_DEFS = {
         shape: 'rat'
     },
 
-    // 1-4 精英怪池
-    elite_guard: {
-        id: 'elite_guard',
-        name: '地下城精锐',
+    // 1-4 精英怪池（骷髅骑士）
+    skeleton_knight: {
+        id: 'skeleton_knight',
+        name: '骷髅骑士',
         hp: 600,
-        description: '守护地下城的精锐战士',
-        keywords: ['first_card_discard', 'first_turn_less_draw'],
-        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
+        description: '地下城中游荡的亡者骑士，精通武技',
+        keywords: ['all_card_penalty_2', 'no_strategy_slot_penalty_10', 'prev_strategy_penalty_5'],
+        keywordDesc: '亡者：所有卡牌点数-2；惊人伟力：无计策生效时，倍率格点数-10；武技：上回合生效计策再次生效时，所有倍率格点数-5',
         theme: 'elite',
-        type: 'elite',
-        shape: 'rat'
-    },
-    vest_sage: {
-        id: 'vest_sage',
-        name: '雾蚀斗士',
-        hp: 600,
-        description: '被白雾强化的地下城斗士',
-        keywords: ['first_card_discard', 'first_turn_less_draw'],
-        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
-        theme: 'elite',
-        type: 'elite',
-        shape: 'rat'
-    },
-    small_gate: {
-        id: 'small_gate',
-        name: '石门守卫',
-        hp: 600,
-        description: '地下城中的守卫 construct',
-        keywords: ['first_card_discard', 'first_turn_less_draw'],
-        keywordDesc: '每回合中使用的第一张卡牌直接进入弃牌堆；玩家第一回合少抽一张牌',
-        theme: 'stone',
         type: 'elite',
         shape: 'golem'
     },
@@ -311,39 +267,17 @@ export const MONSTER_DEFS = {
         shape: 'rat'
     },
 
-    // 1-8 BOSS池
-    rat_king: {
-        id: 'rat_king',
-        name: '鼠王',
+    // 1-8 BOSS池（黄色君王）
+    yellow_king: {
+        id: 'yellow_king',
+        name: '黄色君王',
         hp: 2000,
-        description: '地下城鼠群的统治者',
-        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
-        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
+        description: '地下城深处的黄色君王，掌控着奉献与诅咒',
+        keywords: ['disable_dedicate', 'yellow_domain', 'yellow_heart'],
+        keywordDesc: '黄之王：所有奉献词条不生效；黄色领域：所有无奉献词条卡牌获得反向奉献；黄之心：回合开始给一张手牌赋予奉献词条',
         theme: 'boss',
         type: 'boss',
         shape: 'rat'
-    },
-    abyss_guardian: {
-        id: 'abyss_guardian',
-        name: '深渊守护者',
-        hp: 2000,
-        description: '守护深渊入口的古老存在',
-        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
-        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
-        theme: 'boss',
-        type: 'boss',
-        shape: 'golem'
-    },
-    plague_lord: {
-        id: 'plague_lord',
-        name: '瘟疫领主',
-        hp: 2000,
-        description: '散播瘟疫的恐怖领主',
-        keywords: ['min_slot_penalty_1', 'first_card_value_penalty_5'],
-        keywordDesc: '数值最低的倍率格点数-1；每回合打出的第一张卡牌点数-5',
-        theme: 'boss',
-        type: 'boss',
-        shape: 'slime'
     },
 
     // ===== 第二层怪物 =====

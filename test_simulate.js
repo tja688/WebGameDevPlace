@@ -10,7 +10,7 @@ import './js/effects/index.js';
 import './js/autotest.js';
 
 function testHp(hp) {
-    MONSTER_DEFS.lone_rat.hp = hp;
+    MONSTER_DEFS.face_plant.hp = hp;
     const result = window.simulateBattles(200, false);
     console.log(`HP=${hp}: 胜率 ${result.wins}/200 (${(result.wins/200*100).toFixed(1)}%), 平均回合 ${result.avgTurns}`);
 }

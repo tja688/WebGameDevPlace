@@ -6,6 +6,7 @@
 
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
+import { detectStrategy } from '../systems/strategy.js';
 
 // ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
@@ -164,5 +165,50 @@ registerEffect({
     execute: (ctx) => {
         ctx.value -= ctx.state.monster.firstCardValuePenalty;
         if (ctx.value < 0) ctx.value = 0;
+    }
+});
+
+// 骷髅骑士——亡者：所有卡牌点数-2
+registerEffect({
+    id: 'all_card_penalty_2',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_PENALTY,
+    condition: (ctx) => ctx.state.monster.allCardPenalty > 0,
+    execute: (ctx) => {
+        ctx.value -= ctx.state.monster.allCardPenalty;
+        if (ctx.value < 0) ctx.value = 0;
+    }
+});
+
+// 骷髅骑士——惊人伟力：无计策生效时，倍率格点数-10
+registerEffect({
+    id: 'no_strategy_slot_penalty_10',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER - 10,
+    condition: (ctx) => {
+        const pen = ctx.state.monster.noStrategySlotPenalty;
+        if (!pen || pen <= 0) return false;
+        const strategy = detectStrategy(ctx.state.slots, ctx.state.runDataRef?.strategyLevels);
+        return strategy === null;
+    },
+    execute: (ctx) => {
+        ctx.value -= ctx.state.monster.noStrategySlotPenalty;
+    }
+});
+
+// 骷髅骑士——武技：上回合计策再次生效时，倍率格点数-5
+registerEffect({
+    id: 'prev_strategy_penalty_5',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER - 8,
+    condition: (ctx) => {
+        const pen = ctx.state.monster.prevStrategyPenalty;
+        if (!pen || pen <= 0) return false;
+        if (!ctx.state.monster.prevStrategyId) return false;
+        const currentStrategy = detectStrategy(ctx.state.slots, ctx.state.runDataRef?.strategyLevels);
+        return currentStrategy && currentStrategy.id === ctx.state.monster.prevStrategyId;
+    },
+    execute: (ctx) => {
+        ctx.value -= ctx.state.monster.prevStrategyPenalty;
     }
 });

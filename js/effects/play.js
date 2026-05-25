@@ -18,23 +18,48 @@ registerEffect({
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         // 奉献：格子中已有奉献牌，给新牌加点（只对下一张生效）
-        for (const c of slot.cards) {
-            if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate') && !c.dedicateTriggered) {
-                const val = ctx.getCardBaseValue(c);
-                const bonus = Math.floor(val / 2);
-                if (bonus > 0) {
-                    ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
-                    c.dedicateTriggered = true;
-                    recordTimeline(ctx.state, 'card_temp_bonus', {
-                        sourceUuid: c.uuid,
-                        sourceDefId: c.defId,
-                        targetUuid: ctx.card.uuid,
-                        targetDefId: ctx.card.defId,
-                        amount: bonus,
-                        reason: 'dedicate',
-                        slotIndex: ctx.slotIndex
-                    });
-                    ctx.log(`${c.name} 奉献了 ${bonus} 点给 ${ctx.card.name}！`);
+        if (!ctx.state.monster.disableDedicate) {
+            for (const c of slot.cards) {
+                if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate') && !c.dedicateTriggered) {
+                    const val = ctx.getCardBaseValue(c);
+                    const bonus = Math.floor(val / 2);
+                    if (bonus > 0) {
+                        ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
+                        c.dedicateTriggered = true;
+                        recordTimeline(ctx.state, 'card_temp_bonus', {
+                            sourceUuid: c.uuid,
+                            sourceDefId: c.defId,
+                            targetUuid: ctx.card.uuid,
+                            targetDefId: ctx.card.defId,
+                            amount: bonus,
+                            reason: 'dedicate',
+                            slotIndex: ctx.slotIndex
+                        });
+                        ctx.log(`${c.name} 奉献了 ${bonus} 点给 ${ctx.card.name}！`);
+                    }
+                }
+            }
+        }
+        // 黄色领域：格子中已有无奉献卡牌的反向奉献，给新牌减点
+        if (ctx.state.monster.yellowDomain) {
+            for (const c of slot.cards) {
+                if (c.uuid !== ctx.card.uuid && c.yellowDomainActive && !c.yellowDomainTriggered) {
+                    const val = ctx.getCardBaseValue(c);
+                    const penalty = Math.floor(val / 2);
+                    if (penalty > 0) {
+                        ctx.card.tempBonus = (ctx.card.tempBonus || 0) - penalty;
+                        c.yellowDomainTriggered = true;
+                        recordTimeline(ctx.state, 'card_temp_bonus', {
+                            sourceUuid: c.uuid,
+                            sourceDefId: c.defId,
+                            targetUuid: ctx.card.uuid,
+                            targetDefId: ctx.card.defId,
+                            amount: -penalty,
+                            reason: 'yellow_domain',
+                            slotIndex: ctx.slotIndex
+                        });
+                        ctx.log(`黄色领域生效：${c.name} 使 ${ctx.card.name} 点数-${penalty}`);
+                    }
                 }
             }
         }
@@ -103,7 +128,38 @@ registerEffect({
     }
 });
 
-// ===== 5. 成长（grow）：永久加点 =====
+// ===== 5. 人面草：香甜诱饵——中间格成长1 =====
+registerEffect({
+    id: 'center_grow_1',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.GROW + 5,
+    condition: (ctx) => ctx.state.monster.centerGrow1 && ctx.slotIndex === 1,
+    execute: (ctx) => {
+        ctx.card.permanentBonus += 1;
+        recordTimeline(ctx.state, 'card_permanent_bonus', {
+            cardUuid: ctx.card.uuid,
+            cardDefId: ctx.card.defId,
+            amount: 1,
+            reason: 'center_grow_1',
+            slotIndex: ctx.slotIndex
+        });
+        ctx.log(`人面草的香甜诱饵生效：${ctx.card.name} 成长了！永久点数+1`);
+    }
+});
+
+// ===== 6. 黄色领域标记 =====
+registerEffect({
+    id: 'yellow_domain_mark',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SLOT_MODIFIER - 5,
+    condition: (ctx) => ctx.state.monster.yellowDomain && !ctx.card.keywords.includes('dedicate'),
+    execute: (ctx) => {
+        ctx.card.yellowDomainActive = true;
+        ctx.card.yellowDomainTriggered = false;
+    }
+});
+
+// ===== 7. 成长（grow）：永久加点 =====
 registerEffect({
     id: 'grow',
     triggers: Trigger.ON_PLAY,

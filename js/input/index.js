@@ -1712,7 +1712,7 @@ export const Input = {
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     if (btn.id === 'battle') {
                         const monsterIds = Object.keys(MONSTER_DEFS);
-                        const defaultMonster = monsterIds.length > 0 ? monsterIds[0] : 'lone_rat';
+                        const defaultMonster = monsterIds.length > 0 ? monsterIds[0] : 'face_plant';
                         enterPlaygroundBattle(this.state, defaultMonster);
                     } else if (btn.id === 'effect') {
                         // 进入词条效果沙盒，默认选中第一个场景
