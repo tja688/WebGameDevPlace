@@ -67,7 +67,9 @@ function getRelicPrice(relic) {
  */
 export function createShopStock() {
     const cards = [];
-    const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+    // 排除衍生牌和初始职业卡
+    const STARTING_CARD_IDS = ['unity_strike', 'support_strike', 'veteran_ambition'];
+    const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion' && !STARTING_CARD_IDS.includes(id));
     for (let i = 0; i < 5; i++) {
         const defId = pickCardIdByRarity(cardIds);
         const def = CARD_DEFS[defId];

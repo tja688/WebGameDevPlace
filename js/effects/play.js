@@ -191,7 +191,8 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'messenger',
     execute: (ctx) => {
         if (ctx.state.deck.length > 0) {
-            const card = ctx.state.deck.pop();
+            const idx = Math.floor(Math.random() * ctx.state.deck.length);
+            const card = ctx.state.deck.splice(idx, 1)[0];
             ctx.state.hand.push(card);
             recordTimeline(ctx.state, 'deck_to_hand', {
                 sourceUuid: ctx.card.uuid,
@@ -215,20 +216,22 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'luxury_gear',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 检查是否已在倍率格（即不是第一张打出的）
-        if (slot.cards.length > 1) {
-            for (const s of ctx.state.slots) {
-                if (Math.abs(s.index - ctx.slotIndex) === 1) {
-                    s.roundMultiplierBonus = (s.roundMultiplierBonus || 0) + 1;
-                    recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
-                        sourceUuid: ctx.card.uuid,
-                        sourceDefId: ctx.card.defId,
-                        slotIndex: s.index,
-                        amount: 1,
-                        reason: 'luxury_gear'
-                    });
-                    ctx.log(`${ctx.card.name} 提升了第${s.index + 1}格倍率！`);
-                }
+        // 只在“已在倍率格”时生效（格子里已有其他牌）
+        if (slot.cards.length <= 1) {
+            ctx.log(`${ctx.card.name} 打出时倍率格为空，效果未触发`);
+            return;
+        }
+        for (const s of ctx.state.slots) {
+            if (Math.abs(s.index - ctx.slotIndex) === 1) {
+                s.roundMultiplierBonus = (s.roundMultiplierBonus || 0) + 1;
+                recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                    sourceUuid: ctx.card.uuid,
+                    sourceDefId: ctx.card.defId,
+                    slotIndex: s.index,
+                    amount: 1,
+                    reason: 'luxury_gear'
+                });
+                ctx.log(`${ctx.card.name} 提升了第${s.index + 1}格倍率！`);
             }
         }
     }
@@ -242,7 +245,14 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'cogito_ergo_sum',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
+        // 只在“已在倍率格”时生效（格子里已有其他牌）
+        if (slot.cards.length <= 1) {
+            ctx.log(`${ctx.card.name} 打出时倍率格为空，效果未触发`);
+            return;
+        }
+        // 防止同回合同格多次叠加导致倍数不稳定
+        if (!slot.cogitoAppliedThisTurn) {
+            slot.cogitoAppliedThisTurn = true;
             slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
             recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
                 sourceUuid: ctx.card.uuid,
@@ -252,6 +262,8 @@ registerEffect({
                 reason: 'cogito_ergo_sum'
             });
             ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
+        } else {
+            ctx.log(`${ctx.card.name} 效果未叠加（本回合同格已翻倍过）`);
         }
     }
 });
@@ -275,6 +287,11 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'intense_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
+        // 只在“已在倍率格”时生效（格子里已有其他牌）
+        if (slot.cards.length <= 1) {
+            ctx.log(`${ctx.card.name} 打出时倍率格为空，猛训练未激活`);
+            return;
+        }
         slot.intenseTrainingActive = true;
         recordTimeline(ctx.state, 'slot_flag_enabled', {
             sourceUuid: ctx.card.uuid,

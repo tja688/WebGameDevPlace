@@ -214,6 +214,7 @@ export const Input = {
         state.data.hoverAdventureCheat = null;
         state.data.deckViewHoverCard = null;
         state.data.deckViewHoverClose = false;
+        state.data.hoverStrategyOption = null;
     },
 
     hitTest(pos, rect) {
@@ -678,6 +679,18 @@ export const Input = {
 
     // ===== 商店 =====
     handleShopHover(pos, state) {
+        if (state.data.strategyOptionRects) {
+            for (const rect of state.data.strategyOptionRects) {
+                if (this.hitTest(pos, rect)) {
+                    state.data.hoverStrategyOption = rect.index;
+                    this.canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+            this.canvas.style.cursor = 'default';
+            return;
+        }
+
         if (state.data.shopItemRects) {
             for (const rect of state.data.shopItemRects) {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
@@ -722,6 +735,26 @@ export const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
+        // 计策二选一弹窗
+        if (data.strategyOptions && data.strategyOptionRects) {
+            for (const rect of data.strategyOptionRects) {
+                if (this.hitTest(pos, rect)) {
+                    const strategyNames = {
+                        attempt_push: '尝试推进', left_assault: '左侧强袭', right_assault: '右侧强袭',
+                        mid_assault: '中线强袭', steady_push: '稳重推进', plan_left: '计划左攻',
+                        plan_right: '计划右攻', plan_mid: '计划中攻', forceful_push: '强硬推进'
+                    };
+                    runData.strategyLevels[rect.strategyId] = (runData.strategyLevels[rect.strategyId] || 0) + 1;
+                    showPlaceholderToast(`计策【${strategyNames[rect.strategyId]}】等级+1！`);
+                    data.strategyOptions = null;
+                    data.strategyOptionRects = null;
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                    return;
+                }
+            }
+            return;
+        }
+
         if (data.shopItemRects) {
             for (const rect of data.shopItemRects) {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
@@ -754,12 +787,21 @@ export const Input = {
                 if (this.hitTest(pos, rect)) {
                     if (runData.gold >= rect.cost) {
                         if (rect.key === 'refresh') {
-                            runData.gold -= rect.cost;
-                            refreshShopStock(runData);
-                            data.stock = runData.shopStock;
-                            runData.shopRefreshCost += 1;
-                            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                            showPlaceholderToast('商店已刷新');
+                            if (runData.freeRefreshCount > 0) {
+                                runData.freeRefreshCount--;
+                                refreshShopStock(runData);
+                                data.stock = runData.shopStock;
+                                runData.shopRefreshCost += 1;
+                                if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                                showPlaceholderToast('商店已刷新（使用免费次数）');
+                            } else {
+                                runData.gold -= rect.cost;
+                                refreshShopStock(runData);
+                                data.stock = runData.shopStock;
+                                runData.shopRefreshCost += 1;
+                                if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                                showPlaceholderToast('商店已刷新');
+                            }
                         } else if (rect.key === 'remove_card') {
                             if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                             const removeCost = runData.shopRemoveCost || 2;
@@ -779,14 +821,11 @@ export const Input = {
                             if (runData.gold < 4) { showPlaceholderToast('金币不足！'); return; }
                             runData.gold -= 4;
                             const strategies = ['attempt_push', 'left_assault', 'right_assault', 'mid_assault', 'steady_push', 'plan_left', 'plan_right', 'plan_mid', 'forceful_push'];
-                            const randomStrategy = strategies[Math.floor(Math.random() * strategies.length)];
-                            runData.strategyLevels[randomStrategy] = (runData.strategyLevels[randomStrategy] || 0) + 1;
-                            const strategyNames = {
-                                attempt_push: '尝试推进', left_assault: '左侧强袭', right_assault: '右侧强袭',
-                                mid_assault: '中线强袭', steady_push: '稳重推进', plan_left: '计划左攻',
-                                plan_right: '计划右攻', plan_mid: '计划中攻', forceful_push: '强硬推进'
-                            };
-                            showPlaceholderToast(`计策【${strategyNames[randomStrategy]}】等级+1！`);
+                            // 二选一
+                            const pool = [...strategies];
+                            const opt1 = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+                            const opt2 = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+                            data.strategyOptions = [opt1, opt2];
                             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                             return;
                         }

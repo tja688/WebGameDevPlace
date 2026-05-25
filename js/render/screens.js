@@ -970,6 +970,62 @@ export function drawShop(renderer, ctx, state) {
     // 查看牌组按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, 190, renderer.height - 80, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
+
+    // 计策二选一弹窗
+    if (data.strategyOptions) {
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.fillRect(0, 0, renderer.width, renderer.height);
+
+        const strategyNames = {
+            attempt_push: '尝试推进', left_assault: '左侧强袭', right_assault: '右侧强袭',
+            mid_assault: '中线强袭', steady_push: '稳重推进', plan_left: '计划左攻',
+            plan_right: '计划右攻', plan_mid: '计划中攻', forceful_push: '强硬推进'
+        };
+
+        const cx = renderer.width / 2;
+        const cardW = 280;
+        const cardH = 200;
+        const gap = 40;
+        const totalW = 2 * cardW + gap;
+        const startX = cx - totalW / 2;
+        const startY = 220;
+
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 28px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText('📜 选择一项计策提升等级', cx, 170);
+
+        state.data.strategyOptionRects = [];
+        for (let i = 0; i < data.strategyOptions.length; i++) {
+            const sid = data.strategyOptions[i];
+            const x = startX + i * (cardW + gap);
+            const y = startY;
+            const isHover = state.data.hoverStrategyOption === i;
+
+            ctx.fillStyle = isHover ? 'rgba(60,50,30,0.95)' : 'rgba(40,35,25,0.9)';
+            ctx.strokeStyle = isHover ? '#ffd700' : '#b8860b';
+            ctx.lineWidth = isHover ? 3 : 2;
+            roundRect(ctx, x, y, cardW, cardH, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 22px Microsoft YaHei';
+            ctx.textAlign = 'center';
+            ctx.fillText(strategyNames[sid] || sid, x + cardW / 2, y + 60);
+
+            const level = runData.strategyLevels[sid] || 0;
+            ctx.fillStyle = '#aaa';
+            ctx.font = '16px Microsoft YaHei';
+            ctx.fillText(`当前等级: ${level}`, x + cardW / 2, y + 110);
+
+            ctx.fillStyle = isHover ? '#ffcc88' : '#666';
+            ctx.font = '14px Microsoft YaHei';
+            ctx.fillText('点击提升 +1', x + cardW / 2, y + 150);
+
+            state.data.strategyOptionRects.push({ x, y, w: cardW, h: cardH, index: i, strategyId: sid });
+        }
+    }
 }
 
 export function drawBlacksmith(renderer, ctx, state) {

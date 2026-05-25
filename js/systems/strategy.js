@@ -97,7 +97,7 @@ const OVERDRIVE_STRATEGIES = [
         name: '超限左攻',
         req: [6, 3, 3],
         total: 12,
-        bonuses: [6, 12, 6],
+        bonuses: [12, 6, 6],
         levelBonus: [5, 5, 5],
         condition: (counts) => counts[0] >= 6 && counts[1] === 3 && counts[2] === 3
     },
@@ -106,7 +106,7 @@ const OVERDRIVE_STRATEGIES = [
         name: '超限右攻',
         req: [3, 3, 6],
         total: 12,
-        bonuses: [6, 12, 6],
+        bonuses: [6, 6, 12],
         levelBonus: [5, 5, 5],
         condition: (counts) => counts[2] >= 6 && counts[0] === 3 && counts[1] === 3
     },

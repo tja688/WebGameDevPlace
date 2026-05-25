@@ -38,7 +38,8 @@ export function logCombat(state, msg) {
 export function drawCards(state, count) {
     let drawn = 0;
     if (!state.drawAnimations) state.drawAnimations = [];
-    const actualCount = Math.min(count, HAND_LIMIT - state.hand.length);
+    const handLimit = state.handLimit !== undefined ? state.handLimit : HAND_LIMIT;
+    const actualCount = Math.min(count, handLimit - state.hand.length);
     for (let i = 0; i < actualCount; i++) {
         if (state.deck.length === 0) break;
         const card = state.deck.pop();

@@ -25,3 +25,4 @@ import './calc.js';
 import './turn.js';
 import './exit.js';
 import './slot.js';
+import './relics.js';
