@@ -112,6 +112,7 @@ registerAnim('draw_card', {
     start(ev, state, fx, audio) {
         const handIndex = ev.handIndex;
         const card = state.hand[handIndex];
+        if (!card) return; // 防御性检查：手牌可能已被清空
         if (!state.drawAnimations) state.drawAnimations = [];
         state.drawAnimations.push({
             card: card,
