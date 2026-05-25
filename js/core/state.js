@@ -168,7 +168,11 @@ export function createInitialState() {
         runDataRef: null,
         stageKey: 'test',
         heartsLost: 0,
+        firstTurnKill: false,
         firstCardPlayedThisTurn: null,
+        pendingPlaceEffects: [],
+        pendingGrowthEffects: [],
+        drawAnimations: [],
         effectTimeline: [],
         timelineSeq: 0
     };

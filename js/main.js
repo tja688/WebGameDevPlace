@@ -12,6 +12,7 @@ import { FX as RenderFX } from './render/fx.js';
 import { KEYWORDS, applyDataOverrides } from './data/index.js';
 import { initPlaygroundUI, updateUIView, updateBattlePanelRealtime } from './playground/ui-controller.js';
 import { enterPlayground } from './playground/index.js';
+import { AnimationEngine } from './systems/animation.js';
 
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
@@ -94,8 +95,9 @@ function bindKeys() {
 
         if (window.gameState.screen === 'battle') {
             if (e.key === 'e' || e.key === 'E') {
-                if (window.gameState.phase === 'playing') {
+                if (window.gameState.phase === 'playing' && !AnimationEngine.isLocked) {
                     endTurn(window.gameState);
+                    AnimationEngine.enqueueFromTimeline(window.gameState);
                     Input.checkBattleEnd();
                 }
             }
@@ -111,6 +113,7 @@ function bindKeys() {
                     Object.assign(window.gameState, battleState);
                     window.gameState.screen = 'battle';
                     window.gameState.data = {};
+                    AnimationEngine.enqueueFromTimeline(window.gameState);
                 }
             }
         }
@@ -148,12 +151,21 @@ function bindVolumeControls() {
     }
 }
 
-function gameLoop() {
+let _lastFrameTime = 0;
+function gameLoop(timestamp) {
+    const dt = _lastFrameTime ? (timestamp - _lastFrameTime) / 1000 : 0.016;
+    _lastFrameTime = timestamp;
+
     if (window.gameState) {
         // BGM 自动切换：非战斗界面播放平时音乐
         if (window.gameState.screen !== _lastScreen) {
             if (window.gameState.screen !== 'battle' && window.gameState.screen !== 'playground' && typeof GameAudio !== 'undefined') {
                 GameAudio.playBGM('normal');
+            }
+            // 进入战斗时切换BGM
+            if (window.gameState.screen === 'battle' && typeof GameAudio !== 'undefined') {
+                const isBoss = window.gameState.monster && window.gameState.monster.type === 'boss';
+                GameAudio.playBGM(isBoss ? 'boss' : 'normal');
             }
             _lastScreen = window.gameState.screen;
         }
@@ -177,6 +189,9 @@ function gameLoop() {
 
         Renderer.render(window.gameState);
 
+        // 动画引擎更新
+        AnimationEngine.update(window.gameState, dt);
+
         // 对战测试场面板实时数据更新
         if (window.gameState.screen === 'playground') {
             updateBattlePanelRealtime(window.gameState);
@@ -188,8 +203,6 @@ function gameLoop() {
                 window.gameState.message = null;
             }
         }
-
-        // 伤害达标消息提醒已移除
     }
     requestAnimationFrame(gameLoop);
 }

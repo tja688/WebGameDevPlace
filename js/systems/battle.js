@@ -143,12 +143,6 @@ export function initBattleFromRun(runData) {
         logCombat(state, `${state.player.relic.name} 生效，额外抽 ${extraDraw} 张牌`);
     }
 
-    // 播放对应BGM
-    if (typeof GameAudio !== 'undefined') {
-        const bgmType = monsterDef.type === 'boss' ? 'boss' : 'normal';
-        GameAudio.playBGM(bgmType);
-    }
-
     // 触发第一回合开始效果（怪物恢复等）
     FX.fire(Trigger.ON_TURN_START, new EffectContext({
         state, trigger: Trigger.ON_TURN_START
@@ -187,7 +181,6 @@ function parseMonsterSkills(monster) {
 
 export function endTurn(state) {
     if (state.phase !== 'playing') return;
-    if (typeof GameAudio !== 'undefined') GameAudio.playEndTurn();
     recordTimeline(state, 'turn_end_start', { turn: state.turn });
 
     // 检测当前计策
@@ -254,17 +247,7 @@ export function endTurn(state) {
     });
 
     if (totalDmg > 0) {
-        state.monsterFlash = 15;
-        if (typeof GameAudio !== 'undefined') GameAudio.playDamage();
-        if (typeof window !== 'undefined' && window.RenderFX) {
-            const mx = 640;
-            const my = 120;
-            window.RenderFX.spawnDamage(mx, my, totalDmg, totalDmg >= state.monster.maxHp * 0.3);
-            const overflow = Math.max(0, totalDmg - monsterHpBefore);
-            const intensity = Math.min(18, 3 + overflow * 0.15);
-            const decay = Math.max(0.75, 0.92 - overflow * 0.002);
-            window.RenderFX.screenShake.trigger(intensity, decay);
-        }
+        // 怪物受伤动画由 AnimationEngine 处理
     }
 
     logCombat(state, `第${state.turn}回合造成 ${totalDmg} 伤害，怪物剩余 ${state.monster.hp} HP`);
@@ -277,10 +260,7 @@ export function endTurn(state) {
         if (state.turn === 1) {
             state.firstTurnKill = true;
         }
-        if (typeof window !== 'undefined' && window.RenderFX) {
-            window.RenderFX.spawnVictory(640, 120);
-        }
-        if (typeof GameAudio !== 'undefined') GameAudio.playMonsterDeath();
+        // 胜利动画由 AnimationEngine 处理
         return;
     }
 
@@ -291,11 +271,7 @@ export function endTurn(state) {
         amount: 1,
         heartsAfter: state.player.hearts
     });
-    if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
-    if (typeof window !== 'undefined' && window.RenderFX) {
-        const heartX = 50 + (state.player.hearts) * 36 + 15;
-        window.RenderFX.spawnHeartBreak(heartX, 155);
-    }
+    // 失去人群动画由 AnimationEngine 处理
     logCombat(state, `失去 1 人群！剩余 ${state.player.hearts} 人群`);
 
     if (state.player.hearts <= 0) {

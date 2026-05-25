@@ -112,7 +112,6 @@ export function playCardToSlot(card, slotIndex, state) {
     const check = canPlaceCard(card, slot, state);
     if (!check.ok) {
         logCombat(state, `无法放置: ${check.reason}`);
-        if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
         return false;
     }
 
@@ -149,8 +148,6 @@ export function playCardToSlot(card, slotIndex, state) {
                 monsterName: state.monster.name
             });
             logCombat(state, `${state.monster.name} 的技能生效：第一张打出的 ${discarded.name} 直接进入弃牌堆！`);
-            state.slotFlashes.push({ slotIndex, timer: 20 });
-            if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
             return true;
         }
     }
@@ -161,27 +158,6 @@ export function playCardToSlot(card, slotIndex, state) {
         card, slotIndex
     });
     FX.fire(Trigger.ON_PLAY, ctx);
-
-    state.slotFlashes.push({ slotIndex, timer: 20 });
-
-    // 视觉特效：卡牌放置火花
-    if (typeof FX !== 'undefined') {
-        if (!state.pendingPlaceEffects) state.pendingPlaceEffects = [];
-        state.pendingPlaceEffects.push({ slotIndex, color: card.accentColor || '#ffd700' });
-    }
-
-    if (typeof GameAudio !== 'undefined') {
-        const stackCount = slot.cards.length;
-        if (stackCount > 1) {
-            GameAudio.playStackSound(stackCount);
-        } else if (card.rarity === 'gold') {
-            GameAudio.playRareCard();
-        } else if (card.rarity === 'blue') {
-            GameAudio.playGoldSparkle();
-        } else {
-            GameAudio.playCardPlace();
-        }
-    }
 
     // 检测计策变化；条件不满足时必须立刻清空旧计策
     state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);

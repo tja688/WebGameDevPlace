@@ -177,9 +177,6 @@ registerEffect({
             slotIndex: ctx.slotIndex
         });
         ctx.log(`${ctx.card.name} 成长了！永久点数+${amount}`);
-        if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
-        if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
-        ctx.state.pendingGrowthEffects.push({ slotIndex: ctx.slotIndex });
     }
 });
 

@@ -269,6 +269,8 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
         firstTurnKill: false,
         pendingPlaceEffects: [],
         pendingGrowthEffects: [],
+        effectTimeline: [],
+        timelineSeq: 0,
         _playgroundBattle: true
     };
 
@@ -337,6 +339,8 @@ export function resetPlaygroundBattle(gameState) {
     gameState.firstTurnKill = false;
     gameState.pendingPlaceEffects = [];
     gameState.pendingGrowthEffects = [];
+    gameState.effectTimeline = [];
+    gameState.timelineSeq = 0;
     if (gameState.data) gameState.data.battleEndProcessing = false;
 
     shuffleDiscardToDeck(gameState);
@@ -400,6 +404,8 @@ export function changePlaygroundMonster(gameState, monsterDefId) {
     gameState.firstTurnKill = false;
     gameState.pendingPlaceEffects = [];
     gameState.pendingGrowthEffects = [];
+    gameState.effectTimeline = [];
+    gameState.timelineSeq = 0;
     gameState._playgroundBattle = true;
 
     gameState.screen = 'playground';

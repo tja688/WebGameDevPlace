@@ -15,6 +15,7 @@ import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
+import { AnimationEngine } from '../systems/animation.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
 import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios, enterPlaygroundBattle, resetPlaygroundBattle } from '../playground/index.js';
@@ -149,6 +150,11 @@ export const Input = {
     },
 
     onMouseUp(e) {
+        if (AnimationEngine.isLocked) {
+            this.isDragging = false;
+            this.state.draggedCard = null;
+            return;
+        }
         if (!this.isDragging || !this.state.draggedCard) {
             this.isDragging = false;
             return;
@@ -161,9 +167,11 @@ export const Input = {
             const success = playCardToSlot(this.state.draggedCard, slotIdx, this.state);
             if (success) {
                 this.state.turnDamage = calculateTotalBoardDamage(this.state);
+                AnimationEngine.enqueueFromTimeline(this.state);
             } else {
                 this.state.message = '无法放置到此格子';
                 this.state.messageTimer = 60;
+                if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
             }
         }
 
@@ -285,6 +293,7 @@ export const Input = {
                 Object.assign(this.state, battleState);
                 this.state.screen = 'battle';
                 this.state.data = {};
+                AnimationEngine.enqueueFromTimeline(this.state);
                 return;
             }
         }
@@ -1137,6 +1146,7 @@ export const Input = {
         Object.assign(this.state, battleState);
         this.state.screen = 'battle';
         this.state.data = {};
+        AnimationEngine.enqueueFromTimeline(this.state);
     },
 
     // ===== 宝箱 =====
@@ -1231,6 +1241,10 @@ export const Input = {
             return;
         }
 
+        if (AnimationEngine.isLocked) {
+            this.canvas.style.cursor = 'default';
+            return;
+        }
         if (this.state.phase !== 'playing') {
             this.canvas.style.cursor = 'default';
             return;
@@ -1239,6 +1253,7 @@ export const Input = {
         const btnRect = getEndTurnButtonRect(this.renderer);
         if (this.hitTest(pos, btnRect)) {
             endTurn(this.state);
+            AnimationEngine.enqueueFromTimeline(this.state);
             this.canvas.style.cursor = 'default';
             this.checkBattleEnd();
             return;

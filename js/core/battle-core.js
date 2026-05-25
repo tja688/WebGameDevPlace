@@ -49,20 +49,10 @@ export function drawCards(state, count) {
             cardName: card.name,
             handIndex: state.hand.length - 1
         });
-        // 抽卡动画：40帧(~667ms)带延迟错峰，带旋转和拖尾
-        state.drawAnimations.push({
-            card: card,
-            handIndex: state.hand.length - 1,
-            timer: 40,
-            maxTimer: 40,
-            delay: i * 8, // 错峰延迟
-            rotation: (Math.random() - 0.5) * 1.5 // 初始随机旋转
-        });
         drawn++;
     }
     if (drawn > 0) {
         logCombat(state, `抽了 ${drawn} 张牌`);
-        if (typeof GameAudio !== 'undefined') GameAudio.playDrawCard();
     }
 }
 
