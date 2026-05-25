@@ -15,6 +15,7 @@ import { Trigger, DRAW_COUNT } from '../core/constants.js';
 import { calculateTotalBoardDamage } from './board.js';
 import { createBattleSlots } from '../core/state.js';
 import { detectStrategy, getAllStrategies } from './strategy.js';
+import { AnimationEngine } from './animation.js';
 
 export { logCombat, drawCards } from '../core/battle-core.js';
 
@@ -148,6 +149,7 @@ export function initBattleFromRun(runData) {
         state, trigger: Trigger.ON_TURN_START
     }));
 
+    AnimationEngine.reset();
     return state;
 }
 

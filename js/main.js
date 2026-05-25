@@ -95,7 +95,7 @@ function bindKeys() {
 
         if (window.gameState.screen === 'battle') {
             if (e.key === 'e' || e.key === 'E') {
-                if (window.gameState.phase === 'playing' && !AnimationEngine.isLocked) {
+                if (window.gameState.phase === 'playing') {
                     endTurn(window.gameState);
                     AnimationEngine.enqueueFromTimeline(window.gameState);
                     Input.checkBattleEnd();
@@ -113,6 +113,7 @@ function bindKeys() {
                     Object.assign(window.gameState, battleState);
                     window.gameState.screen = 'battle';
                     window.gameState.data = {};
+                    AnimationEngine.reset();
                     AnimationEngine.enqueueFromTimeline(window.gameState);
                 }
             }
@@ -213,6 +214,7 @@ window.addEventListener('DOMContentLoaded', init);
 window.restartGame = function() {
     window.gameState = startBattle();
     Input.state = window.gameState;
+    AnimationEngine.reset();
     if (typeof AutoTest !== 'undefined') {
         AutoTest.state = window.gameState;
     }

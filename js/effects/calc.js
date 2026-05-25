@@ -212,3 +212,17 @@ registerEffect({
         ctx.value -= ctx.state.monster.prevStrategyPenalty;
     }
 });
+
+// 训练成果（training_result）：本局每打出一张成长牌，点数+2
+registerEffect({
+    id: 'training_result_aura',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 10,
+    condition: (ctx) => ctx.card && ctx.card.defId === 'training_result',
+    execute: (ctx) => {
+        const count = ctx.state.runDataRef?.growCardsPlayedThisRun || 0;
+        if (count > 0) {
+            ctx.value += count * 2;
+        }
+    }
+});

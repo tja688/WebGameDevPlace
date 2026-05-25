@@ -150,11 +150,6 @@ export const Input = {
     },
 
     onMouseUp(e) {
-        if (AnimationEngine.isLocked) {
-            this.isDragging = false;
-            this.state.draggedCard = null;
-            return;
-        }
         if (!this.isDragging || !this.state.draggedCard) {
             this.isDragging = false;
             return;
@@ -293,6 +288,7 @@ export const Input = {
                 Object.assign(this.state, battleState);
                 this.state.screen = 'battle';
                 this.state.data = {};
+                AnimationEngine.reset();
                 AnimationEngine.enqueueFromTimeline(this.state);
                 return;
             }
@@ -1146,6 +1142,7 @@ export const Input = {
         Object.assign(this.state, battleState);
         this.state.screen = 'battle';
         this.state.data = {};
+        AnimationEngine.reset();
         AnimationEngine.enqueueFromTimeline(this.state);
     },
 
@@ -1241,10 +1238,6 @@ export const Input = {
             return;
         }
 
-        if (AnimationEngine.isLocked) {
-            this.canvas.style.cursor = 'default';
-            return;
-        }
         if (this.state.phase !== 'playing') {
             this.canvas.style.cursor = 'default';
             return;

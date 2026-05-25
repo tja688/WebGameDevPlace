@@ -438,6 +438,11 @@ export const AnimationEngine = {
         this._isPlaying = false;
     },
 
+    reset() {
+        this.clear();
+        this._lastSeq = 0;
+    },
+
     /**
      * 从 state.effectTimeline 增量加载新事件到播放队列
      */

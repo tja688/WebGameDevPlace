@@ -137,7 +137,7 @@ export const CARD_DEFS = {
     big_brute_force: {
         id: 'big_brute_force',
         name: '大蛮力',
-        baseValue: 25,
+        baseValue: 30,
         size: 1,
         keywords: [],
         rarity: 'blue',
@@ -253,14 +253,14 @@ export const CARD_DEFS = {
     intense_training: {
         id: 'intense_training',
         name: '猛训练',
-        baseValue: 10,
+        baseValue: 5,
         size: 1,
         keywords: [],
         extraEffects: ['intense_training_effect'],
-        rarity: 'blue',
+        rarity: 'white',
         description: '若本牌已在倍率格，则后续打出在同倍率格卡牌的成长效果多触发一次',
-        color: '#1B4F72',
-        accentColor: '#5DADE2',
+        color: '#8B4513',
+        accentColor: '#CD853F',
         iconType: 'gear'
     },
     group_training: {
@@ -275,6 +275,251 @@ export const CARD_DEFS = {
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'star'
+    },
+
+    // ===== 成长体系补充 =====
+    training_buddy: {
+        id: 'training_buddy',
+        name: '训练搭子',
+        baseValue: 5,
+        size: 1,
+        keywords: ['grow'],
+        growAmount: 2,
+        extraEffects: ['training_buddy_effect'],
+        rarity: 'white',
+        description: '成长2；当打出一张带有成长词条的卡牌时，将本牌从牌组里打出到相同倍率格',
+        color: '#8B4513',
+        accentColor: '#CD853F',
+        iconType: 'sword'
+    },
+    auxiliary_training: {
+        id: 'auxiliary_training',
+        name: '辅助训练',
+        baseValue: 10,
+        size: 1,
+        keywords: [],
+        extraEffects: ['auxiliary_training_effect'],
+        rarity: 'white',
+        description: '若本牌已在倍率格，则下一张打出在本牌所在倍率格上卡牌获得成长1',
+        color: '#8B4513',
+        accentColor: '#CD853F',
+        iconType: 'shield'
+    },
+    training_30h: {
+        id: 'training_30h',
+        name: '30小时训练',
+        baseValue: 10,
+        size: 1,
+        keywords: ['grow'],
+        growAmount: 1,
+        extraEffects: ['training_30h_effect'],
+        rarity: 'blue',
+        description: '成长；打出时，本牌成长数+1',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'gear'
+    },
+    hormone_training: {
+        id: 'hormone_training',
+        name: '激素训练',
+        baseValue: 0,
+        size: 1,
+        keywords: ['grow'],
+        growAmount: 2,
+        extraEffects: ['hormone_training_effect'],
+        rarity: 'blue',
+        description: '成长2；打出时，本牌每有10点数就给所在倍率格点数+1',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'gear'
+    },
+    regular_training: {
+        id: 'regular_training',
+        name: '规律训练',
+        baseValue: 10,
+        size: 1,
+        keywords: ['grow'],
+        growAmount: 1,
+        extraEffects: ['regular_training_effect'],
+        rarity: 'blue',
+        description: '成长；打出时，从牌组里拿一张带有成长词条的卡牌放入手牌',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'magic'
+    },
+    training_result: {
+        id: 'training_result',
+        name: '训练成果',
+        baseValue: 0,
+        size: 1,
+        keywords: ['grow'],
+        growAmount: 1,
+        extraEffects: ['training_result_effect'],
+        rarity: 'gold',
+        description: '成长；本局游戏每打出过一次带有成长词条的卡牌，本牌点数+2',
+        color: '#7D6608',
+        accentColor: '#F4D03F',
+        iconType: 'star'
+    },
+
+    // ===== 大数字体系 =====
+    ugly_showoff: {
+        id: 'ugly_showoff',
+        name: '丑陋炫耀',
+        baseValue: 10,
+        size: 1,
+        keywords: [],
+        extraEffects: ['ugly_showoff_effect'],
+        rarity: 'white',
+        description: '打出时，若本牌所在倍率格卡牌总点数超过100，则抽一张牌',
+        color: '#8B0000',
+        accentColor: '#FF4444',
+        iconType: 'sword'
+    },
+    apprentice_forge: {
+        id: 'apprentice_forge',
+        name: '学徒铸造',
+        baseValue: 5,
+        size: 1,
+        keywords: [],
+        extraEffects: ['apprentice_forge_effect'],
+        rarity: 'white',
+        description: '若本牌已在倍率格，则下一张打出在本牌所在倍率格的卡牌本场战斗点数永久+5',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'gear'
+    },
+    borrow: {
+        id: 'borrow',
+        name: '预借',
+        baseValue: 30,
+        size: 1,
+        keywords: [],
+        extraEffects: ['borrow_effect'],
+        rarity: 'white',
+        description: '打出时，本牌点数永久-10',
+        color: '#8B0000',
+        accentColor: '#FF4444',
+        iconType: 'shadow'
+    },
+    master_forge: {
+        id: 'master_forge',
+        name: '大师铸造',
+        baseValue: 10,
+        size: 1,
+        keywords: [],
+        extraEffects: ['master_forge_effect'],
+        rarity: 'blue',
+        description: '若本牌已在倍率格，则下一张打出在本牌所在倍率格的卡牌本场战斗点数永久+10',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'gear'
+    },
+    perfect_leverage: {
+        id: 'perfect_leverage',
+        name: '完美借力',
+        baseValue: 0,
+        size: 1,
+        keywords: [],
+        extraEffects: ['perfect_leverage_effect'],
+        rarity: 'blue',
+        description: '打出时，获得相邻两侧倍率格点数最高卡牌之和的点数',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'magic'
+    },
+    skilled_borrow: {
+        id: 'skilled_borrow',
+        name: '熟练预借',
+        baseValue: 40,
+        size: 1,
+        keywords: [],
+        extraEffects: ['skilled_borrow_effect'],
+        rarity: 'blue',
+        description: '打出时，本牌点数永久-5',
+        color: '#8B0000',
+        accentColor: '#FF4444',
+        iconType: 'shadow'
+    },
+    one_man_army: {
+        id: 'one_man_army',
+        name: '一人成军',
+        baseValue: 0,
+        size: 1,
+        keywords: ['retain'],
+        extraEffects: ['one_man_army_effect'],
+        rarity: 'gold',
+        description: '保留；获得当前牌组内所有卡牌点数之和的点数',
+        color: '#7D6608',
+        accentColor: '#F4D03F',
+        iconType: 'star'
+    },
+
+    // ===== 中立牌补充 =====
+    first_strike: {
+        id: 'first_strike',
+        name: '先手优势',
+        baseValue: 10,
+        size: 1,
+        keywords: [],
+        extraEffects: ['first_strike_effect'],
+        rarity: 'white',
+        description: '如果本牌是本回合打出的第一张牌，则本牌点数+5并获得留场',
+        color: '#E74C3C',
+        accentColor: '#C0392B',
+        iconType: 'sword'
+    },
+    rear_guard: {
+        id: 'rear_guard',
+        name: '殿后',
+        baseValue: 10,
+        size: 1,
+        keywords: [],
+        extraEffects: ['rear_guard_effect'],
+        rarity: 'white',
+        description: '打出本牌后手牌为空时，本牌点数+10',
+        color: '#3498DB',
+        accentColor: '#2980B9',
+        iconType: 'shield'
+    },
+    battle_banner: {
+        id: 'battle_banner',
+        name: '战旗',
+        baseValue: 5,
+        size: 1,
+        keywords: [],
+        extraEffects: ['battle_banner_effect'],
+        rarity: 'white',
+        description: '打出时，相邻两侧倍率格卡牌点数+5',
+        color: '#E67E22',
+        accentColor: '#D35400',
+        iconType: 'shield'
+    },
+    easy_task: {
+        id: 'easy_task',
+        name: '顺手的事',
+        baseValue: 8,
+        size: 1,
+        keywords: [],
+        extraEffects: ['easy_task_effect'],
+        rarity: 'white',
+        description: '打出时，获得一金币',
+        color: '#F39C12',
+        accentColor: '#E67E22',
+        iconType: 'magic'
+    },
+    flexible_dispatch: {
+        id: 'flexible_dispatch',
+        name: '灵活调度',
+        baseValue: 10,
+        size: 1,
+        keywords: [],
+        extraEffects: ['flexible_dispatch_effect'],
+        rarity: 'blue',
+        description: '打出时，若当前已触发计策，则本牌所在倍率格点数+1',
+        color: '#1B4F72',
+        accentColor: '#5DADE2',
+        iconType: 'magic'
     },
 
     // ===== 衍生牌 =====
@@ -297,7 +542,12 @@ export const CARD_REWARD_POOL = [
     'vine_climb', 'ponder', 'prepare_battle', 'hold_position', 'brute_force',
     'common_goal', 'friendly_chat', 'big_brute_force', 'clear_mind', 'lend_hand',
     'messenger', 'luxury_gear', 'ultimate_brute', 'cogito_ergo_sum',
-    'war_training', 'training_trace', 'intense_training', 'group_training'
+    'war_training', 'training_trace', 'intense_training', 'group_training',
+    'training_buddy', 'auxiliary_training', 'training_30h', 'hormone_training',
+    'regular_training', 'training_result',
+    'ugly_showoff', 'apprentice_forge', 'borrow', 'master_forge',
+    'perfect_leverage', 'skilled_borrow', 'one_man_army',
+    'first_strike', 'rear_guard', 'battle_banner', 'easy_task', 'flexible_dispatch'
 ];
 
 export function createCardRewardOptions() {
