@@ -26,6 +26,10 @@ export function initBattleFromRun(runData) {
     const config = STAGE_CONFIG[stageKey];
     const monsterDefId = pickRandom(config.monsterPool);
     const monsterDef = MONSTER_DEFS[monsterDefId];
+    const nextMonsterHpPenalty = runData.nextMonsterHpPenalty || 0;
+    const nextBattleHeartBonus = runData.nextBattleHeartBonus || 0;
+    const monsterMaxHp = Math.max(1, monsterDef.hp - nextMonsterHpPenalty);
+    const playerMaxHearts = (runData.maxHearts || cls.hearts) + nextBattleHeartBonus;
 
     const slots = createBattleSlots({
         slotUpgrades: runData.slotUpgrades
@@ -38,14 +42,14 @@ export function initBattleFromRun(runData) {
         phase: 'playing',
         player: {
             name: cls.name,
-            maxHearts: runData.maxHearts || cls.hearts,
-            hearts: runData.maxHearts || cls.hearts,
+            maxHearts: playerMaxHearts,
+            hearts: playerMaxHearts,
             relic: cls.relic
         },
         monster: {
             name: monsterDef.name,
-            maxHp: monsterDef.hp,
-            hp: monsterDef.hp,
+            maxHp: monsterMaxHp,
+            hp: monsterMaxHp,
             description: monsterDef.description,
             keywords: [...monsterDef.keywords],
             keywordDesc: monsterDef.keywordDesc,
@@ -119,6 +123,15 @@ export function initBattleFromRun(runData) {
         _eventBattleReward: null,
         _originalStageIndex: undefined
     };
+
+    if (nextMonsterHpPenalty > 0) {
+        delete runData.nextMonsterHpPenalty;
+        logCombat(state, `场外援助生效：${state.monster.name} 血量减少 ${nextMonsterHpPenalty}`);
+    }
+    if (nextBattleHeartBonus > 0) {
+        delete runData.nextBattleHeartBonus;
+        logCombat(state, `残破克隆镜生效：本场战斗人群 +${nextBattleHeartBonus}`);
+    }
 
     // 解析怪物技能
     parseMonsterSkills(state.monster);

@@ -14,7 +14,8 @@ import {
     canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview
 } from '../systems/board.js';
 import { calculateTotalBoardDamage } from '../systems/board.js';
-import { MONSTER_COLOR_THEMES } from '../data/index.js';
+import { detectStrategy, getAllStrategies } from '../systems/strategy.js';
+import { CARD_DEFS, MONSTER_COLOR_THEMES } from '../data/index.js';
 import { FX } from './fx.js';
 
 export function drawBattle(renderer, ctx, state) {
@@ -23,6 +24,8 @@ export function drawBattle(renderer, ctx, state) {
     drawMonsterArea(renderer, ctx, state);
     drawPlayerArea(renderer, ctx, state);
     drawRelicsBar(renderer, ctx, state);
+    drawStrategyPanel(renderer, ctx, state);
+    drawAdventureCheatPanel(renderer, ctx, state);
     drawBoardArea(renderer, ctx, state);
     drawHandArea(renderer, ctx, state);
     drawUI(renderer, ctx, state);
@@ -699,6 +702,150 @@ function drawRelicsBar(renderer, ctx, state) {
 }
 
 // ============================================================
+// 计策固定面板
+// ============================================================
+
+function drawStrategyPanel(renderer, ctx, state) {
+    if (!state.slots) return;
+
+    const x = 40;
+    const y = 235;
+    const w = 195;
+    const h = 300;
+    const counts = state.slots.map(s => s.cards.length);
+    const totalCards = counts.reduce((sum, n) => sum + n, 0);
+    const current = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+    state.currentStrategy = current;
+
+    drawParchment(ctx, x, y, w, h, { alpha: 0.78, radius: 8 });
+    ctx.strokeStyle = current ? (current.isOverdrive ? '#ff6666' : '#d6a94d') : 'rgba(184,134,11,0.55)';
+    ctx.lineWidth = current ? 2 : 1;
+    roundRect(ctx, x, y, w, h, 8);
+    ctx.stroke();
+
+    ctx.fillStyle = '#f0d29a';
+    ctx.font = 'bold 15px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText('计策阵型', x + 14, y + 24);
+
+    ctx.fillStyle = '#9f8b72';
+    ctx.font = '12px Microsoft YaHei';
+    ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}`, x + 14, y + 45);
+
+    if (current) {
+        const bonusText = current.bonuses.map((b, i) => `格${i + 1}+${b}`).join(' ');
+        ctx.fillStyle = current.isOverdrive ? 'rgba(120,30,30,0.55)' : 'rgba(80,60,25,0.55)';
+        roundRect(ctx, x + 10, y + 56, w - 20, 42, 6);
+        ctx.fill();
+
+        ctx.fillStyle = current.isOverdrive ? '#ff9999' : '#ffd76a';
+        ctx.font = 'bold 14px Microsoft YaHei';
+        ctx.fillText(current.name, x + 18, y + 75);
+
+        ctx.fillStyle = '#ead6b0';
+        ctx.font = '12px Microsoft YaHei';
+        ctx.fillText(bonusText, x + 18, y + 92);
+    } else {
+        ctx.fillStyle = '#8f8170';
+        ctx.font = '12px Microsoft YaHei';
+        ctx.fillText(totalCards > 0 ? '当前没有命中阵型' : '放牌后会实时提示阵型', x + 14, y + 76);
+    }
+
+    const all = getAllStrategies();
+    const rows = [...all.base, ...all.overdrive];
+    let rowY = y + 116;
+    ctx.font = '11px Microsoft YaHei';
+    for (const strat of rows) {
+        const isCurrent = current && current.id === strat.id;
+        const rowH = 13;
+        if (isCurrent) {
+            ctx.fillStyle = current.isOverdrive ? 'rgba(255,80,80,0.22)' : 'rgba(255,215,0,0.18)';
+            roundRect(ctx, x + 10, rowY - 10, w - 20, rowH, 3);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = isCurrent ? '#ffe08a' : (strat.condition ? '#c68686' : '#bca98b');
+        ctx.textAlign = 'left';
+        ctx.fillText(strat.name, x + 14, rowY);
+        ctx.textAlign = 'right';
+        ctx.fillText(strat.req.join('-'), x + w - 14, rowY);
+        rowY += rowH;
+    }
+
+    ctx.textAlign = 'left';
+}
+
+// ============================================================
+// 正式冒险作弊面板（仅玩家侧）
+// ============================================================
+
+function drawAdventureCheatPanel(renderer, ctx, state) {
+    if (state.screen !== 'battle' || state._playgroundBattle || !state.runDataRef) return;
+
+    const x = renderer.width - 225;
+    const y = 215;
+    const w = 165;
+    const h = 230;
+    const data = state.data || (state.data = {});
+
+    drawParchment(ctx, x, y, w, h, { alpha: 0.72, radius: 8 });
+    ctx.strokeStyle = 'rgba(120,95,55,0.75)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, x, y, w, h, 8);
+    ctx.stroke();
+
+    ctx.fillStyle = '#d7b77a';
+    ctx.font = 'bold 14px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText('冒险调试', x + 12, y + 23);
+
+    const selector = getAdventureCheatSelectedCard(state);
+    ctx.fillStyle = 'rgba(20,15,10,0.5)';
+    roundRect(ctx, x + 10, y + 34, w - 20, 38, 5);
+    ctx.fill();
+    ctx.fillStyle = '#f0d29a';
+    ctx.font = 'bold 12px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText(selector.name, x + w / 2, y + 58);
+
+    const btns = [
+        { id: 'prev_card', text: '<', x: x + 10, y: y + 80, w: 36, h: 28 },
+        { id: 'add_card', text: '加入手牌', x: x + 50, y: y + 80, w: 65, h: 28 },
+        { id: 'next_card', text: '>', x: x + 119, y: y + 80, w: 36, h: 28 },
+        { id: 'draw_one', text: '抽 1 张', x: x + 10, y: y + 118, w: 68, h: 30 },
+        { id: 'heal', text: '回满人群', x: x + 87, y: y + 118, w: 68, h: 30 },
+        { id: 'win', text: '直接获胜', x: x + 10, y: y + 158, w: 145, h: 34, primary: true }
+    ];
+
+    data.adventureCheatRects = btns;
+    for (const btn of btns) {
+        const hover = data.hoverAdventureCheat === btn.id;
+        drawButton(ctx, btn.x, btn.y, btn.w, btn.h, btn.text, {
+            hover,
+            primary: !!btn.primary,
+            disabled: state.phase !== 'playing',
+            radius: 5,
+            fontSize: btn.id === 'add_card' ? 11 : 12
+        });
+    }
+
+    ctx.fillStyle = '#8f8170';
+    ctx.font = '11px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText(`手牌 ${state.hand.length}/10`, x + w / 2, y + 213);
+}
+
+function getAdventureCheatSelectedCard(state) {
+    const allCardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+    if (allCardIds.length === 0) {
+        return { id: null, name: '无卡牌' };
+    }
+    const idx = state.data?.adventureCheatCardIndex || 0;
+    const id = allCardIds[((idx % allCardIds.length) + allCardIds.length) % allCardIds.length];
+    return { id, name: CARD_DEFS[id].name };
+}
+
+// ============================================================
 // 倍率牌桌
 // ============================================================
 
@@ -709,24 +856,6 @@ function drawBoardArea(renderer, ctx, state) {
     const slotH = 160;
     const gap = 20;
     const t = renderer.animTime;
-
-    // 计策显示
-    const strategy = state.currentStrategy;
-    if (strategy) {
-        ctx.fillStyle = strategy.isOverdrive ? '#ff4444' : '#ffd700';
-        ctx.font = 'bold 16px Microsoft YaHei';
-        ctx.textAlign = 'center';
-        const bonusText = strategy.bonuses.map((b, i) => `格${i+1}+${b}`).join(' ');
-        ctx.fillText(`计策：${strategy.name} | ${bonusText}`, renderer.width / 2, startY - 50);
-    } else {
-        const totalCards = state.slots.reduce((sum, s) => sum + s.cards.length, 0);
-        if (totalCards > 0) {
-            ctx.fillStyle = '#888';
-            ctx.font = '14px Microsoft YaHei';
-            ctx.textAlign = 'center';
-            ctx.fillText('暂无计策', renderer.width / 2, startY - 50);
-        }
-    }
 
     for (let i = 0; i < state.slots.length; i++) {
         const slot = state.slots[i];

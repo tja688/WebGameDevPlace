@@ -300,12 +300,40 @@ export const CARD_REWARD_POOL = [
     'war_training', 'training_trace', 'intense_training', 'group_training'
 ];
 
+const CARD_REWARD_RARITY_WEIGHTS = [
+    { rarity: 'white', weight: 65 },
+    { rarity: 'blue', weight: 30 },
+    { rarity: 'gold', weight: 5 }
+];
+
+function pickWeightedCardRarity() {
+    const total = CARD_REWARD_RARITY_WEIGHTS.reduce((sum, item) => sum + item.weight, 0);
+    let roll = Math.random() * total;
+    for (const item of CARD_REWARD_RARITY_WEIGHTS) {
+        if (roll < item.weight) return item.rarity;
+        roll -= item.weight;
+    }
+    return CARD_REWARD_RARITY_WEIGHTS[CARD_REWARD_RARITY_WEIGHTS.length - 1].rarity;
+}
+
+function pickRewardCardId(pool) {
+    for (let attempt = 0; attempt < CARD_REWARD_RARITY_WEIGHTS.length; attempt++) {
+        const rarity = pickWeightedCardRarity();
+        const rarityPool = pool.filter(id => CARD_DEFS[id].rarity === rarity);
+        if (rarityPool.length > 0) {
+            return rarityPool[Math.floor(Math.random() * rarityPool.length)];
+        }
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export function createCardRewardOptions() {
     const options = [];
     const pool = [...CARD_REWARD_POOL];
     for (let i = 0; i < 3; i++) {
         if (pool.length === 0) break;
-        const idx = Math.floor(Math.random() * pool.length);
+        const defId = pickRewardCardId(pool);
+        const idx = pool.indexOf(defId);
         options.push(pool.splice(idx, 1)[0]);
     }
     return options;

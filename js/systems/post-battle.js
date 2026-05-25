@@ -18,12 +18,20 @@ const EVENT_POOLS = {
         { name: '遗落的兵书', desc: '获得一次随机计策等级强化', effect: 'random_strategy_level' },
         { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 },
         { name: '自助铁匠锤', desc: '玩家-2金币，任意倍率格点数+1', effect: 'self_blacksmith', param: { goldCost: 2, slotBonus: 1 } },
-        { name: '及时的帮助', desc: '获得一次三选一卡牌的机会', effect: 'card_pick_three' }
+        { name: '及时的帮助', desc: '获得一次三选一卡牌的机会', effect: 'card_pick_three' },
+        { name: '求牌乞丐', desc: '获得一次免费删牌机会', effect: 'free_remove_card' },
+        { name: '可疑商人', desc: '玩家-4金币，随机获得一件遗物', effect: 'buy_random_relic', param: 4 },
+        { name: '乱涂乱画', desc: '选择牌组内任意一张卡牌随机转换为随机卡牌', effect: 'transform_card' },
+        { name: '催熟激素', desc: '牌组内的成长牌立刻成长2次', effect: 'grow_cards_twice' },
+        { name: '盲目岩壁', desc: '选择牌组内任意一张卡牌获得蔓延词条', effect: 'enchant_spread' },
+        { name: '场外援助', desc: '下一场战斗，怪物血量减少200点', effect: 'next_monster_hp_down', param: 200 }
     ],
     rare: [
         { name: '抵御怪物', desc: '玩家立刻与X-7的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
         { name: '出土遗物', desc: '获得一次三选一中级遗物的机会', effect: 'pick_rare_relic' },
-        { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 }
+        { name: '残破克隆镜', desc: '下一场战斗，人群数+1', effect: 'next_battle_hearts_plus', param: 1 },
+        { name: '赝品画家', desc: '选择牌组内任意一张卡牌，将它的复制品加入卡组', effect: 'duplicate_card' },
+        { name: '金钱壶', desc: '玩家获得8金币', effect: 'gain_gold', param: 8 }
     ],
     legendary: [
         { name: '魔镜', desc: '玩家在本局中人群数+1', effect: 'max_hearts_plus' },
@@ -164,6 +172,19 @@ function pickBossRelics() {
     const shuffled = [...usablePool].sort(() => Math.random() - 0.5);
     for (let i = 0; i < 3 && i < shuffled.length; i++) {
         options.push(shuffled[i]);
+    }
+    return options;
+}
+
+export function pickExcavatedRelicOptions() {
+    const options = [];
+    const rarePool = RELIC_DEFS.filter(r => r.rarity === 'rare');
+    const epicPool = RELIC_DEFS.filter(r => r.rarity === 'epic');
+    for (let i = 0; i < 3; i++) {
+        const useEpic = epicPool.length > 0 && Math.random() < 0.05;
+        const pool = useEpic ? epicPool : rarePool;
+        if (pool.length === 0) break;
+        options.push(pool[Math.floor(Math.random() * pool.length)]);
     }
     return options;
 }

@@ -10,11 +10,13 @@
 import { switchScreen, getCurrentStageKey } from '../core/state.js';
 import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
-import { resolveBattleEnd, generatePostBattleEvents } from '../systems/post-battle.js';
+import { drawCards } from '../core/battle-core.js';
+import { resolveBattleEnd, generatePostBattleEvents, pickExcavatedRelicOptions } from '../systems/post-battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
-import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, createCardRewardOptions } from '../data/index.js';
+import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, RELIC_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
+import { HAND_LIMIT } from '../core/constants.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
 import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios, enterPlaygroundBattle, resetPlaygroundBattle } from '../playground/index.js';
@@ -209,6 +211,7 @@ export const Input = {
         state.data.hoverBack = false;
         state.data.hoverRelic = null;
         state.data.hoverDeckViewBtn = false;
+        state.data.hoverAdventureCheat = null;
         state.data.deckViewHoverCard = null;
         state.data.deckViewHoverClose = false;
     },
@@ -381,6 +384,46 @@ export const Input = {
                             return;
                         }
                         showPlaceholderToast(`${card.name} 获得【成长1】！`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            this._finishEvent(runData);
+                        }, 600);
+                        return;
+                    }
+
+                    if (data.selectMode === 'event_enchant_spread') {
+                        const result = addKeywordToCard(card, 'spread');
+                        if (!result.ok) {
+                            showPlaceholderToast(result.reason);
+                            data.processing = false;
+                            return;
+                        }
+                        showPlaceholderToast(`${card.name} 获得【蔓延】！`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            this._finishEvent(runData);
+                        }, 600);
+                        return;
+                    }
+
+                    if (data.selectMode === 'event_remove_free') {
+                        const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
+                        if (idx !== -1) runData.deck.splice(idx, 1);
+                        showPlaceholderToast(`已移除 ${card.name}`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            this._finishEvent(runData);
+                        }, 600);
+                        return;
+                    }
+
+                    if (data.selectMode === 'event_transform') {
+                        const pool = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion' && id !== card.defId);
+                        const defId = pool[Math.floor(Math.random() * pool.length)];
+                        const replacement = createCardInstance(defId);
+                        const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
+                        if (idx !== -1 && replacement) runData.deck[idx] = replacement;
+                        showPlaceholderToast(`${card.name} 变成了 ${replacement.name}`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -972,13 +1015,19 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
             case 'gain_relic':
-                runData.relics.push({ name: '随机遗物', desc: '获得一个低级遗物（占位）' });
-                showPlaceholderToast('获得随机低级遗物！');
+                {
+                    const relic = this._pickRandomRelic(['common']);
+                    if (relic) runData.relics.push(relic);
+                    showPlaceholderToast(relic ? `获得遗物：${relic.name}` : '没有可获得的遗物');
+                }
                 this._finishEvent(runData);
                 return;
             case 'gain_rare_relic':
-                runData.relics.push({ name: '高级遗物', desc: '获得一个高级遗物（占位）' });
-                showPlaceholderToast('获得随机高级遗物！');
+                {
+                    const relic = this._pickRandomRelic(['epic']);
+                    if (relic) runData.relics.push(relic);
+                    showPlaceholderToast(relic ? `获得遗物：${relic.name}` : '没有可获得的遗物');
+                }
                 this._finishEvent(runData);
                 return;
             case 'random_strategy_level':
@@ -1019,11 +1068,71 @@ export const Input = {
                     });
                 }
                 return;
+            case 'free_remove_card':
+                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                switchScreen(this.state, 'card_select', {
+                    runData, title: opt.name || '求牌乞丐',
+                    desc: '选择一张牌免费移除',
+                    cards: runData.deck, backText: '离开', selectMode: 'event_remove_free',
+                    returnScreen: 'map', returnData: data
+                });
+                return;
+            case 'buy_random_relic':
+                {
+                    const cost = param || 4;
+                    if (runData.gold < cost) { showPlaceholderToast('金币不足！'); return; }
+                    runData.gold -= cost;
+                    const relic = this._pickRandomRelic(['common', 'rare', 'epic']);
+                    if (relic) runData.relics.push(relic);
+                    showPlaceholderToast(relic ? `获得遗物：${relic.name}` : '没有可获得的遗物');
+                    this._finishEvent(runData);
+                }
+                return;
+            case 'transform_card':
+                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                switchScreen(this.state, 'card_select', {
+                    runData, title: opt.name || '乱涂乱画',
+                    desc: '选择一张卡牌随机转换为另一张卡牌',
+                    cards: runData.deck, backText: '离开', selectMode: 'event_transform',
+                    returnScreen: 'map', returnData: data
+                });
+                return;
+            case 'grow_cards_twice':
+                {
+                    let count = 0;
+                    for (const card of runData.deck) {
+                        if (card.keywords && card.keywords.includes('grow')) {
+                            card.permanentBonus += (card.growAmount || 1) * 2;
+                            count++;
+                        }
+                    }
+                    showPlaceholderToast(count > 0 ? `${count} 张成长牌成长2次！` : '牌组中没有成长牌');
+                    this._finishEvent(runData);
+                }
+                return;
+            case 'enchant_spread':
+                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                switchScreen(this.state, 'card_select', {
+                    runData, title: opt.name || '盲目岩壁',
+                    desc: '选择一张卡牌获得【蔓延】词条',
+                    cards: runData.deck, backText: '离开', selectMode: 'event_enchant_spread',
+                    returnScreen: 'map', returnData: data
+                });
+                return;
+            case 'next_monster_hp_down':
+                runData.nextMonsterHpPenalty = (runData.nextMonsterHpPenalty || 0) + (param || 200);
+                showPlaceholderToast(`下一场战斗怪物血量-${param || 200}`);
+                this._finishEvent(runData);
+                return;
+            case 'next_battle_hearts_plus':
+                runData.nextBattleHeartBonus = (runData.nextBattleHeartBonus || 0) + (param || 1);
+                showPlaceholderToast(`下一场战斗人群+${param || 1}`);
+                this._finishEvent(runData);
+                return;
             case 'pick_rare_relic':
                 {
-                    const relicPool = RELIC_DEFS.filter(r => r.rarity === 'rare' || r.rarity === 'epic');
-                    const shuffled = [...relicPool].sort(() => Math.random() - 0.5);
-                    const options = shuffled.slice(0, 3).map(r => ({ name: r.name, desc: r.desc || r.description, effect: 'direct_relic', param: r }));
+                    const options = pickExcavatedRelicOptions()
+                        .map(r => ({ name: r.name, desc: r.desc || r.description, effect: 'direct_relic', param: r }));
                     switchScreen(this.state, 'event', {
                         runData, title: opt.name || '出土遗物',
                         desc: '选择一件中级遗物',
@@ -1100,6 +1209,26 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
         }
+    },
+
+    _pickRandomRelic(rarities) {
+        const pool = RELIC_DEFS.filter(r => rarities.includes(r.rarity));
+        if (pool.length === 0) return null;
+        const weights = { common: 65, rare: 30, epic: 5 };
+        const weighted = [];
+        for (const rarity of rarities) {
+            const rarityPool = pool.filter(r => r.rarity === rarity);
+            if (rarityPool.length > 0) weighted.push({ rarity, weight: weights[rarity] || 1, pool: rarityPool });
+        }
+        const total = weighted.reduce((sum, item) => sum + item.weight, 0);
+        let roll = Math.random() * total;
+        for (const item of weighted) {
+            if (roll < item.weight) {
+                return item.pool[Math.floor(Math.random() * item.pool.length)];
+            }
+            roll -= item.weight;
+        }
+        return pool[Math.floor(Math.random() * pool.length)];
     },
 
     _finishEvent(runData) {
@@ -1231,6 +1360,10 @@ export const Input = {
             return;
         }
 
+        if (this.handleAdventureCheatClick(pos)) {
+            return;
+        }
+
         if (this.state.phase !== 'playing') {
             this.canvas.style.cursor = 'default';
             return;
@@ -1262,6 +1395,10 @@ export const Input = {
             this.state.data.hoverDeckViewBtn = true;
             this.canvas.style.cursor = 'pointer';
             this.hideTooltip();
+            return;
+        }
+
+        if (this.handleAdventureCheatHover(pos)) {
             return;
         }
 
@@ -1346,6 +1483,74 @@ export const Input = {
                 }
             }
         }
+    },
+
+    handleAdventureCheatClick(pos) {
+        const data = this.state.data;
+        if (!data || !data.adventureCheatRects || this.state.screen !== 'battle' || this.state._playgroundBattle) {
+            return false;
+        }
+        const rect = data.adventureCheatRects.find(r => this.hitTest(pos, r));
+        if (!rect) return false;
+        if (this.state.phase !== 'playing') return true;
+
+        const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+        if (data.adventureCheatCardIndex === undefined) data.adventureCheatCardIndex = 0;
+
+        switch (rect.id) {
+            case 'prev_card':
+                data.adventureCheatCardIndex = (data.adventureCheatCardIndex - 1 + cardIds.length) % cardIds.length;
+                break;
+            case 'next_card':
+                data.adventureCheatCardIndex = (data.adventureCheatCardIndex + 1) % cardIds.length;
+                break;
+            case 'add_card':
+                if (this.state.hand.length >= HAND_LIMIT) {
+                    this.state.message = '手牌已满';
+                    this.state.messageTimer = 60;
+                    break;
+                }
+                {
+                    const defId = cardIds[data.adventureCheatCardIndex % cardIds.length];
+                    const card = createCardInstance(defId);
+                    if (card) this.state.hand.push(card);
+                }
+                break;
+            case 'draw_one':
+                drawCards(this.state, 1);
+                break;
+            case 'heal':
+                this.state.player.hearts = this.state.player.maxHearts;
+                this.state.heartsLost = 0;
+                break;
+            case 'win':
+                this.state.monster.hp = 0;
+                this.state.phase = 'ended';
+                this.state.result = 'win';
+                this.checkBattleEnd();
+                break;
+        }
+
+        this.state.turnDamage = calculateTotalBoardDamage(this.state);
+        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+        this.canvas.style.cursor = 'default';
+        return true;
+    },
+
+    handleAdventureCheatHover(pos) {
+        const data = this.state.data;
+        if (!data || !data.adventureCheatRects || this.state.screen !== 'battle' || this.state._playgroundBattle) {
+            return false;
+        }
+        const rect = data.adventureCheatRects.find(r => this.hitTest(pos, r));
+        if (!rect) return false;
+        data.hoverAdventureCheat = rect.id;
+        this.state.selectedCard = null;
+        this.state.hoveredMonster = false;
+        this.state.hoveredEndTurn = false;
+        this.canvas.style.cursor = this.state.phase === 'playing' ? 'pointer' : 'default';
+        this.hideTooltip();
+        return true;
     },
 
     _lastHoverSoundTime: 0,
