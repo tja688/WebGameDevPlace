@@ -12,6 +12,7 @@ import { FX as RenderFX } from './render/fx.js';
 import { KEYWORDS, applyDataOverrides } from './data/index.js';
 import { initPlaygroundUI, updateUIView, updateBattlePanelRealtime } from './playground/ui-controller.js';
 import { enterPlayground } from './playground/index.js';
+import { Tutorial } from './tutorial.js';
 
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
@@ -27,6 +28,7 @@ function init() {
     applyDataOverrides();
     Renderer.init('gameCanvas');
     GameAudio.init();
+    Tutorial.init(Renderer);
     initKeywordPanel();
     bindKeys();
     bindVolumeControls();
@@ -67,6 +69,14 @@ function initKeywordPanel() {
 function bindKeys() {
     document.addEventListener('keydown', e => {
         if (!window.gameState) return;
+
+        if (Tutorial.isActive()) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+                Tutorial.advance();
+            }
+            e.preventDefault();
+            return;
+        }
 
         if (e.key === 'd' || e.key === 'D') {
             document.getElementById('keyword-panel').classList.toggle('hidden');
@@ -176,6 +186,7 @@ function gameLoop() {
         }
 
         Renderer.render(window.gameState);
+        Tutorial.update(window.gameState, Renderer);
 
         // 对战测试场面板实时数据更新
         if (window.gameState.screen === 'playground') {

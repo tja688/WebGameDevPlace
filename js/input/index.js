@@ -20,6 +20,7 @@ import { HAND_LIMIT } from '../core/constants.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
 import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios, enterPlaygroundBattle, resetPlaygroundBattle } from '../playground/index.js';
+import { Tutorial } from '../tutorial.js';
 
 export const Input = {
     state: null,
@@ -66,6 +67,8 @@ export const Input = {
     },
 
     onMouseDown(e) {
+        if (Tutorial.isActive()) return;
+
         const pos = this.getCanvasPos(e.clientX, e.clientY);
         const state = this.state;
 
@@ -107,6 +110,12 @@ export const Input = {
     },
 
     onMouseMove(e) {
+        if (Tutorial.isActive()) {
+            this.canvas.style.cursor = 'default';
+            this.hideTooltip();
+            return;
+        }
+
         const pos = this.getCanvasPos(e.clientX, e.clientY);
         const state = this.state;
 
@@ -151,6 +160,16 @@ export const Input = {
     },
 
     onMouseUp(e) {
+        if (Tutorial.isActive()) {
+            this.isDragging = false;
+            if (this.state) {
+                this.state.draggedCard = null;
+                this.state.hoveredSlot = null;
+            }
+            this.canvas.style.cursor = 'default';
+            return;
+        }
+
         if (!this.isDragging || !this.state.draggedCard) {
             this.isDragging = false;
             return;
@@ -1851,6 +1870,11 @@ export const Input = {
     },
 
     onWheel(e) {
+        if (Tutorial.isActive()) {
+            e.preventDefault();
+            return;
+        }
+
         const state = this.state;
         if (state.screen === 'card_select') {
             e.preventDefault();
