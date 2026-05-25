@@ -261,3 +261,89 @@ registerEffect({
         if (ctx.value < 0) ctx.value = 0;
     }
 });
+
+// ===== 新增卡牌计算效果 =====
+
+// 战旗（battle_banner）：相邻两侧倍率格卡牌点数+5
+registerEffect({
+    id: 'battle_banner_aura',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 1,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return true;
+    },
+    execute: (ctx) => {
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        for (const slot of ctx.state.slots) {
+            if (Math.abs(slot.index - targetSlot) === 1) {
+                const banners = slot.cards.filter(c => c.defId === 'battle_banner');
+                if (banners.length > 0) {
+                    ctx.value += 5 * banners.length;
+                }
+            }
+        }
+    }
+});
+
+// 完美借力（perfect_borrow）：获得相邻两侧倍率格点数最高卡牌之和
+registerEffect({
+    id: 'perfect_borrow_effect',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_MIGHTY - 1,
+    condition: (ctx) => ctx.card && ctx.card.defId === 'perfect_borrow',
+    execute: (ctx) => {
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        let total = 0;
+        for (const slot of ctx.state.slots) {
+            if (Math.abs(slot.index - targetSlot) === 1) {
+                let maxVal = 0;
+                for (const c of slot.cards) {
+                    const val = ctx.getCardBaseValue(c);
+                    if (val > maxVal) maxVal = val;
+                }
+                total += maxVal;
+            }
+        }
+        ctx.value += total;
+        if (total > 0) {
+            ctx.log(`${ctx.card.name} 完美借力触发，获得相邻两侧最高卡牌点数之和 ${total}`);
+        }
+    }
+});
+
+// 一人成军（one_man_army）：获得当前牌组内所有卡牌点数之和
+registerEffect({
+    id: 'one_man_army_effect',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_MIGHTY - 1,
+    condition: (ctx) => ctx.card && ctx.card.defId === 'one_man_army',
+    execute: (ctx) => {
+        let total = 0;
+        for (const c of ctx.state.deck) {
+            total += ctx.getCardBaseValue(c);
+        }
+        ctx.value += total;
+        if (total > 0) {
+            ctx.log(`${ctx.card.name} 一人成军触发，获得牌组点数之和 ${total}`);
+        }
+    }
+});
+
+// 训练成果（training_result）：本局每打出过一张成长牌，点数+2
+registerEffect({
+    id: 'training_result_effect',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_AURA + 4,
+    condition: (ctx) => ctx.card && ctx.card.defId === 'training_result',
+    execute: (ctx) => {
+        const count = ctx.state.runDataRef?.growthCardsPlayedThisRun || 0;
+        if (count > 0) {
+            const bonus = count * 2;
+            ctx.value += bonus;
+            ctx.log(`${ctx.card.name} 训练成果触发，本局已打出${count}张成长牌，点数+${bonus}`);
+        }
+    }
+});

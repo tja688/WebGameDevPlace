@@ -8,6 +8,7 @@ import { registerEffect, calculateGrowAmount } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { drawCards, recordTimeline } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
+import { detectStrategy } from '../systems/strategy.js';
 
 // ===== 1. 格子加成（奉献等） =====
 registerEffect({
@@ -62,6 +63,27 @@ registerEffect({
                     }
                 }
             }
+        }
+        // 学徒铸造/大师铸造：给下一张同格卡牌永久加点
+        if (slot.apprenticeForgeBonus && slot.apprenticeForgeBonus > 0) {
+            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + slot.apprenticeForgeBonus;
+            ctx.log(`学徒铸造生效：${ctx.card.name} 本场战斗永久+${slot.apprenticeForgeBonus}`);
+            slot.apprenticeForgeBonus = 0;
+        }
+        if (slot.masterForgeBonus && slot.masterForgeBonus > 0) {
+            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + slot.masterForgeBonus;
+            ctx.log(`大师铸造生效：${ctx.card.name} 本场战斗永久+${slot.masterForgeBonus}`);
+            slot.masterForgeBonus = 0;
+        }
+        // 辅助训练：给下一张同格卡牌成长1
+        if (slot.supportTrainingActive) {
+            ctx.card.keywords = ctx.card.keywords || [];
+            if (!ctx.card.keywords.includes('grow')) {
+                ctx.card.keywords = [...ctx.card.keywords, 'grow'];
+            }
+            ctx.card.growAmount = (ctx.card.growAmount || 1);
+            ctx.log(`辅助训练生效：${ctx.card.name} 获得成长1`);
+            slot.supportTrainingActive = false;
         }
     }
 });
@@ -180,6 +202,17 @@ registerEffect({
         if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
         if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
         ctx.state.pendingGrowthEffects.push({ slotIndex: ctx.slotIndex });
+        // 记录本局打出的成长牌数量（用于训练成果）
+        if (ctx.state.runDataRef) {
+            ctx.state.runDataRef.growthCardsPlayedThisRun = (ctx.state.runDataRef.growthCardsPlayedThisRun || 0) + 1;
+        }
+        // 训练搭子：从牌组打出到相同倍率格
+        const partnerIdx = ctx.state.deck.findIndex(c => c.defId === 'training_partner');
+        if (partnerIdx >= 0) {
+            const partner = ctx.state.deck.splice(partnerIdx, 1)[0];
+            ctx.state.slots[ctx.slotIndex].cards.push(partner);
+            ctx.log(`训练搭子响应成长，从牌组打出到第${ctx.slotIndex + 1}格`);
+        }
     }
 });
 
@@ -319,5 +352,327 @@ registerEffect({
             flag: 'groupTrainingActive'
         });
         ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
+    }
+});
+
+// ===== 新增卡牌效果 =====
+
+// 先手优势：本回合第一张牌，点数+5并获得留场
+registerEffect({
+    id: 'first_advantage_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'first_advantage',
+    execute: (ctx) => {
+        if (!ctx.state.cardsPlayedThisTurn || ctx.state.cardsPlayedThisTurn.length === 1) {
+            ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 5;
+            ctx.card.keywords = ctx.card.keywords || [];
+            if (!ctx.card.keywords.includes('remain')) {
+                ctx.card.keywords = [...ctx.card.keywords, 'remain'];
+            }
+            ctx.log(`${ctx.card.name} 先手优势触发！点数+5并获得留场`);
+        }
+    }
+});
+
+// 殿后：打出后手牌为空时，点数+10
+registerEffect({
+    id: 'rear_guard_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'rear_guard',
+    execute: (ctx) => {
+        if (ctx.state.hand.length === 0) {
+            ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 10;
+            ctx.log(`${ctx.card.name} 殿后触发！手牌为空，点数+10`);
+        }
+    }
+});
+
+// 锦上添花：任意倍率格有3张牌时，从牌组移到手牌（作为打出效果，已在场上时直接加入手牌）
+registerEffect({
+    id: 'icing_on_cake_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.DRAW - 5,
+    condition: (ctx) => ctx.card.defId === 'icing_on_cake',
+    execute: (ctx) => {
+        const hasThree = ctx.state.slots.some(s => s.cards.length >= 3);
+        if (hasThree && ctx.state.deck.length > 0) {
+            const idx = Math.floor(Math.random() * ctx.state.deck.length);
+            const card = ctx.state.deck.splice(idx, 1)[0];
+            ctx.state.hand.push(card);
+            recordTimeline(ctx.state, 'deck_to_hand', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                cardUuid: card.uuid,
+                cardDefId: card.defId,
+                reason: 'icing_on_cake'
+            });
+            ctx.log(`${ctx.card.name} 锦上添花触发，从牌组抽来 ${card.name}`);
+        }
+    }
+});
+
+// 顺手的事：获得1金币
+registerEffect({
+    id: 'easy_money_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'easy_money',
+    execute: (ctx) => {
+        if (ctx.state.runDataRef) {
+            ctx.state.runDataRef.gold = (ctx.state.runDataRef.gold || 0) + 1;
+            ctx.log(`${ctx.card.name} 顺手的事触发，获得1金币`);
+        }
+    }
+});
+
+// 灵活调度：如果触发计策，所在倍率格点数+1
+registerEffect({
+    id: 'flexible_dispatch_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SLOT_MODIFIER,
+    condition: (ctx) => ctx.card.defId === 'flexible_dispatch',
+    execute: (ctx) => {
+        const strategy = detectStrategy(ctx.state.slots, ctx.state.runDataRef?.strategyLevels);
+        if (strategy) {
+            const slot = ctx.state.slots[ctx.slotIndex];
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
+            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                slotIndex: ctx.slotIndex,
+                amount: 1,
+                reason: 'flexible_dispatch'
+            });
+            ctx.log(`${ctx.card.name} 灵活调度触发，第${ctx.slotIndex + 1}格倍率+1`);
+        }
+    }
+});
+
+// 丑陋炫耀：所在倍率格基础点数之和超过100，抽一张牌
+registerEffect({
+    id: 'ugly_showoff_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.DRAW - 5,
+    condition: (ctx) => ctx.card.defId === 'ugly_showoff',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        const totalBase = slot.cards.reduce((sum, c) => sum + (c.baseValue || 0), 0);
+        if (totalBase > 100) {
+            drawCards(ctx.state, 1);
+            ctx.log(`${ctx.card.name} 丑陋炫耀触发，倍率格基础点数${totalBase}超过100，抽一张牌`);
+        }
+    }
+});
+
+// 何须智慧：已在倍率格，所在倍率格点数-1
+registerEffect({
+    id: 'no_wisdom_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SLOT_MODIFIER,
+    condition: (ctx) => ctx.card.defId === 'no_wisdom',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        if (slot.cards.length > 1) {
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
+            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                slotIndex: ctx.slotIndex,
+                amount: -1,
+                reason: 'no_wisdom'
+            });
+            ctx.log(`${ctx.card.name} 何须智慧触发，第${ctx.slotIndex + 1}格倍率-1`);
+        }
+    }
+});
+
+// 合力：将手牌一张随机卡牌放回牌组
+registerEffect({
+    id: 'combined_force_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'combined_force',
+    execute: (ctx) => {
+        if (ctx.state.hand.length > 0) {
+            const idx = Math.floor(Math.random() * ctx.state.hand.length);
+            const card = ctx.state.hand.splice(idx, 1)[0];
+            ctx.state.deck.push(card);
+            ctx.log(`${ctx.card.name} 合力触发，将 ${card.name} 放回牌组`);
+        }
+    }
+});
+
+// 学徒铸造：下一张同格卡牌本场战斗永久+5
+registerEffect({
+    id: 'apprentice_forge_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 5,
+    condition: (ctx) => ctx.card.defId === 'apprentice_forge',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        slot.apprenticeForgeBonus = (slot.apprenticeForgeBonus || 0) + 5;
+        ctx.log(`${ctx.card.name} 学徒铸造激活！下一张同格卡牌本场战斗永久+5`);
+    }
+});
+
+// 肉体智慧：所在倍率格基础点数之和超过100，所在格点数+1
+registerEffect({
+    id: 'body_wisdom_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SLOT_MODIFIER,
+    condition: (ctx) => ctx.card.defId === 'body_wisdom',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        const totalBase = slot.cards.reduce((sum, c) => sum + (c.baseValue || 0), 0);
+        if (totalBase > 100) {
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
+            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                slotIndex: ctx.slotIndex,
+                amount: 1,
+                reason: 'body_wisdom'
+            });
+            ctx.log(`${ctx.card.name} 肉体智慧触发，第${ctx.slotIndex + 1}格倍率+1`);
+        }
+    }
+});
+
+// 预借：本牌本次战斗点数永久-10
+registerEffect({
+    id: 'borrow_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'borrow',
+    execute: (ctx) => {
+        ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) - 10;
+        ctx.log(`${ctx.card.name} 预借触发，本次战斗永久点数-10`);
+    }
+});
+
+// 大师铸造：下一张同格卡牌本场战斗永久+10
+registerEffect({
+    id: 'master_forge_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 5,
+    condition: (ctx) => ctx.card.defId === 'master_forge',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        slot.masterForgeBonus = (slot.masterForgeBonus || 0) + 10;
+        ctx.log(`${ctx.card.name} 大师铸造激活！下一张同格卡牌本场战斗永久+10`);
+    }
+});
+
+// 熟练预借：本牌本次战斗点数永久-5
+registerEffect({
+    id: 'skilled_borrow_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 10,
+    condition: (ctx) => ctx.card.defId === 'skilled_borrow',
+    execute: (ctx) => {
+        ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) - 5;
+        ctx.log(`${ctx.card.name} 熟练预借触发，本次战斗永久点数-5`);
+    }
+});
+
+// 训练集合：将牌组内所有同名牌打出在本牌所在倍率格
+registerEffect({
+    id: 'training_set_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 5,
+    condition: (ctx) => ctx.card.defId === 'training_set',
+    execute: (ctx) => {
+        const sameCards = ctx.state.deck.filter(c => c.defId === 'training_set');
+        let count = 0;
+        for (const c of sameCards) {
+            const idx = ctx.state.deck.indexOf(c);
+            if (idx >= 0) {
+                ctx.state.deck.splice(idx, 1);
+                ctx.state.slots[ctx.slotIndex].cards.push(c);
+                count++;
+            }
+        }
+        if (count > 0) {
+            ctx.log(`${ctx.card.name} 训练集合触发，从牌组打出${count}张同名卡牌到第${ctx.slotIndex + 1}格`);
+        }
+    }
+});
+
+// 辅助训练：已在倍率格，下一张同格卡牌获得成长1
+registerEffect({
+    id: 'support_training_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 5,
+    condition: (ctx) => ctx.card.defId === 'support_training',
+    execute: (ctx) => {
+        const slot = ctx.state.slots[ctx.slotIndex];
+        if (slot.cards.length > 1) {
+            slot.supportTrainingActive = true;
+            ctx.log(`${ctx.card.name} 辅助训练激活！下一张同格卡牌获得成长1`);
+        }
+    }
+});
+
+// 30小时训练：成长数+1
+registerEffect({
+    id: 'training_30h_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.GROW - 5,
+    condition: (ctx) => ctx.card.defId === 'training_30h',
+    execute: (ctx) => {
+        ctx.card.growAmount = (ctx.card.growAmount || 1) + 1;
+        ctx.log(`${ctx.card.name} 30小时训练触发，成长数+1`);
+    }
+});
+
+// 激素训练：每有10点数给所在倍率格点数+1
+registerEffect({
+    id: 'steroid_training_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SLOT_MODIFIER,
+    condition: (ctx) => ctx.card.defId === 'steroid_training',
+    execute: (ctx) => {
+        const val = ctx.getCardBaseValue(ctx.card);
+        const bonus = Math.floor(val / 10);
+        if (bonus > 0) {
+            const slot = ctx.state.slots[ctx.slotIndex];
+            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + bonus;
+            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                slotIndex: ctx.slotIndex,
+                amount: bonus,
+                reason: 'steroid_training'
+            });
+            ctx.log(`${ctx.card.name} 激素训练触发，当前点数${val}，第${ctx.slotIndex + 1}格倍率+${bonus}`);
+        }
+    }
+});
+
+// 规律训练：从牌组拿一张成长卡牌入手牌
+registerEffect({
+    id: 'regular_training_effect',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.DRAW - 5,
+    condition: (ctx) => ctx.card.defId === 'regular_training',
+    execute: (ctx) => {
+        const growCards = ctx.state.deck.filter(c => c.keywords && c.keywords.includes('grow'));
+        if (growCards.length > 0) {
+            const idx = Math.floor(Math.random() * growCards.length);
+            const card = growCards[idx];
+            const deckIdx = ctx.state.deck.indexOf(card);
+            ctx.state.deck.splice(deckIdx, 1);
+            ctx.state.hand.push(card);
+            recordTimeline(ctx.state, 'deck_to_hand', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                cardUuid: card.uuid,
+                cardDefId: card.defId,
+                reason: 'regular_training'
+            });
+            ctx.log(`${ctx.card.name} 规律训练触发，从牌组抽来 ${card.name}`);
+        }
     }
 });

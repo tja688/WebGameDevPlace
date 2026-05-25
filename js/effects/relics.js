@@ -7,7 +7,8 @@
 
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
-import { recordTimeline } from '../core/battle-core.js';
+import { recordTimeline, drawCards } from '../core/battle-core.js';
+import { detectStrategy } from '../systems/strategy.js';
 
 // ===== 辅助函数：获取玩家拥有的所有遗物 =====
 function getPlayerRelics(state) {
@@ -195,5 +196,131 @@ registerEffect({
     execute: (ctx) => {
         const bonus = getRelic(ctx.state, 'all_slot_bonus_hp_increase').effect.slotBonus || 2;
         ctx.value += bonus;
+    }
+});
+
+// ===== 新增遗物效果 =====
+
+// 优秀中心/左翼/右翼：指定格卡牌点数+5
+registerEffect({
+    id: 'relic_slot_card_bonus',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 1,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        return hasRelic(ctx.state, 'slot_card_bonus');
+    },
+    execute: (ctx) => {
+        const relics = getPlayerRelics(ctx.state).filter(r => r.effect?.type === 'slot_card_bonus');
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        for (const relic of relics) {
+            if (targetSlot === relic.effect.slotIndex) {
+                ctx.value += relic.effect.bonus || 5;
+            }
+        }
+    }
+});
+
+// 持续作战：每回合第一张卡牌点数+10
+registerEffect({
+    id: 'relic_first_card_per_turn_bonus',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_BONUS + 4,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        return hasRelic(ctx.state, 'first_card_per_turn_bonus') && ctx.card === ctx.state.firstCardPlayedThisTurn;
+    },
+    execute: (ctx) => {
+        const relic = getRelic(ctx.state, 'first_card_per_turn_bonus');
+        const bonus = relic.effect.bonus || 10;
+        ctx.value += bonus;
+        ctx.log(`持续作战生效：${ctx.card.name} 点数+${bonus}`);
+    }
+});
+
+// 闪电战：每场战斗第一张卡牌点数+20
+registerEffect({
+    id: 'relic_first_card_per_battle_bonus',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_BONUS + 4,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        return hasRelic(ctx.state, 'first_card_per_battle_bonus') && ctx.card === ctx.state.firstCardPlayedThisTurn;
+    },
+    execute: (ctx) => {
+        const relic = getRelic(ctx.state, 'first_card_per_battle_bonus');
+        const bonus = relic.effect.bonus || 20;
+        ctx.value += bonus;
+        ctx.log(`闪电战生效：${ctx.card.name} 点数+${bonus}`);
+    }
+});
+
+// 无脑战术：未触发计策时所有倍率格点数+2
+registerEffect({
+    id: 'relic_no_strategy_slot_bonus',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER + 1,
+    condition: (ctx) => {
+        if (!hasRelic(ctx.state, 'no_strategy_slot_bonus')) return false;
+        const strategy = detectStrategy(ctx.state.slots, ctx.state.runDataRef?.strategyLevels);
+        return strategy === null;
+    },
+    execute: (ctx) => {
+        const relic = getRelic(ctx.state, 'no_strategy_slot_bonus');
+        const bonus = relic.effect.bonus || 2;
+        ctx.value += bonus;
+    }
+});
+
+// 高级镭射枪：每回合减少怪物血量50
+registerEffect({
+    id: 'relic_turn_monster_damage',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.SLOT_MODIFIER - 20,
+    condition: (ctx) => hasRelic(ctx.state, 'turn_monster_damage'),
+    execute: (ctx) => {
+        const relic = getRelic(ctx.state, 'turn_monster_damage');
+        const damage = relic.effect.damage || 50;
+        ctx.state.monster.hp -= damage;
+        recordTimeline(ctx.state, 'monster_damage', {
+            amount: damage,
+            reason: 'relic_turn_monster_damage'
+        });
+        ctx.log(`高级镭射枪生效：怪物受到 ${damage} 点伤害`);
+    }
+});
+
+// 省吃俭用：每场战斗第一张卡牌获得留场
+registerEffect({
+    id: 'relic_first_card_remain',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 20,
+    condition: (ctx) => {
+        if (!hasRelic(ctx.state, 'first_card_remain')) return false;
+        if (!ctx.card) return false;
+        return ctx.card === ctx.state.firstCardPlayedThisTurn && !ctx.state.firstCardRemainApplied;
+    },
+    execute: (ctx) => {
+        ctx.state.firstCardRemainApplied = true;
+        ctx.card.keywords = ctx.card.keywords || [];
+        if (!ctx.card.keywords.includes('remain')) {
+            ctx.card.keywords = [...ctx.card.keywords, 'remain'];
+        }
+        ctx.log(`省吃俭用生效：${ctx.card.name} 获得留场`);
+    }
+});
+
+// 绝境发力：第三回合开始抽一张牌
+registerEffect({
+    id: 'relic_third_turn_draw',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.DRAW - 10,
+    condition: (ctx) => {
+        if (!hasRelic(ctx.state, 'third_turn_draw')) return false;
+        return ctx.state.turn === 3;
+    },
+    execute: (ctx) => {
+        drawCards(ctx.state, 1);
+        ctx.log('绝境发力生效：第三回合抽一张牌');
     }
 });

@@ -1,7 +1,7 @@
 {
   "name": "card-dungeon",
-  "version": "4.8.1",
-  "description": "卡牌地下城 - 重构版 v4.8.1",
+  "version": "4.9.0",
+  "description": "卡牌地下城 - 重构版 v4.9",
   "type": "module",
   "scripts": {
     "start": "node serve.js",
