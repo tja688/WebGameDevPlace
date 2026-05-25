@@ -1,6 +1,6 @@
 {
   "name": "card-dungeon",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "卡牌地下城 - 重构版 v4.1",
   "type": "module",
   "scripts": {
