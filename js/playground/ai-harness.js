@@ -17,10 +17,17 @@ function getAllScenarios() {
     const preset = EFFECT_SCENARIOS;
     const custom = Object.values(loadCustomScenarios());
     // 自定义场景可覆盖预设（同 id 时优先自定义）
-    const map = new Map();
-    for (const s of preset) map.set(s.id, s);
-    for (const s of custom) map.set(s.id, s);
-    return Array.from(map.values());
+    const byId = {};
+    const order = [];
+    for (const s of preset) {
+        if (!byId[s.id]) order.push(s.id);
+        byId[s.id] = s;
+    }
+    for (const s of custom) {
+        if (!byId[s.id]) order.push(s.id);
+        byId[s.id] = s;
+    }
+    return order.map(id => byId[id]);
 }
 
 function findScenario(id) {

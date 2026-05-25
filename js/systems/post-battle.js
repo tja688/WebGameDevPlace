@@ -99,6 +99,7 @@ export function resolveBattleEnd(battleState) {
         ];
         for (const c of allCards) {
             c.tempBonus = 0;
+            c.dedicateTriggered = false;
         }
         runData.deck = allCards.filter(c => !c.isDerived);
 

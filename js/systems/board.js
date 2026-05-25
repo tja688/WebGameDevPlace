@@ -8,7 +8,7 @@
  * 4. 放置预览
  */
 
-import { logCombat } from '../core/battle-core.js';
+import { logCombat, recordTimeline } from '../core/battle-core.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger } from '../core/constants.js';
 import { detectStrategy } from './strategy.js';
@@ -122,6 +122,12 @@ export function playCardToSlot(card, slotIndex, state) {
     slot.cards.push(card);
 
     card.hasBeenPlayed = true;
+    recordTimeline(state, 'play_card_to_slot', {
+        cardUuid: card.uuid,
+        cardDefId: card.defId,
+        cardName: card.name,
+        slotIndex
+    });
 
     // 记录本回合第一张打出的牌（用于怪物技能）
     if (!state.firstCardPlayedThisTurn) {
@@ -133,7 +139,15 @@ export function playCardToSlot(card, slotIndex, state) {
         const idx = slot.cards.findIndex(c => c.uuid === card.uuid);
         if (idx !== -1) {
             const discarded = slot.cards.splice(idx, 1)[0];
+            discarded.dedicateTriggered = false;
             state.discard.push(discarded);
+            recordTimeline(state, 'card_discarded_by_monster', {
+                cardUuid: discarded.uuid,
+                cardDefId: discarded.defId,
+                cardName: discarded.name,
+                slotIndex,
+                monsterName: state.monster.name
+            });
             logCombat(state, `${state.monster.name} 的技能生效：第一张打出的 ${discarded.name} 直接进入弃牌堆！`);
             state.slotFlashes.push({ slotIndex, timer: 20 });
             if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();

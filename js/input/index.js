@@ -13,7 +13,7 @@ import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { resolveBattleEnd, generatePostBattleEvents } from '../systems/post-battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
-import { createCardInstance, KEYWORDS, CARD_DEFS, MONSTER_DEFS, createCardRewardOptions } from '../data/index.js';
+import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { STAGE_CONFIG } from '../data/index.js';
 import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
@@ -329,6 +329,11 @@ export const Input = {
 
                     if (data.selectMode === 'shop_remove') {
                         const removeCost = runData.shopRemoveCost || 2;
+                        if (runData.gold < removeCost) {
+                            showPlaceholderToast('金币不足！');
+                            data.processing = false;
+                            return;
+                        }
                         runData.gold -= removeCost;
                         runData.shopRemoveCost = removeCost * 2;
                         const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
@@ -340,8 +345,13 @@ export const Input = {
                     }
 
                     if (data.selectMode === 'shop_upgrade') {
-                        const cardCost = runData.shopUpgradeCosts[card.uuid] || 1;
-                        const upgradeCost = cardCost - (runData.firstUpgradeDiscount ? 1 : 0);
+                        const cardCost = runData.shopUpgradeCosts[card.uuid] || 2;
+                        const upgradeCost = Math.max(0, cardCost - (runData.firstUpgradeDiscount ? 1 : 0));
+                        if (runData.gold < upgradeCost) {
+                            showPlaceholderToast(`金币不足！需要${upgradeCost}金币`);
+                            data.processing = false;
+                            return;
+                        }
                         runData.gold -= upgradeCost;
                         if (runData.firstUpgradeDiscount) runData.firstUpgradeDiscount = false;
                         card.permanentBonus += 5;
@@ -364,9 +374,11 @@ export const Input = {
                     }
 
                     if (data.selectMode === 'event_enchant_grow') {
-                        if (!card.keywords.includes('grow')) {
-                            card.keywords.push('grow');
-                            card.growAmount = 1;
+                        const result = addKeywordToCard(card, 'grow', { growAmount: 1 });
+                        if (!result.ok) {
+                            showPlaceholderToast(result.reason);
+                            data.processing = false;
+                            return;
                         }
                         showPlaceholderToast(`${card.name} 获得【成长1】！`);
                         setTimeout(() => {
@@ -412,8 +424,11 @@ export const Input = {
                     }
 
                     if (data.selectMode === 'event_enchant_mighty') {
-                        if (!card.keywords.includes('mighty')) {
-                            card.keywords.push('mighty');
+                        const result = addKeywordToCard(card, 'mighty');
+                        if (!result.ok) {
+                            showPlaceholderToast(result.reason);
+                            data.processing = false;
+                            return;
                         }
                         showPlaceholderToast(`${card.name} 获得【伟力】！`);
                         setTimeout(() => {
@@ -426,13 +441,18 @@ export const Input = {
                     if (data.selectMode === 'blacksmith_enchant') {
                         const keyword = data.enchantKeyword;
                         const cost = data.enchantCost;
-                        runData.gold -= cost;
-                        if (keyword && !card.keywords.includes(keyword)) {
-                            card.keywords.push(keyword);
+                        if (runData.gold < cost) {
+                            showPlaceholderToast('金币不足！');
+                            data.processing = false;
+                            return;
+                        }
+                        const result = addKeywordToCard(card, keyword);
+                        if (result.ok) {
+                            runData.gold -= cost;
                             const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
                             showPlaceholderToast(`${card.name} 获得【${kwName}】！`);
                         } else {
-                            showPlaceholderToast('该卡牌已有相同词条');
+                            showPlaceholderToast(result.reason);
                         }
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                         data.processing = false;
@@ -620,13 +640,17 @@ export const Input = {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
                     state.data.hoverShopItem = rect.key;
                     this.canvas.style.cursor = 'pointer';
-                    const def = CARD_DEFS[rect.item.defId];
-                    if (def) {
-                        const pseudoCard = {
-                            name: def.name, baseValue: def.baseValue, permanentBonus: 0, tempBonus: 0,
-                            size: def.size, keywords: def.keywords, description: def.description
-                        };
-                        this.updateTooltip(pseudoCard, pos.x, pos.y);
+                    if (rect.type === 'card') {
+                        const def = CARD_DEFS[rect.item.defId];
+                        if (def) {
+                            const pseudoCard = {
+                                name: def.name, baseValue: def.baseValue, permanentBonus: 0, tempBonus: 0,
+                                size: def.size, keywords: def.keywords, description: def.description
+                            };
+                            this.updateTooltip(pseudoCard, pos.x, pos.y);
+                        }
+                    } else if (rect.type === 'relic') {
+                        this.updateRelicTooltip(rect.item, pos.x, pos.y);
                     }
                     return;
                 }
@@ -661,9 +685,17 @@ export const Input = {
                     if (runData.gold >= rect.price) {
                         runData.gold -= rect.price;
                         rect.item.bought = true;
-                        const newCard = createCardInstance(rect.item.defId);
-                        runData.deck.push(newCard);
-                        showPlaceholderToast(`获得卡牌：${newCard.name}`);
+                        if (rect.type === 'card') {
+                            const newCard = createCardInstance(rect.item.defId);
+                            runData.deck.push(newCard);
+                            showPlaceholderToast(`获得卡牌：${newCard.name}`);
+                        } else if (rect.type === 'relic') {
+                            const relic = { ...rect.item };
+                            delete relic.price;
+                            delete relic.bought;
+                            runData.relics.push(relic);
+                            showPlaceholderToast(`获得装备：${relic.name}`);
+                        }
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else {
                         showPlaceholderToast('金币不足！');
@@ -768,6 +800,10 @@ export const Input = {
         if (data.blacksmithRects) {
             for (const rect of data.blacksmithRects) {
                 if (this.hitTest(pos, rect)) {
+                    if (rect.item.type === 'upgrade_slot' && runData.blacksmithSlotUpgraded) {
+                        showPlaceholderToast('同一铁匠仅能强化一次倍率格');
+                        return;
+                    }
                     if (!rect.canAfford) {
                         showPlaceholderToast('金币不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
@@ -778,16 +814,23 @@ export const Input = {
                         if (item.bought) { showPlaceholderToast('已购买！'); return; }
                         runData.gold -= rect.item.cost;
                         item.bought = true;
-                        runData.relics.push({ name: item.name, desc: item.desc });
+                        const relic = { ...item };
+                        delete relic.price;
+                        delete relic.bought;
+                        runData.relics.push(relic);
                         showPlaceholderToast(`获得装备：${item.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'upgrade_slot') {
+                        if (runData.blacksmithSlotUpgraded) {
+                            showPlaceholderToast('同一铁匠仅能强化一次倍率格');
+                            return;
+                        }
                         runData.gold -= rect.item.cost;
                         // 第二版：固定三格，随机强化其中一格
                         const availableSlots = [0, 1, 2];
                         const slotIndex = availableSlots[Math.floor(Math.random() * availableSlots.length)];
-                        runData.blacksmithSlotCosts[slotIndex] = (runData.blacksmithSlotCosts[slotIndex] || 2) + 1;
                         runData.slotUpgrades[slotIndex] = (runData.slotUpgrades[slotIndex] || 0) + 1;
+                        runData.blacksmithSlotUpgraded = true;
                         showPlaceholderToast(`第${slotIndex + 1}格倍率+1！（随机）`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'enchant') {
@@ -990,7 +1033,7 @@ export const Input = {
                 }
                 return;
             case 'max_hearts_plus':
-                runData.maxHearts = (runData.maxHearts || 5) + 1;
+                runData.maxHearts = (runData.maxHearts || 3) + 1;
                 showPlaceholderToast('最大人群+1！');
                 this._finishEvent(runData);
                 return;
@@ -1158,6 +1201,7 @@ export const Input = {
             runData.completedStages = [];
             runData.shopStock = null;
             runData.blacksmithStock = null;
+            runData.blacksmithSlotUpgraded = false;
             switchScreen(this.state, 'map', { runData });
         }
     },
@@ -1354,7 +1398,10 @@ export const Input = {
                             ...this.state.deck, ...this.state.hand, ...this.state.discard,
                             ...this.state.slots.flatMap(s => s.cards)
                         ];
-                        for (const c of allCards) c.tempBonus = 0;
+                        for (const c of allCards) {
+                            c.tempBonus = 0;
+                            c.dedicateTriggered = false;
+                        }
                         runData.deck = allCards.filter(c => !c.isDerived);
                         if (this.state._originalStageIndex !== undefined) {
                             runData.stageIndex = this.state._originalStageIndex;

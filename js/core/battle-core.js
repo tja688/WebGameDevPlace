@@ -8,6 +8,23 @@
 import { HAND_LIMIT } from './constants.js';
 
 /**
+ * 记录纯数据结算时间线，给未来 Unity 动画编排使用。
+ * 这里只记录状态变化事实，不持有 DOM / Canvas / Audio 引用。
+ */
+export function recordTimeline(state, type, payload = {}) {
+    if (!state) return;
+    if (!state.effectTimeline) state.effectTimeline = [];
+    if (state.timelineSeq === undefined) state.timelineSeq = 0;
+    state.timelineSeq += 1;
+    state.effectTimeline.push({
+        seq: state.timelineSeq,
+        turn: state.turn || 0,
+        type,
+        ...payload
+    });
+}
+
+/**
  * 记录战斗日志
  */
 export function logCombat(state, msg) {
@@ -26,6 +43,12 @@ export function drawCards(state, count) {
         if (state.deck.length === 0) break;
         const card = state.deck.pop();
         state.hand.push(card);
+        recordTimeline(state, 'draw_card', {
+            cardUuid: card.uuid,
+            cardDefId: card.defId,
+            cardName: card.name,
+            handIndex: state.hand.length - 1
+        });
         // 抽卡动画：40帧(~667ms)带延迟错峰，带旋转和拖尾
         state.drawAnimations.push({
             card: card,

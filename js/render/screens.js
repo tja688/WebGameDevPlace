@@ -883,12 +883,59 @@ export function drawShop(renderer, ctx, state) {
         state.data.shopItemRects.push({ x, y, w: cardW, h: cardH, key: `card_${i}`, item, price, type: 'card' });
     }
 
+    ctx.fillStyle = '#aaa';
+    ctx.font = 'bold 18px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText('装备', 60, 505);
+
+    const relicW = 270;
+    const relicH = 58;
+    const relicGap = 30;
+    const relicY = 520;
+    for (let i = 0; i < (stock.relics || []).length; i++) {
+        const item = stock.relics[i];
+        const x = 60 + i * (relicW + relicGap);
+        const isHover = state.data.hoverShopItem === `relic_${i}`;
+        const isBought = item.bought;
+        const price = item.price;
+
+        ctx.fillStyle = isHover ? 'rgba(50,45,35,0.95)' : 'rgba(40,35,25,0.9)';
+        ctx.strokeStyle = isBought ? '#333' : (isHover ? '#b8860b' : '#554433');
+        ctx.lineWidth = isHover ? 2 : 1;
+        roundRect(ctx, x, relicY, relicW, relicH, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        if (isBought) {
+            ctx.fillStyle = '#555';
+            ctx.font = '15px Microsoft YaHei';
+            ctx.textAlign = 'center';
+            ctx.fillText('已购买', x + relicW / 2, relicY + 35);
+        } else {
+            ctx.fillStyle = runData.gold >= price ? '#ccc' : '#555';
+            ctx.font = '15px Microsoft YaHei';
+            ctx.textAlign = 'left';
+            ctx.fillText(item.name, x + 12, relicY + 23);
+
+            ctx.fillStyle = '#777';
+            ctx.font = '11px Microsoft YaHei';
+            const desc = item.desc || item.description || '';
+            ctx.fillText(desc.length > 18 ? `${desc.slice(0, 18)}...` : desc, x + 12, relicY + 43);
+
+            ctx.fillStyle = runData.gold >= price ? '#2ecc71' : '#e74c3c';
+            ctx.font = 'bold 14px Microsoft YaHei';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${price}金币`, x + relicW - 12, relicY + 23);
+        }
+
+        state.data.shopItemRects.push({ x, y: relicY, w: relicW, h: relicH, key: `relic_${i}`, item, price, type: 'relic' });
+    }
+
     const btnY = 430;
     const btnH = 45;
-    const upgradeCost = runData.shopUpgradeCost - (runData.firstUpgradeDiscount ? 1 : 0);
     const services = [
         { key: 'remove_card', text: `🗑️ 删牌服务 (${runData.shopRemoveCost || 2}金币)`, x: 60, cost: runData.shopRemoveCost || 2 },
-        { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (1金币起)`, x: 240, cost: 0 },
+        { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (2金币起)`, x: 240, cost: 0 },
         { key: 'buy_strategy', text: `📜 计策等级提升 (4金币)`, x: 440, cost: 4 },
         { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}金币)`, x: 640, cost: runData.shopRefreshCost },
     ];
@@ -972,13 +1019,19 @@ export function drawBlacksmith(renderer, ctx, state) {
     }
 
     // 第二版：铁匠改为随机强化倍率格
-    const slotUpgradeCost = runData.blacksmithSlotCosts[0] || 2;
+    const slotUpgradeCost = 4;
     let totalSlotUpgrades = 0;
     const maxSlots = 3;
     for (let i = 0; i < maxSlots; i++) {
         totalSlotUpgrades += runData.slotUpgrades[i] || 0;
     }
-    columns[1].items.push({ type: 'upgrade_slot', name: '随机强化倍率格', cost: slotUpgradeCost, subText: `当前累计+${totalSlotUpgrades}倍率` });
+    columns[1].items.push({
+        type: 'upgrade_slot',
+        name: runData.blacksmithSlotUpgraded ? '倍率格已强化' : '随机强化倍率格',
+        cost: slotUpgradeCost,
+        disabled: !!runData.blacksmithSlotUpgraded,
+        subText: runData.blacksmithSlotUpgraded ? '同一铁匠仅能使用一次' : `当前累计+${totalSlotUpgrades}倍率`
+    });
 
     // 附魔费用按词条稀有度定价：低级 2 / 中级 4 / 高级 8
     const ENCHANT_COST_MAP = { basic: 2, medium: 4, advanced: 8 };
@@ -1017,7 +1070,7 @@ export function drawBlacksmith(renderer, ctx, state) {
             const itemY = y + 60 + i * 55;
             const itemH = 48;
             const isHover = state.data.hoverBlacksmith === `${c}_${i}`;
-            const canAfford = runData.gold >= item.cost;
+            const canAfford = !item.disabled && runData.gold >= item.cost;
             const isBought = item.type === 'buy_relic' && item.data && item.data.bought;
 
             ctx.fillStyle = isHover ? 'rgba(50,45,35,0.95)' : 'rgba(40,35,25,0.9)';

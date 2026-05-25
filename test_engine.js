@@ -3,7 +3,7 @@ import { createGameState, createRunData } from './js/core/state.js';
 import { drawCards, endTurn } from './js/systems/battle.js';
 import { initBattleFromRun } from './js/systems/battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier, getCardBaseValue } from './js/systems/board.js';
-import { createCardInstance, createBlacksmithStock } from './js/data/index.js';
+import { createCardInstance, createBlacksmithStock, addKeywordToCard } from './js/data/index.js';
 import { detectStrategy } from './js/systems/strategy.js';
 import { enterPlaygroundBattle } from './js/playground/index.js';
 import { Input } from './js/input/index.js';
@@ -150,7 +150,7 @@ const allButLastTwo = ['mighty', 'echo', 'dedicate', 'chain', 'twin', 'remain', 
 const stock14 = createBlacksmithStock(allButLastTwo);
 Math.random = originalRandom;
 assert(stock14.enchantKeywords.length === 2, '铁匠提供两个附魔词条选项');
-assert(new Set(stock14.enchantKeywords).size === 2, '铁匠附魔词条选项不重复');
+assert(stock14.enchantKeywords[0] !== stock14.enchantKeywords[1], '铁匠附魔词条选项不重复');
 assert(stock14.enchantKeywords.every(k => !allButLastTwo.includes(k)), '刷新词条避开上一组词条');
 
 // Test 15: 训练体系驻场效果影响后续打出的牌
@@ -194,6 +194,47 @@ s17.screen = 'battle';
 s17.data = {};
 assert(!s17._eventBattle, '正式主线战斗不应残留事件战斗标记');
 assert(s17._originalStageIndex === undefined, '正式主线战斗不应残留事件原始关卡索引');
+
+// Test 18: 留场奉献已触发后不应在下一回合重复奉献
+const s18 = makeTestState(['support_strike', 'brute_force']);
+s18.monster.hp = 9999;
+const s18Support = s18.hand[0];
+s18Support.keywords.push('remain');
+playCardToSlot(s18Support, 1, s18);
+playCardToSlot(s18.hand[0], 1, s18);
+assert(s18.slots[1].cards[1].tempBonus === 4, '首张同格后续牌获得奉献+4');
+endTurn(s18);
+const s18SecondBrute = createCardInstance('brute_force');
+s18.hand = [s18SecondBrute];
+s18.deck = [];
+playCardToSlot(s18SecondBrute, 1, s18);
+assert((s18.slots[1].cards[1].tempBonus || 0) === 0, '留场奉献触发过后，下一回合不重复触发');
+
+// Test 19: 词条添加统一遵守3词条上限与去重
+const s19Card = createCardInstance('brute_force');
+let kwResult = addKeywordToCard(s19Card, 'grow');
+assert(kwResult.ok && s19Card.growAmount === 1, '添加成长词条时初始化growAmount');
+kwResult = addKeywordToCard(s19Card, 'grow');
+assert(!kwResult.ok, '不能重复添加相同词条');
+addKeywordToCard(s19Card, 'chain');
+addKeywordToCard(s19Card, 'mighty');
+kwResult = addKeywordToCard(s19Card, 'retain');
+assert(!kwResult.ok && s19Card.keywords.length === 3, '每张卡牌最多3个词条');
+
+// Test 20: 魔镜类最大人群变化应进入下一场战斗
+const run20 = createRunData('veteran');
+run20.maxHearts = 4;
+const s20 = initBattleFromRun(run20);
+assert(s20.player.maxHearts === 4 && s20.player.hearts === 4, 'runData.maxHearts 会应用到新战斗');
+
+// Test 21: 结算时间线显式记录出牌、效果和下一回合开始
+const s21 = makeTestState(['ponder']);
+s21.deck = [createCardInstance('brute_force')];
+playCardToSlot(s21.hand[0], 0, s21);
+assert(s21.effectTimeline.some(e => e.type === 'play_card_to_slot'), '时间线记录出牌入格');
+assert(s21.effectTimeline.some(e => e.type === 'effect_start' && e.effectId === 'chain'), '时间线记录词条效果开始');
+endTurn(s21);
+assert(s21.effectTimeline.some(e => e.type === 'turn_start' && e.turn === 2), '下一回合开始记录在turn=2');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);

@@ -6,7 +6,7 @@
 
 import { registerEffect, calculateGrowAmount } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
-import { drawCards } from '../core/battle-core.js';
+import { drawCards, recordTimeline } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
 
 // ===== 1. 格子加成（奉献等） =====
@@ -25,6 +25,15 @@ registerEffect({
                 if (bonus > 0) {
                     ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
                     c.dedicateTriggered = true;
+                    recordTimeline(ctx.state, 'card_temp_bonus', {
+                        sourceUuid: c.uuid,
+                        sourceDefId: c.defId,
+                        targetUuid: ctx.card.uuid,
+                        targetDefId: ctx.card.defId,
+                        amount: bonus,
+                        reason: 'dedicate',
+                        slotIndex: ctx.slotIndex
+                    });
                     ctx.log(`${c.name} 奉献了 ${bonus} 点给 ${ctx.card.name}！`);
                 }
             }
@@ -62,6 +71,13 @@ registerEffect({
         // 从实例keywords过滤，保留运行时添加的词条
         copy.keywords = (ctx.card.keywords || []).filter(k => k !== 'twin');
         ctx.state.hand.push(copy);
+        recordTimeline(ctx.state, 'create_card_in_hand', {
+            sourceUuid: ctx.card.uuid,
+            sourceDefId: ctx.card.defId,
+            cardUuid: copy.uuid,
+            cardDefId: copy.defId,
+            reason: 'twin'
+        });
         ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌（已移除双生）`);
     }
 });
@@ -76,6 +92,13 @@ registerEffect({
         const diffusion = createCardInstance('diffusion');
         diffusion.isDerived = true;
         ctx.state.hand.push(diffusion);
+        recordTimeline(ctx.state, 'create_card_in_hand', {
+            sourceUuid: ctx.card.uuid,
+            sourceDefId: ctx.card.defId,
+            cardUuid: diffusion.uuid,
+            cardDefId: diffusion.defId,
+            reason: 'spread'
+        });
         ctx.log(`${ctx.card.name} 蔓延效果触发，加入一张扩散牌`);
     }
 });
@@ -90,6 +113,13 @@ registerEffect({
         const amount = calculateGrowAmount(ctx.card, ctx.slotIndex, ctx.state);
         if (amount <= 0) return;
         ctx.card.permanentBonus += amount;
+        recordTimeline(ctx.state, 'card_permanent_bonus', {
+            cardUuid: ctx.card.uuid,
+            cardDefId: ctx.card.defId,
+            amount,
+            reason: 'grow',
+            slotIndex: ctx.slotIndex
+        });
         ctx.log(`${ctx.card.name} 成长了！永久点数+${amount}`);
         if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
         if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
@@ -107,6 +137,13 @@ registerEffect({
         if (ctx.state.deck.length > 0) {
             const card = ctx.state.deck.pop();
             ctx.state.hand.push(card);
+            recordTimeline(ctx.state, 'deck_to_hand', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                cardUuid: card.uuid,
+                cardDefId: card.defId,
+                reason: 'messenger'
+            });
             ctx.log(`${ctx.card.name} 传令效果触发，从牌组抽来 ${card.name}`);
         } else {
             ctx.log(`${ctx.card.name} 传令效果触发，但牌组已空`);
@@ -127,6 +164,13 @@ registerEffect({
             for (const s of ctx.state.slots) {
                 if (Math.abs(s.index - ctx.slotIndex) === 1) {
                     s.roundMultiplierBonus = (s.roundMultiplierBonus || 0) + 1;
+                    recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                        sourceUuid: ctx.card.uuid,
+                        sourceDefId: ctx.card.defId,
+                        slotIndex: s.index,
+                        amount: 1,
+                        reason: 'luxury_gear'
+                    });
                     ctx.log(`${ctx.card.name} 提升了第${s.index + 1}格倍率！`);
                 }
             }
@@ -144,6 +188,13 @@ registerEffect({
         const slot = ctx.state.slots[ctx.slotIndex];
         if (slot.cards.length > 1) {
             slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
+            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+                sourceUuid: ctx.card.uuid,
+                sourceDefId: ctx.card.defId,
+                slotIndex: ctx.slotIndex,
+                amount: slot.multiplier,
+                reason: 'cogito_ergo_sum'
+            });
             ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
         }
     }
@@ -169,6 +220,12 @@ registerEffect({
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.intenseTrainingActive = true;
+        recordTimeline(ctx.state, 'slot_flag_enabled', {
+            sourceUuid: ctx.card.uuid,
+            sourceDefId: ctx.card.defId,
+            slotIndex: ctx.slotIndex,
+            flag: 'intenseTrainingActive'
+        });
         ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
     }
 });
@@ -182,6 +239,12 @@ registerEffect({
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.groupTrainingActive = true;
+        recordTimeline(ctx.state, 'slot_flag_enabled', {
+            sourceUuid: ctx.card.uuid,
+            sourceDefId: ctx.card.defId,
+            slotIndex: ctx.slotIndex,
+            flag: 'groupTrainingActive'
+        });
         ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
     }
 });

@@ -58,6 +58,7 @@ export function createRunData(classId) {
         startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
         relics: [cls.relic],
         classId: classId,
+        maxHearts: cls.hearts,
         completedStages: [],
         shopStock: null,
         blacksmithStock: null,
@@ -70,8 +71,8 @@ export function createRunData(classId) {
         shopRemoveCost: 2,          // 删牌服务费用（每次翻倍）
         firstUpgradeDiscount: true, // 首次强化-1金币
         // 铁匠费用追踪
-        blacksmithSlotCosts: [0, 0, 0], // 每格升级费用累积
-        blacksmithSlotUpgraded: false,  // 本层是否已免费升级过格子
+        blacksmithSlotCosts: [4, 4, 4], // 兼容旧存档；当前随机强化统一4金币
+        blacksmithSlotUpgraded: false,  // 当前铁匠房是否已使用过倍率格强化
         blacksmithEnchantCost: 2,       // 当前附魔费用（按稀有度）
         blacksmithRefreshCost: 5,
         blacksmithRefreshCount: 0,
@@ -158,7 +159,9 @@ export function createInitialState() {
         runDataRef: null,
         stageKey: 'test',
         heartsLost: 0,
-        firstCardPlayedThisTurn: null
+        firstCardPlayedThisTurn: null,
+        effectTimeline: [],
+        timelineSeq: 0
     };
 }
 

@@ -8,7 +8,7 @@
  */
 
 import { shuffleArray, pickRandom } from '../core/utils.js';
-import { logCombat, drawCards, shuffleDiscardToDeck } from '../core/battle-core.js';
+import { logCombat, drawCards, shuffleDiscardToDeck, recordTimeline } from '../core/battle-core.js';
 import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS } from '../data/index.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT } from '../core/constants.js';
@@ -38,8 +38,8 @@ export function initBattleFromRun(runData) {
         phase: 'playing',
         player: {
             name: cls.name,
-            maxHearts: cls.hearts,
-            hearts: cls.hearts,
+            maxHearts: runData.maxHearts || cls.hearts,
+            hearts: runData.maxHearts || cls.hearts,
             relic: cls.relic
         },
         monster: {
@@ -90,6 +90,8 @@ export function initBattleFromRun(runData) {
         firstTurnKill: false,
         pendingPlaceEffects: [],
         pendingGrowthEffects: [],
+        effectTimeline: [],
+        timelineSeq: 0,
         _playgroundBattle: false,
         _eventBattle: false,
         _eventBattleReward: null,
@@ -98,6 +100,12 @@ export function initBattleFromRun(runData) {
 
     // 解析怪物技能
     parseMonsterSkills(state.monster);
+    recordTimeline(state, 'battle_start', {
+        stageKey,
+        monsterName: state.monster.name,
+        monsterHp: state.monster.hp,
+        playerHearts: state.player.hearts
+    });
 
     shuffleDiscardToDeck(state);
 
@@ -153,10 +161,17 @@ function parseMonsterSkills(monster) {
 export function endTurn(state) {
     if (state.phase !== 'playing') return;
     if (typeof GameAudio !== 'undefined') GameAudio.playEndTurn();
+    recordTimeline(state, 'turn_end_start', { turn: state.turn });
 
     // 检测当前计策
     state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
     if (state.currentStrategy) {
+        recordTimeline(state, 'strategy_detected', {
+            strategyId: state.currentStrategy.id,
+            strategyName: state.currentStrategy.name,
+            bonuses: [...state.currentStrategy.bonuses],
+            isOverdrive: !!state.currentStrategy.isOverdrive
+        });
         logCombat(state, `触发计策：${state.currentStrategy.name}！`);
     }
 
@@ -165,6 +180,11 @@ export function endTurn(state) {
         for (const slot of state.slots) {
             slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
         }
+        recordTimeline(state, 'monster_strategy_penalty', {
+            monsterName: state.monster.name,
+            strategyId: state.currentStrategy.id,
+            amount: -1
+        });
         logCombat(state, `${state.monster.name} 的技能生效：使用稳重推进，所有倍率格点数-1`);
     }
 
@@ -177,6 +197,10 @@ export function endTurn(state) {
         const origDmg = totalDmg;
         totalDmg = Math.max(0, totalDmg - dodgeAmt);
         if (origDmg !== totalDmg) {
+            recordTimeline(state, 'monster_dodge', {
+                monsterName: state.monster.name,
+                amount: origDmg - totalDmg
+            });
             logCombat(state, `${state.monster.name} 闪避了 ${origDmg - totalDmg} 点伤害`);
         }
     }
@@ -193,7 +217,14 @@ export function endTurn(state) {
     }
 
     // 怪物扣血
-    state.monster.hp = Math.max(0, state.monster.hp - totalDmg);
+    const monsterHpBefore = state.monster.hp;
+    state.monster.hp = Math.max(0, monsterHpBefore - totalDmg);
+    recordTimeline(state, 'monster_damage', {
+        monsterName: state.monster.name,
+        amount: totalDmg,
+        hpBefore: monsterHpBefore,
+        hpAfter: state.monster.hp
+    });
 
     if (totalDmg > 0) {
         state.monsterFlash = 15;
@@ -202,7 +233,7 @@ export function endTurn(state) {
             const mx = 640;
             const my = 120;
             window.RenderFX.spawnDamage(mx, my, totalDmg, totalDmg >= state.monster.maxHp * 0.3);
-            const overflow = Math.max(0, totalDmg - state.monster.hp);
+            const overflow = Math.max(0, totalDmg - monsterHpBefore);
             const intensity = Math.min(18, 3 + overflow * 0.15);
             const decay = Math.max(0.75, 0.92 - overflow * 0.002);
             window.RenderFX.screenShake.trigger(intensity, decay);
@@ -215,6 +246,7 @@ export function endTurn(state) {
     if (state.monster.hp <= 0) {
         state.phase = 'ended';
         state.result = 'win';
+        recordTimeline(state, 'battle_result', { result: 'win', turn: state.turn });
         if (state.turn === 1) {
             state.firstTurnKill = true;
         }
@@ -228,6 +260,10 @@ export function endTurn(state) {
     // 扣人群
     state.player.hearts -= 1;
     state.heartsLost += 1;
+    recordTimeline(state, 'player_heart_loss', {
+        amount: 1,
+        heartsAfter: state.player.hearts
+    });
     if (typeof GameAudio !== 'undefined') GameAudio.playHeartLoss();
     if (typeof window !== 'undefined' && window.RenderFX) {
         const heartX = 50 + (state.player.hearts) * 36 + 15;
@@ -238,6 +274,7 @@ export function endTurn(state) {
     if (state.player.hearts <= 0) {
         state.phase = 'ended';
         state.result = 'lose';
+        recordTimeline(state, 'battle_result', { result: 'lose', turn: state.turn });
         return;
     }
 
@@ -248,6 +285,7 @@ export function endTurn(state) {
             if (card.keywords.includes('remain')) {
                 remaining.push(card);
             } else {
+                card.dedicateTriggered = false;
                 state.discard.push(card);
             }
         }
@@ -265,20 +303,34 @@ export function endTurn(state) {
         if (card.keywords.includes('retain')) {
             retainedHand.push(card);
         } else {
+            card.dedicateTriggered = false;
             state.discard.push(card);
         }
     }
     state.hand = retainedHand;
 
     // 清空所有卡牌的临时加成
+    const boardCardIds = {};
+    for (const slot of state.slots) {
+        for (const card of slot.cards) {
+            boardCardIds[card.uuid] = true;
+        }
+    }
     const allCards = [
         ...state.deck, ...state.hand, ...state.discard,
         ...state.slots.flatMap(s => s.cards)
     ];
     for (const c of allCards) {
         if (c.tempBonus) c.tempBonus = 0;
-        c.dedicateTriggered = false;
+        if (!boardCardIds[c.uuid]) c.dedicateTriggered = false;
     }
+    recordTimeline(state, 'turn_cleanup_done', { nextTurn: state.turn + 1 });
+
+    state.turn++;
+    state.turnDamage = 0;
+    state.currentStrategy = null;
+    state.firstCardPlayedThisTurn = null;
+    recordTimeline(state, 'turn_start', { turn: state.turn });
 
     // 弃牌堆洗回牌库，抽5张
     shuffleDiscardToDeck(state);
@@ -288,9 +340,4 @@ export function endTurn(state) {
     FX.fire(Trigger.ON_TURN_START, new EffectContext({
         state, trigger: Trigger.ON_TURN_START
     }));
-
-    state.turn++;
-    state.turnDamage = 0;
-    state.currentStrategy = null;
-    state.firstCardPlayedThisTurn = null;
 }

@@ -10,6 +10,7 @@
  */
 
 import { Trigger } from '../core/constants.js';
+import { recordTimeline } from '../core/battle-core.js';
 
 // ===== 全局注册表（纯对象） =====
 const _handlers = [];
@@ -64,16 +65,53 @@ export function fireEffects(trigger, ctx) {
         .filter(h => h.condition(ctx))
         .sort((a, b) => a.priority - b.priority);
 
+    const shouldRecord = trigger === Trigger.ON_PLAY
+        || trigger === Trigger.ON_TURN_START
+        || trigger === Trigger.ON_TURN_END
+        || trigger === Trigger.ON_EXIT;
+
     for (const h of handlers) {
         if (ctx.cancelled) break;
+        if (shouldRecord) {
+            recordTimeline(ctx.state, 'effect_start', {
+                trigger,
+                effectId: h.id,
+                cardUuid: ctx.card?.uuid,
+                cardDefId: ctx.card?.defId,
+                slotIndex: ctx.slotIndex
+            });
+        }
         h.execute(ctx);
+        if (shouldRecord) {
+            recordTimeline(ctx.state, 'effect_end', {
+                trigger,
+                effectId: h.id,
+                cardUuid: ctx.card?.uuid,
+                cardDefId: ctx.card?.defId,
+                slotIndex: ctx.slotIndex
+            });
+        }
     }
 
     // 回响：ON_PLAY 时，若卡牌有 echo 词条，效果再触发一次
     if (trigger === Trigger.ON_PLAY && ctx.card && ctx.card.keywords.includes('echo')) {
         for (const h of handlers) {
             if (ctx.cancelled) break;
+            recordTimeline(ctx.state, 'effect_echo_start', {
+                trigger,
+                effectId: h.id,
+                cardUuid: ctx.card?.uuid,
+                cardDefId: ctx.card?.defId,
+                slotIndex: ctx.slotIndex
+            });
             h.execute(ctx);
+            recordTimeline(ctx.state, 'effect_echo_end', {
+                trigger,
+                effectId: h.id,
+                cardUuid: ctx.card?.uuid,
+                cardDefId: ctx.card?.defId,
+                slotIndex: ctx.slotIndex
+            });
         }
     }
 }
@@ -96,7 +134,11 @@ export function getCardEffectIds(card) {
     if (hasHandler) {
         ids.push(card.defId);
     }
-    return [...new Set(ids)];
+    const uniqueIds = [];
+    for (const id of ids) {
+        if (!uniqueIds.includes(id)) uniqueIds.push(id);
+    }
+    return uniqueIds;
 }
 
 // ===== 效果上下文工厂函数 =====

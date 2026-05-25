@@ -1,4 +1,4 @@
-# 卡牌地下城 - 重构版 v4.0
+# 卡牌地下城 - 重构版 v4.1
 
 > 纯前端网页游戏，以 `C:\Users\jinji\Desktop\文档\MyNote\游戏开发项目\卡牌地下城\第二版设计` 为权威设计来源。
 > 本版本完成效果系统去类化重构，全部核心逻辑改用**纯对象 + 纯函数**，为后续 Unity 迁移提供最小摩擦的代码基座。
@@ -82,7 +82,7 @@ FX.fire(Trigger.ON_PLAY, createEffectContext({ state, trigger, card, slotIndex }
 let state = {
   screen: 'battle',
   phase: 'playing',
-  player: { name: '老兵', maxHearts: 4, hearts: 4 },
+  player: { name: '老兵', maxHearts: 3, hearts: 3 },
   monster: { name: '荒原狼', maxHp: 150, hp: 150, ... },
   slots: [
     { index: 0, multiplier: 1, cards: [] },
@@ -92,9 +92,13 @@ let state = {
   hand: [...],
   deck: [...],
   discard: [],
-  turn: 1
+  turn: 1,
+  effectTimeline: [],
+  timelineSeq: 0
 };
 ```
+
+`effectTimeline` 是纯 JSON 结算时间线，用于记录出牌入格、效果开始/结束、抽牌、伤害、清场和下一回合开始等顺序事实。Web 端仍即时结算；未来 Unity 端可按该时间线插入动画等待点，避免动画层重排结算顺序。
 
 ---
 
@@ -108,7 +112,7 @@ WebGameDevPlace/
 ├── dev.bat
 ├── package.json
 ├── REFACTOR_NOTES.md        # 超出设计文档的实现记录（重构核对用）
-├── test_engine.js           # 引擎单元测试（44 项断言）
+├── test_engine.js           # 引擎单元测试（52 项断言）
 ├── test_render_screens.js   # 渲染回归测试
 ├── test_simulate.js         # 自动战斗胜率模拟
 ├── test_*.cjs               # 浏览器截图测试（Playwright）
@@ -245,9 +249,9 @@ WebGameDevPlace/
 
 | 服务 | 当前实现 |
 |---|---|
-| 购买卡牌 | 5 张可选，白/蓝/金卡价格为 2/4/8 金币 |
-| 数值强化 | 目标单卡永久 +5，费用按单卡独立递增 |
-| 购买装备 | 3 件可选，按装备稀有度定价 |
+| 购买卡牌 | 5 张可选，白/蓝/金按 65%/30%/5% 刷新，价格为 2/4/8 金币 |
+| 数值强化 | 目标单卡永久 +5，2 金币起，费用按单卡独立递增；首次强化 -1 金币 |
+| 购买装备 | 3 件可选，低/中/高按 65%/30%/5% 刷新，按装备稀有度定价 |
 | 购买计策强化 | 4 金币，随机计策等级 +1 |
 | 删牌 | 从牌组移除 1 张牌，费用每次翻倍 |
 | 刷新 | 重新生成牌店库存，费用递增 |
@@ -256,7 +260,7 @@ WebGameDevPlace/
 
 | 服务 | 当前实现 |
 |---|---|
-| 随机强化倍率格 | 固定三格中随机一格永久 +1 |
+| 随机强化倍率格 | 4 金币，固定三格中随机一格永久 +1；同一铁匠房仅能使用一次 |
 | 词条附魔 | 每次提供两个不重复词条选项 |
 | 刷新装备+词条 | 刷新后词条尽量避开上一组，费用递增；首次刷新免费 |
 
@@ -307,6 +311,7 @@ simulateBattles(100);                // 模拟 100 场自动战斗
 | v3.8 | 2026-05-24 | AGENTS.md 新增 Unity 迁移友好原则（数据置顶、配置+工厂、JSON 可打印）；删除重构建议.md 保持项目纯净 |
 | v3.9 | 2026-05-24 | 审查修复：双生复制保留实例动态属性（growAmount/chainCount/keywords）；修复怪物恢复每回合触发两次的 bug；board.js 改用纯对象替代 Map 以符合 AGENTS.md 规范 |
 | v4.0 | 2026-05-24 | 老兵装备改为"战场经验"（首回合多抽1张，人群从4调回3）；铁匠附魔费用改为按词条稀有度定价（低级2/中级4/高级8），移除统一费用递增逻辑 |
+| v4.1 | 2026-05-25 | 全面验收整改：新增纯 JSON 结算时间线供 Unity 动画编排；修正下一回合开始时机、留场奉献重复触发、最大人群事件不生效、商店装备未展示、商店/铁匠费用与词条上限；移除核心/Playground 中 Map/Set 用法 |
 
 ---
 

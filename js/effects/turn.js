@@ -6,6 +6,7 @@
 
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
+import { recordTimeline } from '../core/battle-core.js';
 
 // ===== ON_TURN_START：回合开始 =====
 
@@ -29,7 +30,17 @@ registerEffect({
     condition: (ctx) => ctx.state.monster.healPerTurn > 0,
     execute: (ctx) => {
         const heal = ctx.state.monster.healPerTurn;
-        ctx.state.monster.hp = Math.min(ctx.state.monster.maxHp, ctx.state.monster.hp + heal);
-        ctx.log(`${ctx.state.monster.name} 恢复了 ${heal} 点血量`);
+        const before = ctx.state.monster.hp;
+        ctx.state.monster.hp = Math.min(ctx.state.monster.maxHp, before + heal);
+        const actualHeal = ctx.state.monster.hp - before;
+        if (actualHeal > 0) {
+            recordTimeline(ctx.state, 'monster_heal', {
+                monsterName: ctx.state.monster.name,
+                amount: actualHeal,
+                hpBefore: before,
+                hpAfter: ctx.state.monster.hp
+            });
+            ctx.log(`${ctx.state.monster.name} 恢复了 ${actualHeal} 点血量`);
+        }
     }
 });

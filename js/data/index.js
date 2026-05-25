@@ -18,6 +18,8 @@ import { CARD_DEFS } from './cards.js';
 import { MONSTER_DEFS } from './monsters.js';
 import { CLASS_DEFS } from './classes.js';
 
+export const MAX_KEYWORDS_PER_CARD = 3;
+
 // ===== 数据覆盖系统（LocalStorage 持久化）=====
 
 const OVERRIDE_KEY = 'card_dungeon_data_overrides';
@@ -99,6 +101,32 @@ export function createCardInstance(defId) {
         chainCount: def.chainCount || 1,
         rarity: def.rarity || 'white'
     };
+}
+
+/**
+ * 给卡牌添加词条，统一处理重复和词条上限。
+ */
+export function addKeywordToCard(card, keyword, options = {}) {
+    if (!card || !keyword) {
+        return { ok: false, reason: '缺少卡牌或词条' };
+    }
+    if (!card.keywords) card.keywords = [];
+    if (card.keywords.includes(keyword)) {
+        return { ok: false, reason: '该卡牌已有相同词条' };
+    }
+    if (card.keywords.length >= MAX_KEYWORDS_PER_CARD) {
+        return { ok: false, reason: `该卡牌词条已达上限（${MAX_KEYWORDS_PER_CARD}个）` };
+    }
+
+    card.keywords.push(keyword);
+    if (keyword === 'grow') {
+        card.growAmount = options.growAmount || card.growAmount || 1;
+    }
+    if (keyword === 'chain') {
+        card.chainCount = options.chainCount || card.chainCount || 1;
+    }
+
+    return { ok: true };
 }
 
 /**
