@@ -231,6 +231,8 @@ export const Input = {
         state.data.hoverRelic = null;
         state.data.hoverDeckViewBtn = false;
         state.data.hoverAdventureCheat = null;
+        state.data.hoverSettings = null;
+        state.data.hoverFeedbackLink = false;
         state.data.deckViewHoverCard = null;
         state.data.deckViewHoverClose = false;
         state.data.hoverStrategyOption = null;
@@ -1557,7 +1559,11 @@ export const Input = {
             return;
         }
 
-        if (this.handleAdventureCheatClick(pos)) {
+        if (this.handleSettingsClick(pos)) {
+            return;
+        }
+
+        if (this.handleFeedbackClick(pos)) {
             return;
         }
 
@@ -1595,7 +1601,11 @@ export const Input = {
             return;
         }
 
-        if (this.handleAdventureCheatHover(pos)) {
+        if (this.handleSettingsHover(pos)) {
+            return;
+        }
+
+        if (this.handleFeedbackHover(pos)) {
             return;
         }
 
@@ -1698,85 +1708,95 @@ export const Input = {
         }
     },
 
-    handleAdventureCheatClick(pos) {
+    handleSettingsClick(pos) {
         const data = this.state.data;
-        if (!data || !data.adventureCheatRects || this.state.screen !== 'battle' || this.state._playgroundBattle) {
+        if (!data || !data.settingsRects || this.state.screen !== 'battle' || this.state._playgroundBattle) {
             return false;
         }
-        const rect = data.adventureCheatRects.find(r => this.hitTest(pos, r));
+        const rect = data.settingsRects.find(r => this.hitTest(pos, r));
         if (!rect) return false;
 
-        if (rect.id === 'toggle_cheat') {
-            data.adventureCheatExpanded = !data.adventureCheatExpanded;
+        if (rect.id === 'toggle_settings') {
+            data.settingsExpanded = !data.settingsExpanded;
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
             this.canvas.style.cursor = 'default';
             return true;
         }
 
-        if (this.state.phase !== 'playing') return true;
-
-        const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
-        if (data.adventureCheatCardIndex === undefined) data.adventureCheatCardIndex = 0;
-
-        switch (rect.id) {
-            case 'prev_card':
-                data.adventureCheatCardIndex = (data.adventureCheatCardIndex - 1 + cardIds.length) % cardIds.length;
-                break;
-            case 'next_card':
-                data.adventureCheatCardIndex = (data.adventureCheatCardIndex + 1) % cardIds.length;
-                break;
-            case 'add_card':
-                if (this.state.hand.length >= HAND_LIMIT) {
-                    this.state.message = '手牌已满';
-                    this.state.messageTimer = 60;
-                    break;
-                }
-                {
-                    const defId = cardIds[data.adventureCheatCardIndex % cardIds.length];
-                    const card = createCardInstance(defId);
-                    if (card) this.state.hand.push(card);
-                }
-                break;
-            case 'draw_one':
-                drawCards(this.state, 1);
-                break;
-            case 'heal':
-                this.state.player.hearts = this.state.player.maxHearts;
-                this.state.heartsLost = 0;
-                break;
-            case 'add_gold':
-                if (this.state.runDataRef) {
-                    this.state.runDataRef.gold += 10;
-                }
-                break;
-            case 'win':
-                this.state.monster.hp = 0;
-                this.state.phase = 'ended';
-                this.state.result = 'win';
-                this.checkBattleEnd();
-                break;
+        if (rect.id === 'quit_to_menu') {
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            switchScreen(this.state, 'title', {});
+            return true;
         }
 
-        this.state.turnDamage = calculateTotalBoardDamage(this.state);
-        if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-        this.canvas.style.cursor = 'default';
+        if (rect.id === 'bgm_volume') {
+            // 点击音量条切换预设档位
+            const current = data.settingsBgmVolume !== undefined ? data.settingsBgmVolume : 50;
+            const presets = [0, 25, 50, 75, 100];
+            const idx = presets.indexOf(current);
+            const next = presets[(idx + 1) % presets.length];
+            data.settingsBgmVolume = next;
+            if (typeof GameAudio !== 'undefined') GameAudio.setBGMVolume(next / 100);
+            return true;
+        }
+
+        if (rect.id === 'sfx_volume') {
+            const current = data.settingsSfxVolume !== undefined ? data.settingsSfxVolume : 50;
+            const presets = [0, 25, 50, 75, 100];
+            const idx = presets.indexOf(current);
+            const next = presets[(idx + 1) % presets.length];
+            data.settingsSfxVolume = next;
+            if (typeof GameAudio !== 'undefined') GameAudio.setSFXVolume(next / 100);
+            return true;
+        }
+
         return true;
     },
 
-    handleAdventureCheatHover(pos) {
+    handleSettingsHover(pos) {
         const data = this.state.data;
-        if (!data || !data.adventureCheatRects || this.state.screen !== 'battle' || this.state._playgroundBattle) {
+        if (!data || !data.settingsRects || this.state.screen !== 'battle' || this.state._playgroundBattle) {
             return false;
         }
-        const rect = data.adventureCheatRects.find(r => this.hitTest(pos, r));
+        const rect = data.settingsRects.find(r => this.hitTest(pos, r));
         if (!rect) return false;
-        data.hoverAdventureCheat = rect.id;
+        data.hoverSettings = rect.id;
         this.state.selectedCard = null;
         this.state.hoveredMonster = false;
         this.state.hoveredEndTurn = false;
-        this.canvas.style.cursor = this.state.phase === 'playing' ? 'pointer' : 'default';
+        this.canvas.style.cursor = 'pointer';
         this.hideTooltip();
         return true;
+    },
+
+    handleFeedbackClick(pos) {
+        const data = this.state.data;
+        if (!data || !data.feedbackLinkRect || this.state.screen !== 'battle' || this.state._playgroundBattle) {
+            return false;
+        }
+        if (this.hitTest(pos, data.feedbackLinkRect)) {
+            window.open('https://vcnole60l5bl.feishu.cn/wiki/RuhpwE9Mjij9ngkjawmcztXknwd?from=from_copylink', '_blank');
+            return true;
+        }
+        return false;
+    },
+
+    handleFeedbackHover(pos) {
+        const data = this.state.data;
+        if (!data || !data.feedbackLinkRect || this.state.screen !== 'battle' || this.state._playgroundBattle) {
+            return false;
+        }
+        if (this.hitTest(pos, data.feedbackLinkRect)) {
+            data.hoverFeedbackLink = true;
+            this.state.selectedCard = null;
+            this.state.hoveredMonster = false;
+            this.state.hoveredEndTurn = false;
+            this.canvas.style.cursor = 'pointer';
+            this.hideTooltip();
+            return true;
+        }
+        data.hoverFeedbackLink = false;
+        return false;
     },
 
     _lastHoverSoundTime: 0,

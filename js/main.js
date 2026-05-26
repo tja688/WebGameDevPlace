@@ -157,25 +157,8 @@ function bindKeys() {
 }
 
 function bindVolumeControls() {
-    const bgmSlider = document.getElementById('bgm-volume');
-    const sfxSlider = document.getElementById('sfx-volume');
-    const bgmVal = document.getElementById('bgm-volume-val');
-    const sfxVal = document.getElementById('sfx-volume-val');
-
-    if (bgmSlider) {
-        bgmSlider.addEventListener('input', e => {
-            const val = parseInt(e.target.value);
-            if (bgmVal) bgmVal.textContent = val + '%';
-            if (typeof GameAudio !== 'undefined') GameAudio.setBGMVolume(val / 100);
-        });
-    }
-    if (sfxSlider) {
-        sfxSlider.addEventListener('input', e => {
-            const val = parseInt(e.target.value);
-            if (sfxVal) sfxVal.textContent = val + '%';
-            if (typeof GameAudio !== 'undefined') GameAudio.setSFXVolume(val / 100);
-        });
-    }
+    // 音量控制已移至 Canvas 设置面板，此处保留音频系统初始化
+    // 设置面板的音量状态通过 state.data.settingsBgmVolume / settingsSfxVolume 管理
 
     // 书本按钮切换词条面板
     const btn = document.getElementById('btn-toggle-keyword');

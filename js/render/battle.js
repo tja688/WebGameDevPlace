@@ -25,7 +25,8 @@ export function drawBattle(renderer, ctx, state) {
     drawPlayerArea(renderer, ctx, state);
     drawRelicsBar(renderer, ctx, state);
     drawStrategyPanel(renderer, ctx, state);
-    drawAdventureCheatPanel(renderer, ctx, state);
+    drawSettingsPanel(renderer, ctx, state);
+    drawFeedbackLink(renderer, ctx, state);
     drawBoardArea(renderer, ctx, state);
     drawHandArea(renderer, ctx, state);
     drawUI(renderer, ctx, state);
@@ -790,113 +791,196 @@ function drawStrategyPanel(renderer, ctx, state) {
 }
 
 // ============================================================
-// 正式冒险作弊面板（仅玩家侧）
+// 设置面板（仅正式冒险战斗）
 // ============================================================
 
-function drawAdventureCheatPanel(renderer, ctx, state) {
+function drawSettingsPanel(renderer, ctx, state) {
     if (state.screen !== 'battle' || state._playgroundBattle || !state.runDataRef) return;
 
     const data = state.data || (state.data = {});
-    if (data.adventureCheatExpanded === undefined) data.adventureCheatExpanded = false;
+    if (data.settingsExpanded === undefined) data.settingsExpanded = false;
 
-    const x = renderer.width - 225;
-    const y = 215;
-    const w = 165;
-    const h = 230;
+    // 设置按钮位置：右上方，书本按钮下方
+    const btnSize = 36;
+    const btnX = renderer.width - 20 - btnSize;
+    const btnY = 64; // 书本按钮在 top:10, height:44, 所以下方是 64
 
-    // 折叠态：只显示一个切换按钮
-    if (!data.adventureCheatExpanded) {
-        const toggleW = 36;
-        const toggleH = 36;
-        const toggleX = x + w - toggleW;
-        const toggleY = y;
-        const hover = data.hoverAdventureCheat === 'toggle_cheat';
+    // 折叠态：只显示设置按钮
+    if (!data.settingsExpanded) {
+        const hover = data.hoverSettings === 'toggle_settings';
 
-        drawParchment(ctx, toggleX, toggleY, toggleW, toggleH, { alpha: 0.72, radius: 8 });
+        drawParchment(ctx, btnX, btnY, btnSize, btnSize, { alpha: 0.72, radius: 8 });
         ctx.strokeStyle = 'rgba(120,95,55,0.75)';
         ctx.lineWidth = 1;
-        roundRect(ctx, toggleX, toggleY, toggleW, toggleH, 8);
+        roundRect(ctx, btnX, btnY, btnSize, btnSize, 8);
         ctx.stroke();
 
         ctx.fillStyle = hover ? '#ffd76a' : '#d7b77a';
         ctx.font = 'bold 16px Microsoft YaHei';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('⚙️', toggleX + toggleW / 2, toggleY + toggleH / 2 + 1);
+        ctx.fillText('⚙️', btnX + btnSize / 2, btnY + btnSize / 2 + 1);
         ctx.textBaseline = 'alphabetic';
 
-        data.adventureCheatRects = [{ id: 'toggle_cheat', x: toggleX, y: toggleY, w: toggleW, h: toggleH }];
+        data.settingsRects = [{ id: 'toggle_settings', x: btnX, y: btnY, w: btnSize, h: btnSize }];
         return;
     }
 
-    // 展开态：显示完整面板
-    drawParchment(ctx, x, y, w, h, { alpha: 0.72, radius: 8 });
+    // 展开态：显示完整设置面板
+    const panelW = 200;
+    const panelH = 220;
+    const panelX = renderer.width - 20 - panelW;
+    const panelY = btnY + btnSize + 8;
+
+    drawParchment(ctx, panelX, panelY, panelW, panelH, { alpha: 0.85, radius: 10 });
     ctx.strokeStyle = 'rgba(120,95,55,0.75)';
-    ctx.lineWidth = 1;
-    roundRect(ctx, x, y, w, h, 8);
+    ctx.lineWidth = 2;
+    roundRect(ctx, panelX, panelY, panelW, panelH, 10);
     ctx.stroke();
 
-    // 标题 + 收起按钮
-    ctx.fillStyle = '#d7b77a';
-    ctx.font = 'bold 14px Microsoft YaHei';
+    // 标题 + 关闭按钮
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 15px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('冒险调试', x + 12, y + 23);
+    ctx.fillText('设置', panelX + 14, panelY + 26);
 
-    const toggleBtn = { id: 'toggle_cheat', text: '×', x: x + w - 30, y: y + 6, w: 24, h: 22 };
-    const toggleHover = data.hoverAdventureCheat === 'toggle_cheat';
-    drawButton(ctx, toggleBtn.x, toggleBtn.y, toggleBtn.w, toggleBtn.h, toggleBtn.text, {
-        hover: toggleHover,
+    const closeBtn = { id: 'toggle_settings', text: '×', x: panelX + panelW - 30, y: panelY + 6, w: 24, h: 22 };
+    const closeHover = data.hoverSettings === 'toggle_settings';
+    drawButton(ctx, closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h, closeBtn.text, {
+        hover: closeHover,
         radius: 4,
         fontSize: 14
     });
 
-    const selector = getAdventureCheatSelectedCard(state);
-    ctx.fillStyle = 'rgba(20,15,10,0.5)';
-    roundRect(ctx, x + 10, y + 34, w - 20, 38, 5);
-    ctx.fill();
-    ctx.fillStyle = '#f0d29a';
+    // 音量控制
+    const contentX = panelX + 12;
+    let contentY = panelY + 48;
+
+    ctx.fillStyle = '#cc9955';
     ctx.font = 'bold 12px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText(selector.name, x + w / 2, y + 58);
+    ctx.textAlign = 'left';
+    ctx.fillText('🔊 音量', contentX, contentY);
+    contentY += 22;
 
-    const btns = [
-        { id: 'prev_card', text: '<', x: x + 10, y: y + 80, w: 36, h: 28 },
-        { id: 'add_card', text: '加入手牌', x: x + 50, y: y + 80, w: 65, h: 28 },
-        { id: 'next_card', text: '>', x: x + 119, y: y + 80, w: 36, h: 28 },
-        { id: 'draw_one', text: '抽 1 张', x: x + 10, y: y + 118, w: 68, h: 30 },
-        { id: 'heal', text: '回满人群', x: x + 87, y: y + 118, w: 68, h: 30 },
-        { id: 'add_gold', text: '+10金币', x: x + 10, y: y + 158, w: 68, h: 30 },
-        { id: 'win', text: '直接获胜', x: x + 87, y: y + 158, w: 68, h: 30, primary: true },
-        toggleBtn
-    ];
-
-    data.adventureCheatRects = btns;
-    for (const btn of btns) {
-        if (btn.id === 'toggle_cheat') continue;
-        const hover = data.hoverAdventureCheat === btn.id;
-        drawButton(ctx, btn.x, btn.y, btn.w, btn.h, btn.text, {
-            hover,
-            primary: !!btn.primary,
-            disabled: state.phase !== 'playing',
-            radius: 5,
-            fontSize: btn.id === 'add_card' ? 11 : 12
-        });
-    }
-
-    ctx.fillStyle = '#8f8170';
+    // BGM 音量
+    ctx.fillStyle = '#aa9988';
     ctx.font = '11px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.fillText(`手牌 ${state.hand.length}/10`, x + w / 2, y + 213);
+    ctx.fillText('背景音乐', contentX, contentY);
+    contentY += 16;
+
+    const bgmPercent = data.settingsBgmVolume !== undefined ? data.settingsBgmVolume : 50;
+    drawVolumeBar(ctx, contentX, contentY, panelW - 24, 10, bgmPercent / 100, data.hoverSettings === 'bgm_volume');
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '10px Microsoft YaHei';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${bgmPercent}%`, panelX + panelW - 12, contentY + 8);
+    ctx.textAlign = 'left';
+    contentY += 22;
+
+    // SFX 音量
+    ctx.fillStyle = '#aa9988';
+    ctx.font = '11px Microsoft YaHei';
+    ctx.fillText('游戏音效', contentX, contentY);
+    contentY += 16;
+
+    const sfxPercent = data.settingsSfxVolume !== undefined ? data.settingsSfxVolume : 50;
+    drawVolumeBar(ctx, contentX, contentY, panelW - 24, 10, sfxPercent / 100, data.hoverSettings === 'sfx_volume');
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '10px Microsoft YaHei';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${sfxPercent}%`, panelX + panelW - 12, contentY + 8);
+    ctx.textAlign = 'left';
+    contentY += 28;
+
+    // 退出到主菜单按钮
+    const quitBtn = { id: 'quit_to_menu', text: '🏠 退出到主菜单', x: contentX, y: contentY, w: panelW - 24, h: 32 };
+    const quitHover = data.hoverSettings === 'quit_to_menu';
+    drawButton(ctx, quitBtn.x, quitBtn.y, quitBtn.w, quitBtn.h, quitBtn.text, {
+        hover: quitHover,
+        radius: 6,
+        fontSize: 12
+    });
+
+    data.settingsRects = [
+        { id: 'toggle_settings', x: closeBtn.x, y: closeBtn.y, w: closeBtn.w, h: closeBtn.h },
+        { id: 'bgm_volume', x: contentX, y: contentY - 62, w: panelW - 24, h: 16 },
+        { id: 'sfx_volume', x: contentX, y: contentY - 20, w: panelW - 24, h: 16 },
+        { id: 'quit_to_menu', x: quitBtn.x, y: quitBtn.y, w: quitBtn.w, h: quitBtn.h }
+    ];
 }
 
-function getAdventureCheatSelectedCard(state) {
-    const allCardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
-    if (allCardIds.length === 0) {
-        return { id: null, name: '无卡牌' };
-    }
-    const idx = state.data?.adventureCheatCardIndex || 0;
-    const id = allCardIds[((idx % allCardIds.length) + allCardIds.length) % allCardIds.length];
-    return { id, name: CARD_DEFS[id].name };
+// ============================================================
+// 反馈链接（工具和书按钮下方）
+// ============================================================
+
+function drawFeedbackLink(renderer, ctx, state) {
+    // 只在正式冒险战斗中显示
+    if (state.screen !== 'battle' || state._playgroundBattle || !state.runDataRef) return;
+
+    const data = state.data || (state.data = {});
+
+    const text = '点我反馈';
+    const fontSize = 11;
+    ctx.font = `${fontSize}px Microsoft YaHei`;
+    const textW = ctx.measureText(text).width;
+
+    const paddingX = 6;
+    const paddingY = 3;
+    const w = textW + paddingX * 2;
+    const h = fontSize + paddingY * 2 + 2;
+
+    // 位置：右上方，在设置按钮（y=64, height=36）下方
+    const btnSize = 36;
+    const x = renderer.width - 20 - w;
+    const y = 64 + btnSize + 8;
+
+    const isHover = data.hoverFeedbackLink;
+
+    // 背景
+    ctx.fillStyle = isHover ? 'rgba(60,50,30,0.85)' : 'rgba(40,35,25,0.7)';
+    roundRect(ctx, x, y, w, h, 4);
+    ctx.fill();
+
+    // 边框
+    ctx.strokeStyle = isHover ? '#ffd700' : '#665544';
+    ctx.lineWidth = 1;
+    roundRect(ctx, x, y, w, h, 4);
+    ctx.stroke();
+
+    // 文字
+    ctx.fillStyle = isHover ? '#ffd700' : '#aa9988';
+    ctx.font = `${fontSize}px Microsoft YaHei`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + w / 2, y + h / 2 + 1);
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+
+    data.feedbackLinkRect = { x, y, w, h };
+}
+
+function drawVolumeBar(ctx, x, y, w, h, percent, isHover) {
+    // 背景条
+    ctx.fillStyle = 'rgba(30,20,10,0.7)';
+    roundRect(ctx, x, y, w, h, h / 2);
+    ctx.fill();
+
+    // 填充条
+    const fillW = w * percent;
+    ctx.fillStyle = isHover ? '#ffcc44' : '#b8860b';
+    roundRect(ctx, x, y, fillW, h, h / 2);
+    ctx.fill();
+
+    // 边框
+    ctx.strokeStyle = isHover ? '#ffd700' : '#665544';
+    ctx.lineWidth = 1;
+    roundRect(ctx, x, y, w, h, h / 2);
+    ctx.stroke();
+}
+
+// 保留旧函数名用于兼容性（Playground 不受影响）
+function drawAdventureCheatPanel(renderer, ctx, state) {
+    drawSettingsPanel(renderer, ctx, state);
 }
 
 // ============================================================
