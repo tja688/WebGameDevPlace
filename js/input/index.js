@@ -1557,6 +1557,10 @@ export const Input = {
             return;
         }
 
+        if (this.handleAdventureCheatClick(pos)) {
+            return;
+        }
+
         if (this.state.phase !== 'playing') {
             this.canvas.style.cursor = 'default';
             return;
@@ -1588,6 +1592,10 @@ export const Input = {
             this.state.data.hoverDeckViewBtn = true;
             this.canvas.style.cursor = 'pointer';
             this.hideTooltip();
+            return;
+        }
+
+        if (this.handleAdventureCheatHover(pos)) {
             return;
         }
 
