@@ -47,7 +47,7 @@ export function drawTitle(renderer, ctx, state) {
     // 版本号
     ctx.fillStyle = '#666';
     ctx.font = '12px Microsoft YaHei';
-    ctx.fillText('v0.6.0', cx, cy + 12);
+    ctx.fillText('v0.6.1', cx, cy + 12);
 
     const btnW = 280;
     const btnH = 60;
