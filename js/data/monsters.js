@@ -83,7 +83,7 @@ export const MONSTER_DEFS = {
     one_arm_giant: {
         id: 'one_arm_giant',
         name: '独臂巨人',
-        hp: 600,
+        hp: 500,
         description: '只剩下一只手臂的巨人，但力量依然惊人',
         keywords: ['left_slot_bonus_1', 'center_card_penalty_5'],
         keywordDesc: '左侧虚弱：最左侧倍率格点数+1；中丢石：打出在最中间倍率格上的卡牌点数-5',
