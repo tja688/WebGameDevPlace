@@ -56,7 +56,7 @@ export function createRunData(classId) {
         heartsLostInStage: 0,
         deck: shuffleArray(createDeck(cls)),
         startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
-        relics: [],
+        relics: cls.startingRelic ? [{ ...cls.startingRelic }] : [],
         classId: classId,
         maxHearts: cls.hearts,
         completedStages: [],

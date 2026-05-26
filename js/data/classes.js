@@ -13,6 +13,7 @@ export const CLASS_DEFS = {
             { defId: 'unity_strike', count: 5 },
             { defId: 'support_strike', count: 4 },
             { defId: 'veteran_ambition', count: 1 }
-        ]
+        ],
+        startingRelic: { id: 'relic_battlefield_experience', name: '战场经验', desc: '每场战斗首回合多抽一张牌', effect: { type: 'first_turn_extra_draw', bonus: 1 } }
     }
 };

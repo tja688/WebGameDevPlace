@@ -215,11 +215,11 @@ export function initBattleFromRun(runData) {
     }
     drawCards(state, drawCount);
 
-    const bossDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
-    if (bossDrawRelic) {
-        const extraDraw = bossDrawRelic.effect.bonus || 1;
-        drawCards(state, extraDraw * 2);
-        logCombat(state, `${bossDrawRelic.name} 生效，首回合额外抽 ${extraDraw * 2} 张牌`);
+    const firstTurnDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'first_turn_extra_draw');
+    if (firstTurnDrawRelic && state.turn === 1) {
+        const extraDraw = firstTurnDrawRelic.effect.bonus || 1;
+        drawCards(state, extraDraw);
+        logCombat(state, `${firstTurnDrawRelic.name} 生效，首回合额外抽 ${extraDraw} 张牌`);
     }
 
     // 印卡：每场战斗开始将一张作弊卡加入手牌
@@ -527,11 +527,11 @@ export function endTurn(state) {
     }
     drawCards(state, nextDrawCount);
 
-    const bossDrawNext = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
-    if (bossDrawNext) {
-        const extraDraw = bossDrawNext.effect.bonus || 1;
+    const firstTurnDrawNext = getActiveRelics(state).find(r => r.effect?.type === 'first_turn_extra_draw');
+    if (firstTurnDrawNext && state.turn === 1) {
+        const extraDraw = firstTurnDrawNext.effect.bonus || 1;
         drawCards(state, extraDraw);
-        logCombat(state, `${bossDrawNext.name} 生效，额外抽 ${extraDraw} 张牌`);
+        logCombat(state, `${firstTurnDrawNext.name} 生效，首回合额外抽 ${extraDraw} 张牌`);
     }
 
     // 记录本回合计策，供下回合骷髅骑士武技判定

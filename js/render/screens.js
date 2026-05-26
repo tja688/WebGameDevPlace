@@ -158,7 +158,7 @@ export function drawClassSelect(renderer, ctx, state) {
 
         ctx.fillStyle = isAvailable ? '#aaa' : '#444';
         ctx.font = '14px Microsoft YaHei';
-        const desc = isAvailable ? '无初始遗物' : '（暂未开放）';
+        const desc = isAvailable ? (cls.startingRelic ? `遗物：${cls.startingRelic.name}` : '无初始遗物') : '（暂未开放）';
         wrapText(ctx, desc, x + cardW / 2, y + 290, cardW - 40, 22);
 
         if (!isAvailable) {
