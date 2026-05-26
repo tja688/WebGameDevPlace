@@ -794,38 +794,16 @@ function drawStrategyPanel(renderer, ctx, state) {
 // 设置面板（仅正式冒险战斗）
 // ============================================================
 
-function getDomButtonPosInCanvas(renderer, domRight, domTop, domW, domH) {
-    // 将 DOM absolute 坐标（基于 container）转换为 canvas 内部坐标
-    const canvas = renderer.canvas;
-    const container = canvas.parentElement;
-    if (!container) return null;
-    const containerW = container.clientWidth;
-    const canvasDisplayW = parseFloat(canvas.style.width) || renderer.width;
-    const canvasDisplayH = parseFloat(canvas.style.height) || renderer.height;
-    const canvasLeft = (containerW - canvasDisplayW) / 2;
-    const canvasTop = (container.clientHeight - canvasDisplayH) / 2;
-    const scaleX = renderer.width / canvasDisplayW;
-    const scaleY = renderer.height / canvasDisplayH;
-    // DOM 按钮左边在 container 中的位置
-    const domLeftInContainer = containerW - domRight - domW;
-    const domTopInContainer = domTop;
-    // 转换为 canvas 坐标
-    const x = (domLeftInContainer - canvasLeft) * scaleX;
-    const y = (domTopInContainer - canvasTop) * scaleY;
-    return { x, y, scaleX, scaleY };
-}
-
 function drawSettingsPanel(renderer, ctx, state) {
     if (state.screen !== 'battle' || state._playgroundBattle || !state.runDataRef) return;
 
     const data = state.data || (state.data = {});
     if (data.settingsExpanded === undefined) data.settingsExpanded = false;
 
-    // 设置按钮位置：右上方，书本按钮（DOM #btn-toggle-keyword: right:10, top:10, 44x44）正下方
+    // 设置按钮位置：右上方，书本按钮正下方
     const btnSize = 36;
-    const domPos = getDomButtonPosInCanvas(renderer, 10, 10, 44, 44);
-    const btnX = domPos ? (domPos.x + (44 - btnSize) / 2) : (renderer.width - 10 - btnSize);
-    const btnY = domPos ? (domPos.y + 44 + 6) : (10 + 44 + 6);
+    const btnX = renderer.width - 44;
+    const btnY = 66;
 
     // 折叠态：只显示设置按钮
     if (!data.settingsExpanded) {
@@ -953,9 +931,8 @@ function drawFeedbackLink(renderer, ctx, state) {
 
     // 位置：右上方，在设置按钮正下方
     const settingBtnSize = 36;
-    const domPos = getDomButtonPosInCanvas(renderer, 10, 10, 44, 44);
-    const settingBtnY = domPos ? (domPos.y + 44 + 6) : (10 + 44 + 6);
-    const x = domPos ? (domPos.x + (44 - w) / 2) : (renderer.width - 10 - w);
+    const settingBtnY = 66;
+    const x = renderer.width - w - 4;
     const y = settingBtnY + settingBtnSize + 6;
 
     const isHover = data.hoverFeedbackLink;
