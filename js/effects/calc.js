@@ -314,7 +314,7 @@ registerEffect({
     }
 });
 
-// 一人成军（one_man_army）：获得当前牌组内所有卡牌点数之和
+// 一人成军（one_man_army）：获得当前抽牌堆内所有卡牌点数之和
 registerEffect({
     id: 'one_man_army_effect',
     triggers: Trigger.ON_CALC_FINAL,
@@ -322,21 +322,13 @@ registerEffect({
     condition: (ctx) => ctx.card && ctx.card.defId === 'one_man_army',
     execute: (ctx) => {
         let total = 0;
-        const seen = {};
-        const cards = [
-            ...ctx.state.deck,
-            ...ctx.state.hand,
-            ...ctx.state.discard,
-            ...ctx.state.slots.flatMap(s => s.cards)
-        ];
-        for (const c of cards) {
-            if (c.isDerived || seen[c.uuid]) continue;
-            seen[c.uuid] = true;
+        for (const c of ctx.state.deck) {
+            if (c.isDerived) continue;
             total += ctx.getCardBaseValue(c);
         }
         ctx.value += total;
         if (total > 0) {
-            ctx.log(`${ctx.card.name} 一人成军触发，获得牌组点数之和 ${total}`);
+            ctx.log(`${ctx.card.name} 一人成军触发，获得当前抽牌堆点数之和 ${total}`);
         }
     }
 });

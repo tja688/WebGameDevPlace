@@ -390,12 +390,12 @@ playCardToSlot(s34.hand[0], 0, s34);
 assert(s34.hand.some(c => c.defId === 'icing_on_cake'), '任意倍率格三张牌时，牌组中的锦上添花移到手牌');
 assert(!s34.deck.some(c => c.defId === 'icing_on_cake'), '锦上添花响应后离开牌组');
 
-// Test 35: 一人成军统计整套当前战斗牌组，不只统计抽牌堆
+// Test 35: 一人成军只统计当前抽牌堆，不统计手牌/弃牌堆/牌桌
 const s35 = makeTestState(['one_man_army', 'war_training']);
 s35.deck = [createCardInstance('brute_force')];
 s35.discard = [createCardInstance('big_brute_force')];
 playCardToSlot(s35.hand[0], 0, s35);
-assert(getCardFinalValue(s35.slots[0].cards[0], s35) === 53, '一人成军会统计抽牌堆、手牌、弃牌堆和牌桌上的非衍生牌');
+assert(getCardFinalValue(s35.slots[0].cards[0], s35) === 15, '一人成军只会统计当前抽牌堆中的卡牌点数');
 
 // Test 36: 每场战斗第一张牌遗物不会在每回合重复触发
 const s36 = makeTestState(['brute_force']);

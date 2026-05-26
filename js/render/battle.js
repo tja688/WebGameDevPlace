@@ -800,10 +800,13 @@ function drawSettingsPanel(renderer, ctx, state) {
     const data = state.data || (state.data = {});
     if (data.settingsExpanded === undefined) data.settingsExpanded = false;
 
-    // 设置按钮位置：右上方，书本按钮正下方
+    // 设置按钮和首个遗物同排，便于和反馈入口一起形成顶栏
     const btnSize = 36;
-    const btnX = renderer.width - 44;
-    const btnY = 66;
+    const relicX = renderer.width - 20 - btnSize;
+    const topRowY = 20;
+    const gap = 10;
+    const btnX = relicX - gap - btnSize;
+    const btnY = topRowY;
 
     // 折叠态：只显示设置按钮
     if (!data.settingsExpanded) {
@@ -929,11 +932,14 @@ function drawFeedbackLink(renderer, ctx, state) {
     const w = textW + paddingX * 2;
     const h = fontSize + paddingY * 2 + 2;
 
-    // 位置：右上方，在设置按钮正下方
+    // 位置：与设置按钮、首个遗物并排
     const settingBtnSize = 36;
-    const settingBtnY = 66;
-    const x = renderer.width - w - 4;
-    const y = settingBtnY + settingBtnSize + 6;
+    const topRowY = 20;
+    const gap = 10;
+    const relicX = renderer.width - 20 - settingBtnSize;
+    const settingBtnX = relicX - gap - settingBtnSize;
+    const x = settingBtnX - gap - w;
+    const y = topRowY + Math.floor((settingBtnSize - h) / 2);
 
     const isHover = data.hoverFeedbackLink;
 
