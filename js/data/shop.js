@@ -93,7 +93,7 @@ export function createShopStock(runData = null) {
     const sourceIds = forcedSystem && CARD_SYSTEM_POOLS[forcedSystem]
         ? CARD_SYSTEM_POOLS[forcedSystem]
         : Object.keys(CARD_DEFS);
-    const cardIds = sourceIds.filter(id => CARD_DEFS[id] && id !== 'diffusion' && !STARTING_CARD_IDS.includes(id));
+    const cardIds = sourceIds.filter(id => CARD_DEFS[id] && id !== 'diffusion' && id !== 'cheat_card' && !STARTING_CARD_IDS.includes(id));
     const usedCardIds = new Set();
     for (let i = 0; i < 5; i++) {
         const defId = pickCardIdByRarity(cardIds.filter(id => !usedCardIds.has(id)));

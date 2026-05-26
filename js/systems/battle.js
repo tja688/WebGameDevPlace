@@ -227,6 +227,7 @@ export function initBattleFromRun(runData) {
     if (printCardRelic) {
         const cheatCard = createCardInstance('cheat_card');
         if (cheatCard) {
+            cheatCard.isDerived = true;
             state.hand.push(cheatCard);
             logCombat(state, `${printCardRelic.name} 生效：获得一张作弊卡`);
         }
