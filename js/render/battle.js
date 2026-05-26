@@ -621,39 +621,16 @@ function drawPlayerArea(renderer, ctx, state) {
     ctx.fillStyle = '#b8860b';
     ctx.font = '36px serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⚔️', x + 60, badgeY + 12);
-
-    // 遗物数量
-    const relicCount = state.runDataRef?.relics?.length || 0;
-    ctx.fillStyle = '#cc9955';
-    ctx.font = 'bold 11px Microsoft YaHei';
-    ctx.fillText(`遗物x${relicCount}`, x + 60, badgeY + 48);
+    ctx.fillText('⚔️', x + 60, badgeY + 6);
 
     // 人群图标
     const heartX = x + 15;
-    const heartY = y + 95;
+    const heartY = y + 85;
     const heartPulse = state.player.hearts <= 1 ? renderer.animTime : 0;
     for (let i = 0; i < state.player.maxHearts; i++) {
         const filled = i < state.player.hearts;
         drawHeartIcon(ctx, heartX + i * 36, heartY, 28, filled, filled && state.player.hearts <= 1 ? heartPulse : 0);
     }
-
-    // 信息文字
-    const infoX = x + 10;
-    const infoY = heartY + 35;
-
-    ctx.fillStyle = '#aa9988';
-    ctx.font = '14px Microsoft YaHei';
-    ctx.textAlign = 'left';
-    ctx.fillText(`第 ${state.turn} 回合`, infoX, infoY);
-
-    ctx.fillStyle = '#ddaa66';
-    ctx.font = 'bold 14px Microsoft YaHei';
-    ctx.fillText(`本回合: ${state.turnDamage}`, infoX, infoY + 22);
-
-    ctx.fillStyle = '#777';
-    ctx.font = '12px Microsoft YaHei';
-    ctx.fillText(`牌库: ${state.deck.length} | 弃牌: ${state.discard.length}`, infoX, infoY + 44);
 }
 
 // ============================================================
@@ -710,7 +687,7 @@ function drawRelicsBar(renderer, ctx, state) {
 function drawStrategyPanel(renderer, ctx, state) {
     if (!state.slots) return;
 
-    const x = 35;
+    const x = 10;
     const y = 260;
     const w = 230;
     const h = 355;
