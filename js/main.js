@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 主入口
+ * 生死烛局 - 主入口
  */
 
 import { createGameState, startBattle } from './core/state.js';

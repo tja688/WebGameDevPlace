@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - Playground 入口
+ * 生死烛局 - Playground 入口
  *
  * 职责：
  * 1. 初始化 Playground 状态结构

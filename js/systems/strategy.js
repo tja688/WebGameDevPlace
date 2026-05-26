@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 计策系统（第二版）
+ * 生死烛局 - 计策系统（第二版）
  *
  * 按 4.计策.md 实现
  * 9种基础计策 + 4种超限计策
@@ -13,7 +13,8 @@ const BASE_STRATEGIES = [
         req: [1, 1, 1],
         total: 3,
         bonuses: [1, 1, 1],
-        levelBonus: [1, 1, 1]
+        levelBonus: [1, 1, 1],
+        description: '所有倍率格点数+1'
     },
     {
         id: 'left_assault',
@@ -21,7 +22,8 @@ const BASE_STRATEGIES = [
         req: [3, 1, 1],
         total: 5,
         bonuses: [2, 0, 0],
-        levelBonus: [2, 0, 0]
+        levelBonus: [2, 0, 0],
+        description: '倍率格1点数+2'
     },
     {
         id: 'right_assault',
@@ -29,7 +31,8 @@ const BASE_STRATEGIES = [
         req: [1, 1, 3],
         total: 5,
         bonuses: [0, 0, 2],
-        levelBonus: [0, 0, 2]
+        levelBonus: [0, 0, 2],
+        description: '倍率格3点数+2'
     },
     {
         id: 'mid_assault',
@@ -37,7 +40,8 @@ const BASE_STRATEGIES = [
         req: [1, 3, 1],
         total: 5,
         bonuses: [0, 2, 0],
-        levelBonus: [0, 2, 0]
+        levelBonus: [0, 2, 0],
+        description: '倍率格2点数+2'
     },
     {
         id: 'steady_push',
@@ -45,7 +49,8 @@ const BASE_STRATEGIES = [
         req: [2, 2, 2],
         total: 6,
         bonuses: [3, 3, 3],
-        levelBonus: [2, 2, 2]
+        levelBonus: [2, 2, 2],
+        description: '所有倍率格点数+3'
     },
     {
         id: 'plan_left',
@@ -53,7 +58,8 @@ const BASE_STRATEGIES = [
         req: [4, 2, 2],
         total: 8,
         bonuses: [4, 1, 1],
-        levelBonus: [3, 1, 1]
+        levelBonus: [3, 1, 1],
+        description: '所有倍率格点数+1，倍率格1额外+3'
     },
     {
         id: 'plan_right',
@@ -61,7 +67,8 @@ const BASE_STRATEGIES = [
         req: [2, 2, 4],
         total: 8,
         bonuses: [1, 1, 4],
-        levelBonus: [1, 1, 3]
+        levelBonus: [1, 1, 3],
+        description: '所有倍率格点数+1，倍率格3额外+3'
     },
     {
         id: 'plan_mid',
@@ -69,7 +76,8 @@ const BASE_STRATEGIES = [
         req: [2, 4, 2],
         total: 8,
         bonuses: [1, 4, 1],
-        levelBonus: [1, 3, 1]
+        levelBonus: [1, 3, 1],
+        description: '所有倍率格点数+1，倍率格2额外+3'
     },
     {
         id: 'forceful_push',
@@ -77,7 +85,8 @@ const BASE_STRATEGIES = [
         req: [3, 3, 3],
         total: 9,
         bonuses: [5, 5, 5],
-        levelBonus: [3, 3, 3]
+        levelBonus: [3, 3, 3],
+        description: '所有倍率格点数+5'
     }
 ];
 
@@ -90,7 +99,8 @@ const OVERDRIVE_STRATEGIES = [
         total: 12,
         bonuses: [10, 10, 10],
         levelBonus: [5, 5, 5],
-        condition: (counts) => counts[0] === counts[1] && counts[1] === counts[2]
+        condition: (counts) => counts[0] === counts[1] && counts[1] === counts[2],
+        description: '所有倍率格点数+10（需三格数量相等且总和≥12）'
     },
     {
         id: 'overdrive_left',
@@ -99,7 +109,8 @@ const OVERDRIVE_STRATEGIES = [
         total: 12,
         bonuses: [12, 6, 6],
         levelBonus: [5, 5, 5],
-        condition: (counts) => counts[0] >= 6 && counts[1] === 3 && counts[2] === 3
+        condition: (counts) => counts[0] >= 6 && counts[1] === 3 && counts[2] === 3,
+        description: '倍率格1点数+12，其余+6（需格1≥6，其余=3）'
     },
     {
         id: 'overdrive_right',
@@ -108,7 +119,8 @@ const OVERDRIVE_STRATEGIES = [
         total: 12,
         bonuses: [6, 6, 12],
         levelBonus: [5, 5, 5],
-        condition: (counts) => counts[2] >= 6 && counts[0] === 3 && counts[1] === 3
+        condition: (counts) => counts[2] >= 6 && counts[0] === 3 && counts[1] === 3,
+        description: '倍率格3点数+12，其余+6（需格3≥6，其余=3）'
     },
     {
         id: 'overdrive_mid',
@@ -117,7 +129,8 @@ const OVERDRIVE_STRATEGIES = [
         total: 12,
         bonuses: [6, 12, 6],
         levelBonus: [5, 5, 5],
-        condition: (counts) => counts[1] >= 6 && counts[0] === 3 && counts[2] === 3
+        condition: (counts) => counts[1] >= 6 && counts[0] === 3 && counts[2] === 3,
+        description: '倍率格2点数+12，其余+6（需格2≥6，其余=3）'
     }
 ];
 

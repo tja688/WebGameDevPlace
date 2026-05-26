@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 战斗界面渲染（视觉升级版）
+ * 生死烛局 - 战斗界面渲染（视觉升级版）
  */
 
 import {
@@ -709,10 +709,10 @@ function drawRelicsBar(renderer, ctx, state) {
 function drawStrategyPanel(renderer, ctx, state) {
     if (!state.slots) return;
 
-    const x = 40;
-    const y = 235;
-    const w = 195;
-    const h = 300;
+    const x = 35;
+    const y = 260;
+    const w = 230;
+    const h = 355;
     const counts = state.slots.map(s => s.cards.length);
     const totalCards = counts.reduce((sum, n) => sum + n, 0);
     const current = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
@@ -725,48 +725,47 @@ function drawStrategyPanel(renderer, ctx, state) {
     ctx.stroke();
 
     ctx.fillStyle = '#f0d29a';
-    ctx.font = 'bold 15px Microsoft YaHei';
+    ctx.font = 'bold 16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('计策阵型', x + 14, y + 24);
+    ctx.fillText('计策阵型', x + 14, y + 26);
 
     ctx.fillStyle = '#9f8b72';
     ctx.font = '12px Microsoft YaHei';
-    ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}`, x + 14, y + 45);
+    ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}`, x + 14, y + 48);
 
     if (current) {
-        const bonusText = current.bonuses.map((b, i) => `格${i + 1}+${b}`).join(' ');
         ctx.fillStyle = current.isOverdrive ? 'rgba(120,30,30,0.55)' : 'rgba(80,60,25,0.55)';
-        roundRect(ctx, x + 10, y + 56, w - 20, 42, 6);
+        roundRect(ctx, x + 10, y + 58, w - 20, 30, 6);
         ctx.fill();
 
         ctx.fillStyle = current.isOverdrive ? '#ff9999' : '#ffd76a';
         ctx.font = 'bold 14px Microsoft YaHei';
         const levelText = current.level > 0 ? ` Lv.${current.level}` : '';
-        ctx.fillText(current.name + levelText, x + 18, y + 75);
-
-        ctx.fillStyle = '#ead6b0';
-        ctx.font = '12px Microsoft YaHei';
-        ctx.fillText(bonusText, x + 18, y + 92);
+        ctx.fillText(current.name + levelText, x + 18, y + 78);
     } else {
         ctx.fillStyle = '#8f8170';
         ctx.font = '12px Microsoft YaHei';
-        ctx.fillText(totalCards > 0 ? '当前没有命中阵型' : '放牌后会实时提示阵型', x + 14, y + 76);
+        ctx.fillText(totalCards > 0 ? '当前没有命中阵型' : '放牌后会实时提示阵型', x + 14, y + 80);
     }
 
     ctx.fillStyle = '#8f8170';
     ctx.font = '11px Microsoft YaHei';
-    ctx.fillText('右侧数字排列为倍率格打出卡牌数量', x + 14, y + 110);
+    ctx.fillText('右侧数字为倍率格打出卡牌数量', x + 14, y + 108);
 
     const all = getAllStrategies();
     const rows = [...all.base, ...all.overdrive];
-    let rowY = y + 130;
-    ctx.font = '11px Microsoft YaHei';
+    let rowY = y + 125;
+    const rowH = 16;
+    ctx.font = '12px Microsoft YaHei';
+
+    state.data = state.data || {};
+    state.data.strategyRowRects = [];
+
     for (const strat of rows) {
         const isCurrent = current && current.id === strat.id;
-        const rowH = 13;
         if (isCurrent) {
             ctx.fillStyle = current.isOverdrive ? 'rgba(255,80,80,0.22)' : 'rgba(255,215,0,0.18)';
-            roundRect(ctx, x + 10, rowY - 10, w - 20, rowH, 3);
+            roundRect(ctx, x + 8, rowY - 11, w - 16, rowH, 3);
             ctx.fill();
         }
 
@@ -777,6 +776,13 @@ function drawStrategyPanel(renderer, ctx, state) {
         ctx.fillText(nameText, x + 14, rowY);
         ctx.textAlign = 'right';
         ctx.fillText(strat.req.join('-'), x + w - 14, rowY);
+
+        // 记录该区域用于 hover 检测
+        state.data.strategyRowRects.push({
+            x: x + 8, y: rowY - 11, w: w - 16, h: rowH,
+            strat
+        });
+
         rowY += rowH;
     }
 
@@ -790,22 +796,59 @@ function drawStrategyPanel(renderer, ctx, state) {
 function drawAdventureCheatPanel(renderer, ctx, state) {
     if (state.screen !== 'battle' || state._playgroundBattle || !state.runDataRef) return;
 
+    const data = state.data || (state.data = {});
+    if (data.adventureCheatExpanded === undefined) data.adventureCheatExpanded = false;
+
     const x = renderer.width - 225;
     const y = 215;
     const w = 165;
     const h = 230;
-    const data = state.data || (state.data = {});
 
+    // 折叠态：只显示一个切换按钮
+    if (!data.adventureCheatExpanded) {
+        const toggleW = 36;
+        const toggleH = 36;
+        const toggleX = x + w - toggleW;
+        const toggleY = y;
+        const hover = data.hoverAdventureCheat === 'toggle_cheat';
+
+        drawParchment(ctx, toggleX, toggleY, toggleW, toggleH, { alpha: 0.72, radius: 8 });
+        ctx.strokeStyle = 'rgba(120,95,55,0.75)';
+        ctx.lineWidth = 1;
+        roundRect(ctx, toggleX, toggleY, toggleW, toggleH, 8);
+        ctx.stroke();
+
+        ctx.fillStyle = hover ? '#ffd76a' : '#d7b77a';
+        ctx.font = 'bold 16px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚙️', toggleX + toggleW / 2, toggleY + toggleH / 2 + 1);
+        ctx.textBaseline = 'alphabetic';
+
+        data.adventureCheatRects = [{ id: 'toggle_cheat', x: toggleX, y: toggleY, w: toggleW, h: toggleH }];
+        return;
+    }
+
+    // 展开态：显示完整面板
     drawParchment(ctx, x, y, w, h, { alpha: 0.72, radius: 8 });
     ctx.strokeStyle = 'rgba(120,95,55,0.75)';
     ctx.lineWidth = 1;
     roundRect(ctx, x, y, w, h, 8);
     ctx.stroke();
 
+    // 标题 + 收起按钮
     ctx.fillStyle = '#d7b77a';
     ctx.font = 'bold 14px Microsoft YaHei';
     ctx.textAlign = 'left';
     ctx.fillText('冒险调试', x + 12, y + 23);
+
+    const toggleBtn = { id: 'toggle_cheat', text: '×', x: x + w - 30, y: y + 6, w: 24, h: 22 };
+    const toggleHover = data.hoverAdventureCheat === 'toggle_cheat';
+    drawButton(ctx, toggleBtn.x, toggleBtn.y, toggleBtn.w, toggleBtn.h, toggleBtn.text, {
+        hover: toggleHover,
+        radius: 4,
+        fontSize: 14
+    });
 
     const selector = getAdventureCheatSelectedCard(state);
     ctx.fillStyle = 'rgba(20,15,10,0.5)';
@@ -823,11 +866,13 @@ function drawAdventureCheatPanel(renderer, ctx, state) {
         { id: 'draw_one', text: '抽 1 张', x: x + 10, y: y + 118, w: 68, h: 30 },
         { id: 'heal', text: '回满人群', x: x + 87, y: y + 118, w: 68, h: 30 },
         { id: 'add_gold', text: '+10金币', x: x + 10, y: y + 158, w: 68, h: 30 },
-        { id: 'win', text: '直接获胜', x: x + 87, y: y + 158, w: 68, h: 30, primary: true }
+        { id: 'win', text: '直接获胜', x: x + 87, y: y + 158, w: 68, h: 30, primary: true },
+        toggleBtn
     ];
 
     data.adventureCheatRects = btns;
     for (const btn of btns) {
+        if (btn.id === 'toggle_cheat') continue;
         const hover = data.hoverAdventureCheat === btn.id;
         drawButton(ctx, btn.x, btn.y, btn.w, btn.h, btn.text, {
             hover,

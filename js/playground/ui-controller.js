@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - Playground DOM UI 控制器
+ * 生死烛局 - Playground DOM UI 控制器
  *
  * 提供：
  * - 场景选择器、JSON 编辑器、控制按钮（AI 测试用）

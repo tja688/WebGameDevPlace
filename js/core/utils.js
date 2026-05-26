@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 核心工具函数
+ * 生死烛局 - 核心工具函数
  */
 
 export function generateUUID() {

@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 回合效果 (ON_TURN_START / ON_TURN_END)（重构版）
+ * 生死烛局 - 回合效果 (ON_TURN_START / ON_TURN_END)（重构版）
  *
  * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */

@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（重构版）
+ * 生死烛局 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（重构版）
  *
  * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */

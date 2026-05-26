@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 游戏状态管理（第二版）
+ * 生死烛局 - 游戏状态管理（第二版）
  */
 
 import { shuffleArray } from './utils.js';

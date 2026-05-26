@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - Playground LocalStorage 覆盖层
+ * 生死烛局 - Playground LocalStorage 覆盖层
  *
  * 提供：读/写/导出/导入自定义场景
  * 核心机制：localStorage 作为运行时覆盖层，JSON 作为持久化格式

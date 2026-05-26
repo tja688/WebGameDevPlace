@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 输入处理系统
+ * 生死烛局 - 输入处理系统
  * 
  * 架构：
  * - 核心层：坐标转换、hover状态管理、拖拽基础
@@ -234,6 +234,7 @@ export const Input = {
         state.data.deckViewHoverCard = null;
         state.data.deckViewHoverClose = false;
         state.data.hoverStrategyOption = null;
+        state.data.hoverStrategyRow = null;
     },
 
     hitTest(pos, rect) {
@@ -1671,6 +1672,22 @@ export const Input = {
                     this.updateRelicTooltip(relicHover.relic, pos.x, pos.y);
                     this._playHoverSound();
                 } else {
+                    // 检测计策项悬停
+                    if (this.state.data && this.state.data.strategyRowRects) {
+                        for (const row of this.state.data.strategyRowRects) {
+                            if (this.hitTest(pos, row)) {
+                                this.state.data.hoverStrategyRow = row.strat.id;
+                                this.state.selectedCard = null;
+                                this.state.hoveredMonster = false;
+                                this.state.hoveredEndTurn = false;
+                                this.canvas.style.cursor = 'help';
+                                this.updateStrategyTooltip(row.strat, pos.x, pos.y);
+                                this._playHoverSound();
+                                return;
+                            }
+                        }
+                    }
+
                     this.state.selectedCard = null;
                     this.state.hoveredMonster = false;
                     this.state.hoveredEndTurn = false;
@@ -1688,6 +1705,14 @@ export const Input = {
         }
         const rect = data.adventureCheatRects.find(r => this.hitTest(pos, r));
         if (!rect) return false;
+
+        if (rect.id === 'toggle_cheat') {
+            data.adventureCheatExpanded = !data.adventureCheatExpanded;
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            this.canvas.style.cursor = 'default';
+            return true;
+        }
+
         if (this.state.phase !== 'playing') return true;
 
         const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
@@ -1991,6 +2016,29 @@ export const Input = {
         }
         let html = `<h4>${relic.name}</h4>`;
         html += `<p style="color:#ccc">${relic.desc || relic.description || ''}</p>`;
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 320);
+        const y = Math.min(clientY + 20, window.innerHeight - 250);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    updateStrategyTooltip(strat, clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        if (!strat) {
+            tooltip.classList.add('hidden');
+            return;
+        }
+        const isOverdrive = !!strat.condition;
+        const titleColor = isOverdrive ? '#ff9999' : '#ffd76a';
+        let html = `<h4 style="color:${titleColor}">${strat.name}</h4>`;
+        html += `<p>需求: 倍率格堆叠 <b>${strat.req.join('-')}</b>（共${strat.total}张）</p>`;
+        html += `<p style="color:#ffcc88;margin-top:6px">效果: ${strat.description || ''}</p>`;
+        if (strat.levelBonus) {
+            const levelDesc = strat.levelBonus.map((b, i) => b > 0 ? `格${i + 1}+${b}` : null).filter(Boolean).join('，');
+            html += `<p style="color:#aaa;font-size:12px;margin-top:6px">每级强化: ${levelDesc}</p>`;
+        }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 320);

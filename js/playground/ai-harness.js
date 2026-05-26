@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - AI Playtest Harness
+ * 生死烛局 - AI Playtest Harness
  *
  * 设计目标：
  * 1. 提供稳定的 JSON-in / JSON-out API，供 AI 批量调用

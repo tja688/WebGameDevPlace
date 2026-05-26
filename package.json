@@ -1,7 +1,7 @@
 {
   "name": "card-dungeon",
-  "version": "5.5.0",
-  "description": "卡牌地下城 - 重构版 v5.0",
+  "version": "5.6.0",
+  "description": "生死烛局 - 重构版 v5.0",
   "type": "module",
   "scripts": {
     "start": "node serve.js",

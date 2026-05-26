@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 商店系统
+ * 生死烛局 - 商店系统
  */
 
 import { createShopStock, createBlacksmithStock } from '../data/index.js';

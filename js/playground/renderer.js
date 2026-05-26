@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - Playground 渲染器
+ * 生死烛局 - Playground 渲染器
  *
  * 简化版渲染：
  * - menu 视图：Canvas 绘制类型选择菜单
@@ -90,7 +90,7 @@ function drawMenu(renderer, ctx, state) {
     ctx.fillStyle = '#666';
     ctx.font = '14px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('卡牌地下城 Playground v3.3', cx, renderer.height - 40);
+    ctx.fillText('生死烛局 Playground v3.3', cx, renderer.height - 40);
 }
 
 // ===== Effect 沙盒视图 =====

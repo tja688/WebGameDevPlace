@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - Playground 预设场景数据
+ * 生死烛局 - Playground 预设场景数据
  *
  * 覆盖全部 11 种词条及边界组合，共 18 个场景。
  * 场景格式与 scenario-engine.js 兼容，可直接导出为 JSON。

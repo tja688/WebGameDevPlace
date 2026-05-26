@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 格子效果 (ON_SLOT_CALC)（重构版）
+ * 生死烛局 - 格子效果 (ON_SLOT_CALC)（重构版）
  *
  * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */

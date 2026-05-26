@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 渲染核心工具（增强版）
+ * 生死烛局 - 渲染核心工具（增强版）
  */
 
 import { darkenColor } from '../core/utils.js';

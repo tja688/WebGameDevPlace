@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - Playground 场景执行引擎
+ * 生死烛局 - Playground 场景执行引擎
  *
  * 核心设计原则：
  * 1. 纯逻辑，不依赖 DOM/Canvas/Audio

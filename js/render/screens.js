@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 非战斗界面渲染
+ * 生死烛局 - 非战斗界面渲染
  * 
  * 包含：title, class_select, map, post_battle, card_pick, card_select,
  *       shop, blacksmith, event, treasure, act_transition, victory, game_over
@@ -41,7 +41,7 @@ export function drawTitle(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(255,215,0,0.4)';
     ctx.shadowBlur = 20;
-    ctx.fillText('⚔️ 卡牌地下城', cx, cy - 60);
+    ctx.fillText('🕯 生死烛局', cx, cy - 60);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = '#aaa';

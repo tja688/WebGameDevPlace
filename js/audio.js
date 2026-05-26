@@ -1,5 +1,5 @@
 /**
- * 卡牌地下城 - 增强音效系统（Web Audio API + BGM）
+ * 生死烛局 - 增强音效系统（Web Audio API + BGM）
  */
 
 export const GameAudio = {
