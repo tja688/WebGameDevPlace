@@ -25,8 +25,11 @@ git commit -m "<描述变更的提交信息>"
 | `package.json` | `"version": "0.5.7"` |
 | `README.md` 标题 | `# 生死烛局 - 重构版 v0.5.7` |
 | `README.md` 版本历史 | 在版本历史表格中追加一条记录 |
+| `js/render/screens.js` drawTitle | `ctx.fillText('v0.5.7', cx, cy + 12);` |
 
 > 版本历史格式：`| v0.5.7 | YYYY-MM-DD | 变更内容摘要 |`
+
+**强制要求**：`screens.js` 中的版本号文字必须与 `package.json` 和 `README.md` 保持完全一致。任何版本号更新必须同步修改这三处，禁止遗漏。
 
 ---
 
