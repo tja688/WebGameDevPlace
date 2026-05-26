@@ -156,14 +156,10 @@ export function drawClassSelect(renderer, ctx, state) {
         ctx.font = '20px Microsoft YaHei';
         ctx.fillText(`❤️ ${cls.hearts}`, x + cardW / 2, y + 230);
 
-        ctx.fillStyle = isAvailable ? '#b8860b' : '#444';
-        ctx.font = '16px Microsoft YaHei';
-        ctx.fillText(`遗物: ${cls.relic.name}`, x + cardW / 2, y + 270);
-
         ctx.fillStyle = isAvailable ? '#aaa' : '#444';
         ctx.font = '14px Microsoft YaHei';
-        const desc = isAvailable ? cls.relic.description : '（暂未开放）';
-        wrapText(ctx, desc, x + cardW / 2, y + 310, cardW - 40, 22);
+        const desc = isAvailable ? '无初始遗物' : '（暂未开放）';
+        wrapText(ctx, desc, x + cardW / 2, y + 290, cardW - 40, 22);
 
         if (!isAvailable) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';

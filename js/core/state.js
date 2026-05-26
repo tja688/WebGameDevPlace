@@ -56,7 +56,7 @@ export function createRunData(classId) {
         heartsLostInStage: 0,
         deck: shuffleArray(createDeck(cls)),
         startingDeck: JSON.parse(JSON.stringify(cls.startingDeck)),
-        relics: [cls.relic],
+        relics: [],
         classId: classId,
         maxHearts: cls.hearts,
         completedStages: [],
@@ -115,8 +115,7 @@ export function createInitialState() {
         player: {
             name: cls.name,
             maxHearts: cls.hearts,
-            hearts: cls.hearts,
-            relic: cls.relic
+            hearts: cls.hearts
         },
         monster: {
             id: monster.id,

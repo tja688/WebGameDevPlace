@@ -622,10 +622,11 @@ function drawPlayerArea(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.fillText('⚔️', x + 60, badgeY + 12);
 
-    // 初始遗物名称
+    // 遗物数量
+    const relicCount = state.runDataRef?.relics?.length || 0;
     ctx.fillStyle = '#cc9955';
     ctx.font = 'bold 11px Microsoft YaHei';
-    ctx.fillText(state.player.relic.name, x + 60, badgeY + 48);
+    ctx.fillText(`遗物x${relicCount}`, x + 60, badgeY + 48);
 
     // 人群图标
     const heartX = x + 15;

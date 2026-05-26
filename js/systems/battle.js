@@ -9,7 +9,7 @@
 
 import { shuffleArray, pickRandom } from '../core/utils.js';
 import { logCombat, drawCards, shuffleDiscardToDeck, recordTimeline } from '../core/battle-core.js';
-import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS } from '../data/index.js';
+import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS, createCardInstance } from '../data/index.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT, HAND_LIMIT } from '../core/constants.js';
 import { calculateTotalBoardDamage, getCardFinalValue } from './board.js';
@@ -36,13 +36,6 @@ export function initBattleFromRun(runData) {
     let monsterMaxHp = Math.max(1, monsterDef.hp - nextMonsterHpPenalty);
     const playerMaxHearts = (runData.maxHearts || cls.hearts) + nextBattleHeartBonus;
 
-    // 龙骨：怪物血量+20%
-    const dragonBone = runData.relics.find(r => r.effect?.type === 'all_slot_bonus_hp_increase');
-    if (dragonBone) {
-        const hpPercent = dragonBone.effect.hpPercent || 20;
-        monsterMaxHp = Math.floor(monsterMaxHp * (1 + hpPercent / 100));
-    }
-
     const slots = createBattleSlots({
         slotUpgrades: runData.slotUpgrades
     });
@@ -55,8 +48,7 @@ export function initBattleFromRun(runData) {
         player: {
             name: cls.name,
             maxHearts: playerMaxHearts,
-            hearts: playerMaxHearts,
-            relic: cls.relic
+            hearts: playerMaxHearts
         },
         monster: {
             id: monsterDef.id,
@@ -178,13 +170,6 @@ export function initBattleFromRun(runData) {
         playerHearts: state.player.hearts
     });
 
-    // 龙眼：手牌上限-2
-    const dragonEye = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_hand_limit');
-    if (dragonEye) {
-        const penalty = dragonEye.effect.handLimitPenalty || 2;
-        state.handLimit = HAND_LIMIT - penalty;
-    }
-
     // 黄之心：每场战斗开始赋予牌组内随机一张卡牌奉献词条
     const yellowHeartRelic = getActiveRelics(state).find(r => r.effect?.type === 'dedicate_permanent');
     if (yellowHeartRelic) {
@@ -230,17 +215,6 @@ export function initBattleFromRun(runData) {
     }
     drawCards(state, drawCount);
 
-    // 战场经验/疾风卷轴：首回合多抽牌（玩家遗物效果，可叠加）
-    const firstTurnDrawRelics = getActiveRelics(state).filter(r => r.effect?.type === 'first_turn_extra_draw');
-    if (firstTurnDrawRelics.length > 0 && state.turn === 1) {
-        let extraDraw = 0;
-        for (const relic of firstTurnDrawRelics) {
-            extraDraw += relic.effect.bonus || 1;
-        }
-        drawCards(state, extraDraw);
-        logCombat(state, `首回合抽牌遗物生效，额外抽 ${extraDraw} 张牌`);
-    }
-
     const bossDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
     if (bossDrawRelic) {
         const extraDraw = bossDrawRelic.effect.bonus || 1;
@@ -248,11 +222,14 @@ export function initBattleFromRun(runData) {
         logCombat(state, `${bossDrawRelic.name} 生效，首回合额外抽 ${extraDraw * 2} 张牌`);
     }
 
-    // 龙眼：每回合额外抽2张牌
-    if (dragonEye) {
-        const extraDraw = dragonEye.effect.drawBonus || 2;
-        drawCards(state, extraDraw);
-        logCombat(state, `龙眼生效，额外抽 ${extraDraw} 张牌`);
+    // 印卡：每场战斗开始将一张作弊卡加入手牌
+    const printCardRelic = getActiveRelics(state).find(r => r.effect?.type === 'print_cheat_card');
+    if (printCardRelic) {
+        const cheatCard = createCardInstance('cheat_card');
+        if (cheatCard) {
+            state.hand.push(cheatCard);
+            logCombat(state, `${printCardRelic.name} 生效：获得一张作弊卡`);
+        }
     }
 
     // 播放对应BGM
@@ -373,26 +350,6 @@ export function endTurn(state) {
 
     // 计算伤害（含计策加成）
     let totalDmg = calculateTotalBoardDamage(state);
-
-    // 赏金袋：倍率格上卡牌点数超过50，获得2金币
-    const bountyBag = getActiveRelics(state).find(r => r.effect?.type === 'slot_value_gold');
-    if (bountyBag && state.runDataRef) {
-        const threshold = bountyBag.effect.threshold || 50;
-        const goldReward = bountyBag.effect.gold || 2;
-        let triggered = false;
-        for (const slot of state.slots) {
-            for (const card of slot.cards) {
-                const cardValue = getCardFinalValue(card, state);
-                if (cardValue >= threshold) {
-                    state.runDataRef.gold += goldReward;
-                    logCombat(state, `赏金袋生效：${card.name} 点数${cardValue}超过${threshold}，获得${goldReward}金币`);
-                    triggered = true;
-                    break;
-                }
-            }
-            if (triggered) break;
-        }
-    }
 
     // 闪避：每回合受到的前2点伤害无效
     if (state.monster.dodge) {
@@ -569,14 +526,6 @@ export function endTurn(state) {
         logCombat(state, `${state.monster.name} 的技能生效：每回合少抽 ${state.monster.lessDraw} 张牌`);
     }
     drawCards(state, nextDrawCount);
-
-    // 龙眼：每回合额外抽2张牌
-    const dragonEyeNext = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_hand_limit');
-    if (dragonEyeNext) {
-        const extraDraw = dragonEyeNext.effect.drawBonus || 2;
-        drawCards(state, extraDraw);
-        logCombat(state, `龙眼生效，额外抽 ${extraDraw} 张牌`);
-    }
 
     const bossDrawNext = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
     if (bossDrawNext) {

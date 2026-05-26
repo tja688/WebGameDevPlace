@@ -360,7 +360,7 @@ s31.monster.hp = 9999;
 playCardToSlot(s31.hand[0], 0, s31);
 endTurn(s31);
 assert(s31.slots[0].cards.length === 1, '留场牌会保留到下回合牌桌');
-assert(!s31.slots[0].cards[0].keywords.includes('remain'), '留场牌在下回合开始移除留场词条');
+assert(s31.slots[0].cards[0].remainExhausted, '留场牌在下回合开始标记留场已耗尽');
 
 // Test 32: 本场战斗永久加成不会污染战后牌组
 const run32 = createRunData('veteran');
@@ -409,15 +409,7 @@ s36.deck = [];
 playCardToSlot(s36.hand[0], 0, s36);
 assert(getCardFinalValue(s36.slots[0].cards[0], s36) === 15, '闪电战不会在第二回合第一张牌重复触发');
 
-// Test 37: 连击手套首次填满倍率格时，场上每张牌都获得点数+10
-const s37 = makeTestState(['brute_force', 'brute_force', 'brute_force']);
-s37.runDataRef = { relics: [{ id: 'test_glove', name: '连击手套', effect: { type: 'full_board_bonus', bonus: 10 } }] };
-playCardToSlot(s37.hand[0], 0, s37);
-playCardToSlot(s37.hand[0], 1, s37);
-playCardToSlot(s37.hand[0], 2, s37);
-assert(s37.slots.every(slot => getCardFinalValue(slot.cards[0], s37) === 25), '连击手套会让首次填满时场上每张牌都+10');
-
-// Test 38: 击败黄色君王后，BOSS遗物三选一必定包含一个黄色君王专属遗物
+// Test 37: 击败黄色君王后，BOSS遗物三选一必定包含一个黄色君王专属遗物
 const run38 = createRunData('veteran');
 run38.stageIndex = 7;
 const s38 = initBattleFromRun(run38);

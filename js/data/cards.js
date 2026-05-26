@@ -605,6 +605,18 @@ export const CARD_DEFS = {
         color: '#888888',
         accentColor: '#aaaaaa',
         iconType: 'shadow'
+    },
+    cheat_card: {
+        id: 'cheat_card',
+        name: '作弊卡',
+        baseValue: 50,
+        size: 1,
+        keywords: [],
+        rarity: 'gold',
+        description: '一张强力的临时卡牌',
+        color: '#FFD700',
+        accentColor: '#FFA500',
+        iconType: 'magic'
     }
 };
 

@@ -1961,8 +1961,7 @@ export const Input = {
         const player = this.state.player;
         let html = `<h4>${player.name}</h4>`;
         html += `<p>❤️ 生命: ${player.hearts}/${player.maxHearts}</p>`;
-        html += `<p>🏛️ 遗物: <b style="color:#cc9955">${player.relic.name}</b></p>`;
-        html += `<p style="color:#aaa;font-size:12px;margin-top:4px">${player.relic.description || ''}</p>`;
+        html += `<p>🏛️ 遗物: <b style="color:#cc9955">${(this.state.runDataRef?.relics?.length || 0)} 件</b></p>`;
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 300);

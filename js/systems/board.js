@@ -100,28 +100,6 @@ export function calculateTotalBoardDamage(state) {
     // 额外指数（遗物加成等）
     let extraMultiplier = state.runDataRef?.extraMultiplier || 1;
 
-    // 首击放大器：首回合额外指数+2
-    const firstTurnMultiplierRelic = getActiveRelics(state).find(r => r.effect?.type === 'first_turn_extra_multiplier');
-    if (firstTurnMultiplierRelic && state.turn === 1) {
-        extraMultiplier += firstTurnMultiplierRelic.effect.bonus || 2;
-    }
-
-    // 三重共鸣：每个倍率格上都有三张卡牌时，额外指数+3
-    const tripleCrowdRelic = getActiveRelics(state).find(r => r.effect?.type === 'triple_crowd_bonus');
-    if (tripleCrowdRelic) {
-        const threshold = tripleCrowdRelic.effect.threshold || 3;
-        const bonus = tripleCrowdRelic.effect.bonus || 3;
-        if (state.slots.every(s => s.cards.length >= threshold)) {
-            extraMultiplier += bonus;
-        }
-    }
-
-    // 超限核心：当触发任意超限计策时，额外指数+3
-    const overdriveRelic = getActiveRelics(state).find(r => r.effect?.type === 'overdrive_bonus');
-    if (overdriveRelic && state.currentStrategy?.isOverdrive) {
-        extraMultiplier += overdriveRelic.effect.bonus || 3;
-    }
-
     return Math.floor(total * extraMultiplier);
 }
 

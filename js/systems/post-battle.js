@@ -111,12 +111,6 @@ export function resolveBattleEnd(battleState) {
         runData.heartsLostInStage = battleState.heartsLost;
         runData.completedStages.push(battleState.stageKey);
 
-        // 折扣券：每场战斗后获得一次免费刷新次数
-        const discountCoupon = runData.relics.find(r => r.effect?.type === 'free_refresh_per_battle');
-        if (discountCoupon) {
-            runData.freeRefreshCount = (runData.freeRefreshCount || 0) + 1;
-        }
-
         // 合并所有卡牌回 runData.deck
         const allCards = [
             ...battleState.deck,
