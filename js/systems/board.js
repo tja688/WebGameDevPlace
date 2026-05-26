@@ -154,6 +154,8 @@ export function playCardToSlot(card, slotIndex, state) {
     slot.cards.push(card);
 
     card.hasBeenPlayed = true;
+    card.turnPlaced = state.turn;
+    delete card.remainExhausted;
     recordTimeline(state, 'play_card_to_slot', {
         cardUuid: card.uuid,
         cardDefId: card.defId,
@@ -184,6 +186,7 @@ export function playCardToSlot(card, slotIndex, state) {
         // 赋予留场效果
         if (!card.keywords.includes('remain')) {
             card.keywords.push('remain');
+            card._tempRemainAdded = true;
         }
         state.monster.firstCardSlotIndex = randomSlot;
     }

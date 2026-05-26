@@ -375,6 +375,7 @@ registerEffect({
         ctx.card.keywords = ctx.card.keywords || [];
         if (!ctx.card.keywords.includes('remain')) {
             ctx.card.keywords = [...ctx.card.keywords, 'remain'];
+            ctx.card._tempRemainAdded = true;
         }
         ctx.log(`省吃俭用生效：${ctx.card.name} 获得留场`);
     }

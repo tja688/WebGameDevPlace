@@ -512,6 +512,11 @@ export const Input = {
                         if (result.ok) {
                             runData.gold -= cost;
                             if (runData.blacksmithFirstEnchantFree) runData.blacksmithFirstEnchantFree = false;
+                            // 记录本铁匠已敲词条，刷新后不再出现
+                            if (!runData.blacksmithEnchantedKeywords) runData.blacksmithEnchantedKeywords = [];
+                            if (!runData.blacksmithEnchantedKeywords.includes(keyword)) {
+                                runData.blacksmithEnchantedKeywords.push(keyword);
+                            }
                             const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
                             showPlaceholderToast(`${card.name} 获得【${kwName}】！`);
                         } else {

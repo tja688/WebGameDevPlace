@@ -740,7 +740,8 @@ function drawStrategyPanel(renderer, ctx, state) {
 
         ctx.fillStyle = current.isOverdrive ? '#ff9999' : '#ffd76a';
         ctx.font = 'bold 14px Microsoft YaHei';
-        ctx.fillText(current.name, x + 18, y + 75);
+        const levelText = current.level > 0 ? ` Lv.${current.level}` : '';
+        ctx.fillText(current.name + levelText, x + 18, y + 75);
 
         ctx.fillStyle = '#ead6b0';
         ctx.font = '12px Microsoft YaHei';

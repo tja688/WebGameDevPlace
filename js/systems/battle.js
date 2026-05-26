@@ -230,12 +230,15 @@ export function initBattleFromRun(runData) {
     }
     drawCards(state, drawCount);
 
-    // 战场经验/疾风卷轴：首回合多抽牌（玩家遗物效果）
-    const firstTurnDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'first_turn_extra_draw');
-    if (firstTurnDrawRelic && state.turn === 1) {
-        const extraDraw = firstTurnDrawRelic.effect.bonus || 1;
+    // 战场经验/疾风卷轴：首回合多抽牌（玩家遗物效果，可叠加）
+    const firstTurnDrawRelics = getActiveRelics(state).filter(r => r.effect?.type === 'first_turn_extra_draw');
+    if (firstTurnDrawRelics.length > 0 && state.turn === 1) {
+        let extraDraw = 0;
+        for (const relic of firstTurnDrawRelics) {
+            extraDraw += relic.effect.bonus || 1;
+        }
         drawCards(state, extraDraw);
-        logCombat(state, `${firstTurnDrawRelic.name} 生效，额外抽 ${extraDraw} 张牌`);
+        logCombat(state, `首回合抽牌遗物生效，额外抽 ${extraDraw} 张牌`);
     }
 
     const bossDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
@@ -488,15 +491,16 @@ export function endTurn(state) {
         }
     }
 
-    // 清理牌桌（留场保留，其余入弃牌堆）
+    // 清理牌桌（留场保留一回合，其余入弃牌堆）
     for (const slot of state.slots) {
         const remaining = [];
         for (const card of slot.cards) {
-            if (card.keywords.includes('remain')) {
+            if (card.keywords.includes('remain') && !card.remainExhausted) {
                 card.removeRemainOnNextTurnStart = true;
                 remaining.push(card);
             } else {
                 card.dedicateTriggered = false;
+                delete card.remainExhausted;
                 state.discard.push(card);
             }
         }
@@ -547,8 +551,9 @@ export function endTurn(state) {
     state.monster.firstCardSlotIndex = -1;
     state.monster.cardsPlayedThisTurn = 0;
 
-    // 清除上回合被梦中的你禁用的卡牌标记
-    for (const card of state.hand) {
+    // 清除上回合被梦中的你禁用的卡牌标记（手牌、牌库、弃牌堆全部清理）
+    const allRetainCards = [...state.hand, ...state.deck, ...state.discard];
+    for (const card of allRetainCards) {
         if (card.retainDisabledThisTurn) {
             delete card.retainDisabledThisTurn;
         }

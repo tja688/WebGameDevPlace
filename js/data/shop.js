@@ -94,8 +94,11 @@ export function createShopStock(runData = null) {
         ? CARD_SYSTEM_POOLS[forcedSystem]
         : Object.keys(CARD_DEFS);
     const cardIds = sourceIds.filter(id => CARD_DEFS[id] && id !== 'diffusion' && !STARTING_CARD_IDS.includes(id));
+    const usedCardIds = new Set();
     for (let i = 0; i < 5; i++) {
-        const defId = pickCardIdByRarity(cardIds);
+        const defId = pickCardIdByRarity(cardIds.filter(id => !usedCardIds.has(id)));
+        if (!defId) break;
+        usedCardIds.add(defId);
         const def = CARD_DEFS[defId];
         const price = RARITY_PRICE[def.rarity] || 2;
         cards.push({ defId, price, bought: false });
@@ -105,9 +108,14 @@ export function createShopStock(runData = null) {
     }
 
     const relics = [];
-    const relicPool = RELIC_DEFS.filter(r => r.rarity !== 'boss');
+    const ownedRelicIds = new Set((runData?.relics || []).map(r => r.id));
+    const relicPool = RELIC_DEFS.filter(r => r.rarity !== 'boss' && !ownedRelicIds.has(r.id));
+    const usedRelicIds = new Set();
     for (let i = 0; i < 3; i++) {
-        const relic = pickRelicByRarity(relicPool);
+        const availablePool = relicPool.filter(r => !usedRelicIds.has(r.id));
+        if (availablePool.length === 0) break;
+        const relic = pickRelicByRarity(availablePool);
+        usedRelicIds.add(relic.id);
         const price = getRelicPrice(relic);
         relics.push({ ...relic, price, bought: false });
     }
@@ -117,17 +125,12 @@ export function createShopStock(runData = null) {
 
 /**
  * 创建铁匠库存
- * - 2件非BOSS遗物
- * - 附魔词条选项（2个随机词条）
+ * - 不卖遗物（第二版设计）
+ * - 附魔词条选项（2个随机词条，本铁匠每个词条只能敲一次）
  */
 export function createBlacksmithStock(excludeEnchantKeywords = []) {
+    // 第二版：铁匠不卖遗物
     const relics = [];
-    const pool = RELIC_DEFS.filter(r => r.rarity !== 'boss');
-    for (let i = 0; i < 2; i++) {
-        const relic = pickRelicByRarity(pool);
-        const price = getRelicPrice(relic);
-        relics.push({ ...relic, price, bought: false });
-    }
 
     // 附魔词条：提供两个不重复选项，刷新时尽量避开上一组
     let keywordPool = Object.keys(KEYWORDS).filter(kw => !excludeEnchantKeywords.includes(kw));

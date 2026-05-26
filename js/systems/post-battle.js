@@ -129,6 +129,9 @@ export function resolveBattleEnd(battleState) {
             c.battleBonus = 0;
             c.dedicateTriggered = false;
             delete c.removeRemainOnNextTurnStart;
+            delete c.remainExhausted;
+            delete c.retainDisabledThisTurn;
+            delete c._tempRemainAdded;
             if (c._monsterAddedKeywords) {
                 const def = CARD_DEFS[c.defId];
                 const originalKeywords = def ? def.keywords : [];

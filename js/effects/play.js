@@ -9,6 +9,7 @@ import { Trigger, Priority } from '../core/constants.js';
 import { drawCards, recordTimeline } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
 import { detectStrategy } from '../systems/strategy.js';
+import { getCardFinalValue } from '../systems/board.js';
 
 // ===== 1. 格子加成（奉献等） =====
 registerEffect({
@@ -22,7 +23,7 @@ registerEffect({
         if (!ctx.state.monster.disableDedicate) {
             for (const c of slot.cards) {
                 if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate') && !c.dedicateTriggered) {
-                    const val = ctx.getCardBaseValue(c);
+                    const val = getCardFinalValue(c, ctx.state);
                     const disabledKey = ctx.state.monster?.disabledRelicKey;
                     const hasYellowBone = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_1_5x' && (!disabledKey || (r.id || r.name) !== disabledKey));
                     const bonus = hasYellowBone ? Math.floor(val * 1.5) : Math.floor(val / 2);
@@ -399,6 +400,7 @@ registerEffect({
             ctx.card.keywords = ctx.card.keywords || [];
             if (!ctx.card.keywords.includes('remain')) {
                 ctx.card.keywords = [...ctx.card.keywords, 'remain'];
+                ctx.card._tempRemainAdded = true;
             }
             ctx.log(`${ctx.card.name} 先手优势触发！点数+5并获得留场`);
         }

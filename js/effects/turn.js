@@ -6,11 +6,15 @@
 
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
+import { CARD_DEFS } from '../data/index.js';
 import { drawCards, recordTimeline } from '../core/battle-core.js';
 
 // ===== ON_TURN_START：回合开始 =====
 
-// 留场：回合结束保留在场，下回合开始移除本牌留场词条
+// 留场：回合结束保留在场，下回合开始时：
+// - 临时添加的留场词条直接移除
+// - 卡牌定义中自带的留场词条保留，但设置 remainExhausted 标记，
+//   使该卡在本回合结束时进入弃牌堆（避免永久留场）
 registerEffect({
     id: 'remain_persist',
     triggers: Trigger.ON_TURN_START,
@@ -22,14 +26,24 @@ registerEffect({
                 if (!card.removeRemainOnNextTurnStart) continue;
                 const idx = card.keywords.indexOf('remain');
                 if (idx !== -1) {
-                    card.keywords.splice(idx, 1);
-                    recordTimeline(ctx.state, 'card_keyword_removed', {
-                        cardUuid: card.uuid,
-                        cardDefId: card.defId,
-                        keyword: 'remain',
-                        reason: 'remain_next_turn_start'
-                    });
-                    ctx.log(`${card.name} 的留场词条在回合开始时移除`);
+                    const def = CARD_DEFS[card.defId];
+                    const hasOriginalRemain = def && def.keywords && def.keywords.includes('remain');
+                    if (!hasOriginalRemain) {
+                        // 临时添加的 remain 直接移除
+                        card.keywords.splice(idx, 1);
+                        delete card._tempRemainAdded;
+                        recordTimeline(ctx.state, 'card_keyword_removed', {
+                            cardUuid: card.uuid,
+                            cardDefId: card.defId,
+                            keyword: 'remain',
+                            reason: 'remain_next_turn_start'
+                        });
+                        ctx.log(`${card.name} 的临时留场词条在回合开始时移除`);
+                    } else {
+                        // 原始 remain 保留词条，但标记已耗尽，防止永久留场
+                        card.remainExhausted = true;
+                        ctx.log(`${card.name} 的留场效果已耗尽，将在本回合结束后弃置`);
+                    }
                 }
                 delete card.removeRemainOnNextTurnStart;
             }
