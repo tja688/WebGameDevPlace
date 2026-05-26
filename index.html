@@ -56,7 +56,11 @@
             <div id="keyword-panel" class="hidden">
                 <h3>📖 词条说明书</h3>
                 <div id="keyword-list"></div>
-                <div class="volume-section">
+            </div>
+            <button id="btn-toggle-keyword" title="词条说明书">📖</button>
+            <button id="btn-toggle-tools" title="工具面板" class="hidden">⚙️</button>
+            <div id="tools-panel" class="hidden">
+                <div class="tools-section">
                     <h4>🔊 音量控制</h4>
                     <div class="volume-row">
                         <label>背景音乐</label>
@@ -69,8 +73,27 @@
                         <span id="sfx-volume-val">50%</span>
                     </div>
                 </div>
+                <div class="tools-section" id="cheat-section">
+                    <h4>🛠️ 冒险调试</h4>
+                    <div class="cheat-card-selector">
+                        <button id="cheat-prev-card" class="cheat-btn-sm">&lt;</button>
+                        <span id="cheat-card-name">无卡牌</span>
+                        <button id="cheat-next-card" class="cheat-btn-sm">&gt;</button>
+                    </div>
+                    <button id="cheat-add-card" class="cheat-btn">加入手牌</button>
+                    <div class="cheat-row">
+                        <button id="cheat-draw-one" class="cheat-btn">抽 1 张</button>
+                        <button id="cheat-heal" class="cheat-btn">回满人群</button>
+                    </div>
+                    <div class="cheat-row">
+                        <button id="cheat-add-gold" class="cheat-btn">+10金币</button>
+                        <button id="cheat-win" class="cheat-btn cheat-btn-primary">直接获胜</button>
+                    </div>
+                    <div id="cheat-hand-count" class="cheat-info">手牌 0/10</div>
+                </div>
+                <button id="btn-exit-to-menu" class="tools-exit-btn">← 退出到主菜单</button>
             </div>
-            <button id="btn-toggle-keyword" title="词条说明书">📖</button>
+            <a id="feedback-link" href="https://vcnole60l5bl.feishu.cn/wiki/RuhpwE9Mjij9ngkjawmcztXknwd?from=from_copylink" target="_blank" rel="noopener noreferrer">点我反馈</a>
             <button id="btn-playground" title="Playground">🧪 Playground</button>
         </div>
         <!-- Playground UI 覆盖层 -->

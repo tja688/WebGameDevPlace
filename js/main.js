@@ -2,17 +2,20 @@
  * 生死烛局 - 主入口
  */
 
-import { createGameState, startBattle } from './core/state.js';
+import { createGameState, startBattle, switchScreen } from './core/state.js';
 import { endTurn } from './systems/battle.js';
 import { Input } from './input/index.js';
 import { Renderer } from './render/renderer.js';
 import { initBattleFromRun } from './systems/battle.js';
 import { GameAudio } from './audio.js';
 import { FX as RenderFX } from './render/fx.js';
-import { KEYWORDS, applyDataOverrides } from './data/index.js';
+import { KEYWORDS, applyDataOverrides, createCardInstance, CARD_DEFS } from './data/index.js';
 import { initPlaygroundUI, updateUIView, updateBattlePanelRealtime } from './playground/ui-controller.js';
 import { enterPlayground } from './playground/index.js';
 import { Tutorial } from './tutorial.js';
+import { drawCards } from './core/battle-core.js';
+import { calculateTotalBoardDamage } from './systems/board.js';
+import { HAND_LIMIT } from './core/constants.js';
 
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
@@ -61,6 +64,7 @@ function init() {
     initKeywordPanel();
     bindKeys();
     bindVolumeControls();
+    bindToolsPanel();
 
     window.gameState = createGameState('title');
     Input.init(window.gameState, Renderer);
@@ -187,6 +191,145 @@ function bindVolumeControls() {
     }
 }
 
+function bindToolsPanel() {
+    const toolsBtn = document.getElementById('btn-toggle-tools');
+    const toolsPanel = document.getElementById('tools-panel');
+
+    if (toolsBtn && toolsPanel) {
+        toolsBtn.addEventListener('click', () => {
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            toolsPanel.classList.toggle('hidden');
+        });
+    }
+
+    // 退出到主菜单
+    const exitBtn = document.getElementById('btn-exit-to-menu');
+    if (exitBtn) {
+        exitBtn.addEventListener('click', () => {
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            if (window.gameState) {
+                switchScreen(window.gameState, 'title', {});
+            }
+            if (toolsPanel) toolsPanel.classList.add('hidden');
+        });
+    }
+
+    // 作弊功能
+    const cheatPrev = document.getElementById('cheat-prev-card');
+    const cheatNext = document.getElementById('cheat-next-card');
+    const cheatAdd = document.getElementById('cheat-add-card');
+    const cheatDraw = document.getElementById('cheat-draw-one');
+    const cheatHeal = document.getElementById('cheat-heal');
+    const cheatGold = document.getElementById('cheat-add-gold');
+    const cheatWin = document.getElementById('cheat-win');
+
+    if (cheatPrev) {
+        cheatPrev.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+            const data = window.gameState.data || (window.gameState.data = {});
+            if (data.adventureCheatCardIndex === undefined) data.adventureCheatCardIndex = 0;
+            data.adventureCheatCardIndex = (data.adventureCheatCardIndex - 1 + cardIds.length) % cardIds.length;
+            updateCheatCardName();
+        });
+    }
+
+    if (cheatNext) {
+        cheatNext.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+            const data = window.gameState.data || (window.gameState.data = {});
+            if (data.adventureCheatCardIndex === undefined) data.adventureCheatCardIndex = 0;
+            data.adventureCheatCardIndex = (data.adventureCheatCardIndex + 1) % cardIds.length;
+            updateCheatCardName();
+        });
+    }
+
+    if (cheatAdd) {
+        cheatAdd.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            if (window.gameState.hand.length >= HAND_LIMIT) {
+                window.gameState.message = '手牌已满';
+                window.gameState.messageTimer = 60;
+                return;
+            }
+            const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+            const data = window.gameState.data || {};
+            if (data.adventureCheatCardIndex === undefined) data.adventureCheatCardIndex = 0;
+            const defId = cardIds[data.adventureCheatCardIndex % cardIds.length];
+            const card = createCardInstance(defId);
+            if (card) window.gameState.hand.push(card);
+            window.gameState.turnDamage = calculateTotalBoardDamage(window.gameState);
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            updateCheatCardName();
+        });
+    }
+
+    if (cheatDraw) {
+        cheatDraw.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            drawCards(window.gameState, 1);
+            window.gameState.turnDamage = calculateTotalBoardDamage(window.gameState);
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            updateCheatCardName();
+        });
+    }
+
+    if (cheatHeal) {
+        cheatHeal.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            window.gameState.player.hearts = window.gameState.player.maxHearts;
+            window.gameState.heartsLost = 0;
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+        });
+    }
+
+    if (cheatGold) {
+        cheatGold.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            if (window.gameState.runDataRef) {
+                window.gameState.runDataRef.gold += 10;
+            }
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+        });
+    }
+
+    if (cheatWin) {
+        cheatWin.addEventListener('click', () => {
+            if (!window.gameState || window.gameState.phase !== 'playing') return;
+            window.gameState.monster.hp = 0;
+            window.gameState.phase = 'ended';
+            window.gameState.result = 'win';
+            if (typeof Input !== 'undefined' && Input.checkBattleEnd) {
+                Input.checkBattleEnd();
+            }
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+        });
+    }
+}
+
+function updateCheatCardName() {
+    const span = document.getElementById('cheat-card-name');
+    if (!span || !window.gameState) return;
+    const card = getCheatSelectedCard(window.gameState);
+    span.textContent = card.name;
+
+    const countDiv = document.getElementById('cheat-hand-count');
+    if (countDiv) {
+        countDiv.textContent = `手牌 ${window.gameState.hand.length}/${HAND_LIMIT}`;
+    }
+}
+
+function getCheatSelectedCard(state) {
+    const allCardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion');
+    if (allCardIds.length === 0) {
+        return { id: null, name: '无卡牌' };
+    }
+    const idx = state.data?.adventureCheatCardIndex || 0;
+    const id = allCardIds[((idx % allCardIds.length) + allCardIds.length) % allCardIds.length];
+    return { id, name: CARD_DEFS[id].name };
+}
+
 function gameLoop() {
     if (window.gameState) {
         // BGM 自动切换：非战斗界面播放平时音乐
@@ -212,6 +355,27 @@ function gameLoop() {
             } else {
                 pgBtn.classList.add('hidden');
             }
+        }
+
+        // 工具按钮显示控制（正式战斗专属）
+        const toolsBtn = document.getElementById('btn-toggle-tools');
+        const toolsPanel = document.getElementById('tools-panel');
+        const cheatSection = document.getElementById('cheat-section');
+        const feedbackLink = document.getElementById('feedback-link');
+        const isFormalBattle = window.gameState.screen === 'battle' && !window.gameState._playgroundBattle && window.gameState.runDataRef;
+        if (toolsBtn) {
+            if (isFormalBattle) {
+                toolsBtn.classList.remove('hidden');
+            } else {
+                toolsBtn.classList.add('hidden');
+                if (toolsPanel) toolsPanel.classList.add('hidden');
+            }
+        }
+        if (cheatSection) {
+            cheatSection.style.display = isFormalBattle ? '' : 'none';
+        }
+        if (feedbackLink) {
+            feedbackLink.style.top = isFormalBattle ? '114px' : '64px';
         }
 
         Renderer.render(window.gameState);

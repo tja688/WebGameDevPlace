@@ -25,7 +25,6 @@ export function drawBattle(renderer, ctx, state) {
     drawPlayerArea(renderer, ctx, state);
     drawRelicsBar(renderer, ctx, state);
     drawStrategyPanel(renderer, ctx, state);
-    drawAdventureCheatPanel(renderer, ctx, state);
     drawBoardArea(renderer, ctx, state);
     drawHandArea(renderer, ctx, state);
     drawUI(renderer, ctx, state);

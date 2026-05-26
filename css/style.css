@@ -93,6 +93,181 @@ body {
     display: none;
 }
 
+#btn-toggle-tools {
+    position: absolute;
+    top: 64px;
+    right: 10px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2a 100%);
+    border: 2px solid #555;
+    border-radius: 10px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+#btn-toggle-tools:hover {
+    background: linear-gradient(180deg, #3a3a5a 0%, #2a2a4a 100%);
+    border-color: #888;
+    box-shadow: 0 4px 16px rgba(255,255,255,0.1);
+}
+
+#btn-toggle-tools.hidden {
+    display: none;
+}
+
+#tools-panel {
+    position: absolute;
+    top: 114px;
+    right: 10px;
+    width: 280px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: rgba(15,12,20,0.96);
+    border: 2px solid #554433;
+    border-radius: 14px;
+    padding: 16px;
+    z-index: 99;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+#tools-panel.hidden {
+    display: none;
+}
+
+.tools-section {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #443322;
+}
+
+.tools-section:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.tools-section h4 {
+    color: #cc9955;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.cheat-card-selector {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 8px;
+}
+
+.cheat-card-selector span {
+    flex: 1;
+    text-align: center;
+    color: #f0d29a;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.cheat-btn-sm {
+    width: 32px;
+    height: 28px;
+    background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
+    border: 1px solid #555;
+    border-radius: 5px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.cheat-btn-sm:hover {
+    background: linear-gradient(180deg, #4a4a5a 0%, #3a3a4a 100%);
+    border-color: #888;
+}
+
+.cheat-btn {
+    flex: 1;
+    padding: 6px 0;
+    background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
+    border: 1px solid #555;
+    border-radius: 5px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.cheat-btn:hover {
+    background: linear-gradient(180deg, #4a4a5a 0%, #3a3a4a 100%);
+    border-color: #888;
+}
+
+.cheat-btn-primary {
+    background: linear-gradient(180deg, #6a3a3a 0%, #4a2a2a 100%);
+    border-color: #aa6666;
+}
+
+.cheat-btn-primary:hover {
+    background: linear-gradient(180deg, #8a4a4a 0%, #6a3a3a 100%);
+    border-color: #cc8888;
+}
+
+.cheat-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.cheat-info {
+    text-align: center;
+    color: #8f8170;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+.tools-exit-btn {
+    width: 100%;
+    padding: 8px 0;
+    background: linear-gradient(180deg, #555 0%, #444 100%);
+    border: 1px solid #666;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    font-family: inherit;
+    margin-top: 4px;
+}
+
+.tools-exit-btn:hover {
+    background: linear-gradient(180deg, #666 0%, #555 100%);
+    border-color: #888;
+}
+
+#feedback-link {
+    position: absolute;
+    top: 64px;
+    right: 10px;
+    font-size: 11px;
+    color: #888;
+    text-decoration: none;
+    z-index: 100;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+#feedback-link:hover {
+    color: #ccc;
+    text-decoration: underline;
+}
+
 #keyword-panel {
     position: absolute;
     top: 64px;
