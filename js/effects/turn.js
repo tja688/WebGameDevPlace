@@ -6,19 +6,34 @@
 
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
-import { recordTimeline } from '../core/battle-core.js';
+import { drawCards, recordTimeline } from '../core/battle-core.js';
 
 // ===== ON_TURN_START：回合开始 =====
 
-// 留场牌继续保留在倍率格上
+// 留场：回合结束保留在场，下回合开始移除本牌留场词条
 registerEffect({
     id: 'remain_persist',
     triggers: Trigger.ON_TURN_START,
     priority: Priority.CLEANUP,
     condition: (ctx) => true,
     execute: (ctx) => {
-        // 留场牌保留在场上，无需额外处理
-        // 回合开始时的其他效果可在此添加
+        for (const slot of ctx.state.slots) {
+            for (const card of slot.cards) {
+                if (!card.removeRemainOnNextTurnStart) continue;
+                const idx = card.keywords.indexOf('remain');
+                if (idx !== -1) {
+                    card.keywords.splice(idx, 1);
+                    recordTimeline(ctx.state, 'card_keyword_removed', {
+                        cardUuid: card.uuid,
+                        cardDefId: card.defId,
+                        keyword: 'remain',
+                        reason: 'remain_next_turn_start'
+                    });
+                    ctx.log(`${card.name} 的留场词条在回合开始时移除`);
+                }
+                delete card.removeRemainOnNextTurnStart;
+            }
+        }
     }
 });
 
@@ -109,6 +124,27 @@ registerEffect({
                 goldAfter: ctx.state.runDataRef.gold
             });
             ctx.log(`${ctx.state.monster.name} 的技能生效：失去 ${lost} 金币`);
+        }
+    }
+});
+
+// 小幸运：每回合开始有概率抽一张牌
+registerEffect({
+    id: 'relic_luck_draw',
+    triggers: Trigger.ON_TURN_START,
+    priority: Priority.DRAW - 20,
+    condition: (ctx) => {
+        const disabledKey = ctx.state.monster?.disabledRelicKey;
+        const relic = ctx.state.runDataRef?.relics?.find(r => r.effect?.type === 'luck_draw' && (!disabledKey || (r.id || r.name) !== disabledKey));
+        return !!relic;
+    },
+    execute: (ctx) => {
+        const disabledKey = ctx.state.monster?.disabledRelicKey;
+        const relic = ctx.state.runDataRef.relics.find(r => r.effect?.type === 'luck_draw' && (!disabledKey || (r.id || r.name) !== disabledKey));
+        const chance = (relic.effect.chance || 10) / 100;
+        if (Math.random() < chance) {
+            drawCards(ctx.state, 1);
+            ctx.log(`${relic.name} 生效：抽一张牌`);
         }
     }
 });

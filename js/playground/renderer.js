@@ -185,6 +185,7 @@ function drawEffectSandbox(renderer, ctx, state) {
             ctx.textAlign = 'left';
             let valueText = `${card.baseValue}`;
             if (card.permanentBonus) valueText += `+${card.permanentBonus}`;
+            if (card.battleBonus) valueText += card.battleBonus > 0 ? `+${card.battleBonus}` : `${card.battleBonus}`;
             if (card.tempBonus) valueText += `(+${card.tempBonus})`;
             ctx.fillText(`${card.name} [${valueText}]`, sx + 14, cy + 18);
 

@@ -54,27 +54,54 @@ function pickRelicByRarity(relicPool) {
 }
 
 function getRelicPrice(relic) {
+    if (Number.isFinite(relic.price)) return relic.price;
     if (relic.rarity === 'common') return 2;
     if (relic.rarity === 'rare') return 4;
     if (relic.rarity === 'epic') return 8;
     return 2;
 }
 
+const CARD_SYSTEM_POOLS = {
+    neutral: [
+        'vine_climb', 'ponder', 'prepare_battle', 'hold_position', 'brute_force',
+        'common_goal', 'friendly_chat', 'first_advantage', 'battle_banner', 'rear_guard',
+        'icing_on_cake', 'easy_money', 'big_brute_force', 'clear_mind', 'extreme_think',
+        'flexible_dispatch', 'lend_hand', 'messenger', 'luxury_gear', 'ultimate_brute',
+        'cogito_ergo_sum'
+    ],
+    big_number: [
+        'ugly_showoff', 'no_wisdom', 'combined_force', 'apprentice_forge', 'body_wisdom',
+        'borrow', 'master_forge', 'perfect_borrow', 'skilled_borrow', 'one_man_army'
+    ],
+    growth: [
+        'war_training', 'training_trace', 'intense_training', 'group_training',
+        'training_partner', 'training_set', 'support_training', 'training_30h',
+        'steroid_training', 'regular_training', 'training_result'
+    ]
+};
+
 /**
  * 创建商店库存
  * - 5张卡牌可选
  * - 3件遗物可选
  */
-export function createShopStock() {
+export function createShopStock(runData = null) {
     const cards = [];
     // 排除衍生牌和初始职业卡
     const STARTING_CARD_IDS = ['unity_strike', 'support_strike', 'veteran_ambition'];
-    const cardIds = Object.keys(CARD_DEFS).filter(id => id !== 'diffusion' && !STARTING_CARD_IDS.includes(id));
+    const forcedSystem = runData?.nextShopCardSystem || null;
+    const sourceIds = forcedSystem && CARD_SYSTEM_POOLS[forcedSystem]
+        ? CARD_SYSTEM_POOLS[forcedSystem]
+        : Object.keys(CARD_DEFS);
+    const cardIds = sourceIds.filter(id => CARD_DEFS[id] && id !== 'diffusion' && !STARTING_CARD_IDS.includes(id));
     for (let i = 0; i < 5; i++) {
         const defId = pickCardIdByRarity(cardIds);
         const def = CARD_DEFS[defId];
         const price = RARITY_PRICE[def.rarity] || 2;
         cards.push({ defId, price, bought: false });
+    }
+    if (runData?.nextShopCardSystem) {
+        delete runData.nextShopCardSystem;
     }
 
     const relics = [];

@@ -322,7 +322,16 @@ registerEffect({
     condition: (ctx) => ctx.card && ctx.card.defId === 'one_man_army',
     execute: (ctx) => {
         let total = 0;
-        for (const c of ctx.state.deck) {
+        const seen = {};
+        const cards = [
+            ...ctx.state.deck,
+            ...ctx.state.hand,
+            ...ctx.state.discard,
+            ...ctx.state.slots.flatMap(s => s.cards)
+        ];
+        for (const c of cards) {
+            if (c.isDerived || seen[c.uuid]) continue;
+            seen[c.uuid] = true;
             total += ctx.getCardBaseValue(c);
         }
         ctx.value += total;

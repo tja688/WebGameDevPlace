@@ -6,18 +6,20 @@ import { createShopStock, createBlacksmithStock } from '../data/index.js';
 
 export function getOrCreateShopStock(runData) {
     if (!runData.shopStock) {
-        runData.shopStock = createShopStock();
+        runData.shopStock = createShopStock(runData);
+        runData.shopFriendRefreshAvailable = !!runData.relics?.some(r => r.effect?.type === 'first_refresh_free');
     }
     return runData.shopStock;
 }
 
 export function refreshShopStock(runData) {
-    runData.shopStock = createShopStock();
+    runData.shopStock = createShopStock(runData);
 }
 
 export function getOrCreateBlacksmithStock(runData) {
     if (!runData.blacksmithStock) {
         runData.blacksmithStock = createBlacksmithStock();
+        runData.blacksmithFriendRefreshAvailable = !!runData.relics?.some(r => r.effect?.type === 'first_refresh_free');
     }
     return runData.blacksmithStock;
 }

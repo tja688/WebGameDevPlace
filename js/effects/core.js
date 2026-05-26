@@ -190,7 +190,7 @@ export function createEffectContext({
         /** 获取某张牌的基础值（含永久/临时加成） */
         getCardBaseValue(targetCard = this.card) {
             if (!targetCard) return 0;
-            return targetCard.baseValue + targetCard.permanentBonus + (targetCard.tempBonus || 0);
+            return (targetCard.baseValue || 0) + (targetCard.permanentBonus || 0) + (targetCard.battleBonus || 0) + (targetCard.tempBonus || 0);
         },
 
         /** 获取所有在牌桌上的卡牌 */
@@ -299,6 +299,12 @@ export function calculateGrowAmount(card, slotIndex, state) {
 
     // 猛训练：后续同格卡牌的成长效果多触发一次
     if (slot.intenseTrainingActive) {
+        amount += triggerAmount;
+    }
+
+    // 训练核心：成长效果多触发一次
+    const disabledKey = state.monster?.disabledRelicKey;
+    if (state.runDataRef?.relics?.some(r => r.effect?.type === 'grow_double' && (!disabledKey || (r.id || r.name) !== disabledKey))) {
         amount += triggerAmount;
     }
 

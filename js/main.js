@@ -24,6 +24,35 @@ import './effects/index.js';
 window.gameState = null;
 let _lastScreen = null;
 
+window.render_game_to_text = function() {
+    const state = window.gameState;
+    if (!state) return JSON.stringify({ screen: 'none' });
+    const payload = {
+        screen: state.screen,
+        phase: state.phase || null,
+        turn: state.turn || 0,
+        player: state.player ? { hearts: state.player.hearts, maxHearts: state.player.maxHearts } : null,
+        monster: state.monster ? { id: state.monster.id, name: state.monster.name, hp: state.monster.hp, maxHp: state.monster.maxHp } : null,
+        hand: (state.hand || []).map(c => ({ uuid: c.uuid, defId: c.defId, name: c.name, value: (c.baseValue || 0) + (c.permanentBonus || 0) + (c.battleBonus || 0) + (c.tempBonus || 0), keywords: c.keywords || [] })),
+        slots: (state.slots || []).map(s => ({ index: s.index, multiplier: s.multiplier + (s.roundMultiplierBonus || 0), cards: s.cards.map(c => ({ uuid: c.uuid, defId: c.defId, name: c.name })) })),
+        currentStrategy: state.currentStrategy ? { id: state.currentStrategy.id, name: state.currentStrategy.name } : null,
+        message: state.message || null,
+        note: 'canvas coordinates use origin top-left, x right, y down'
+    };
+    return JSON.stringify(payload);
+};
+
+window.advanceTime = function(ms = 16) {
+    const frames = Math.max(1, Math.round(ms / (1000 / 60)));
+    for (let i = 0; i < frames; i++) {
+        if (window.gameState?.messageTimer > 0) {
+            window.gameState.messageTimer--;
+            if (window.gameState.messageTimer === 0) window.gameState.message = null;
+        }
+    }
+    if (window.gameState) Renderer.render(window.gameState);
+};
+
 function init() {
     applyDataOverrides();
     Renderer.init('gameCanvas');

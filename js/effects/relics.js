@@ -12,7 +12,8 @@ import { detectStrategy } from '../systems/strategy.js';
 
 // ===== 辅助函数：获取玩家拥有的所有遗物 =====
 function getPlayerRelics(state) {
-    return state.runDataRef?.relics || [];
+    const disabledKey = state.monster?.disabledRelicKey;
+    return (state.runDataRef?.relics || []).filter(r => !disabledKey || (r.id || r.name) !== disabledKey);
 }
 
 function hasRelic(state, effectType) {
@@ -32,7 +33,7 @@ registerEffect({
         if (!ctx.card) return false;
         const relic = getRelic(ctx.state, 'first_card_bonus');
         if (!relic) return false;
-        return ctx.card === ctx.state.firstCardPlayedThisTurn;
+        return ctx.card === ctx.state.firstCardPlayedThisBattle;
     },
     execute: (ctx) => {
         const bonus = getRelic(ctx.state, 'first_card_bonus').effect.bonus || 20;
@@ -62,7 +63,7 @@ registerEffect({
         if (!ctx.card) return false;
         const relic = getRelic(ctx.state, 'first_card_permanent_grow');
         if (!relic) return false;
-        if (ctx.card !== ctx.state.firstCardPlayedThisTurn) return false;
+        if (ctx.card !== ctx.state.firstCardPlayedThisBattle) return false;
         // 每场战斗只生效一次
         if (ctx.state.firstCardGrowApplied) return false;
         return true;
@@ -108,18 +109,23 @@ registerEffect({
         if (!ctx.card) return false;
         const relic = getRelic(ctx.state, 'full_board_bonus');
         if (!relic) return false;
-        // 检查是否首次填满三个格子
-        if (ctx.state.fullBoardBonusApplied) return false;
         const allSlotsHaveCards = ctx.state.slots.every(s => s.cards.length > 0);
         if (!allSlotsHaveCards) return false;
-        // 检查当前卡牌是否在倍率格上
         const targetSlot = ctx.getCardSlotIndex(ctx.card);
         if (targetSlot < 0) return false;
+        if (ctx.state.fullBoardBonusApplied && !ctx.state.fullBoardBonusCards?.[ctx.card.uuid]) return false;
         return true;
     },
     execute: (ctx) => {
         const bonus = getRelic(ctx.state, 'full_board_bonus').effect.bonus || 10;
-        ctx.state.fullBoardBonusApplied = true;
+        if (!ctx.state.fullBoardBonusApplied) {
+            ctx.state.fullBoardBonusApplied = true;
+            ctx.state.fullBoardBonusCards = {};
+            for (const card of ctx.state.slots.flatMap(s => s.cards)) {
+                ctx.state.fullBoardBonusCards[card.uuid] = true;
+            }
+        }
+        if (!ctx.state.fullBoardBonusCards[ctx.card.uuid]) return;
         ctx.value += bonus;
         recordTimeline(ctx.state, 'card_temp_bonus', {
             targetUuid: ctx.card.uuid,
@@ -146,6 +152,25 @@ registerEffect({
         const bonusAmount = Math.floor(totalCards / threshold) * bonus;
         if (bonusAmount > 0) {
             ctx.value += bonusAmount;
+        }
+    }
+});
+
+// 中心/左翼/右翼战术：指定格堆叠大于阈值时倍率点数+1
+registerEffect({
+    id: 'relic_crowd_slot_bonus_single',
+    triggers: Trigger.ON_SLOT_CALC,
+    priority: Priority.SLOT_MODIFIER + 4,
+    condition: (ctx) => hasRelic(ctx.state, 'crowd_slot_bonus_single'),
+    execute: (ctx) => {
+        const relics = getPlayerRelics(ctx.state).filter(r => r.effect?.type === 'crowd_slot_bonus_single');
+        const slot = ctx.state.slots[ctx.slotIndex];
+        for (const relic of relics) {
+            if (ctx.slotIndex !== relic.effect.slotIndex) continue;
+            const threshold = relic.effect.threshold || 2;
+            if (slot.cards.length > threshold) {
+                ctx.value += relic.effect.bonus || 1;
+            }
         }
     }
 });
@@ -245,13 +270,46 @@ registerEffect({
     priority: Priority.VALUE_BONUS + 4,
     condition: (ctx) => {
         if (!ctx.card) return false;
-        return hasRelic(ctx.state, 'first_card_per_battle_bonus') && ctx.card === ctx.state.firstCardPlayedThisTurn;
+        return hasRelic(ctx.state, 'first_card_per_battle_bonus') && ctx.card === ctx.state.firstCardPlayedThisBattle;
     },
     execute: (ctx) => {
         const relic = getRelic(ctx.state, 'first_card_per_battle_bonus');
         const bonus = relic.effect.bonus || 20;
         ctx.value += bonus;
         ctx.log(`闪电战生效：${ctx.card.name} 点数+${bonus}`);
+    }
+});
+
+// 保留重心：每场战斗第一张带保留词条的卡牌点数+20
+registerEffect({
+    id: 'relic_first_retain_bonus_mark',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.SPECIAL + 18,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        if (!hasRelic(ctx.state, 'first_retain_bonus')) return false;
+        if (ctx.state.firstRetainBonusCardUuid) return false;
+        return ctx.card.keywords.includes('retain');
+    },
+    execute: (ctx) => {
+        ctx.state.firstRetainBonusCardUuid = ctx.card.uuid;
+        ctx.log(`保留重心锁定：${ctx.card.name}`);
+    }
+});
+
+registerEffect({
+    id: 'relic_first_retain_bonus',
+    triggers: Trigger.ON_CALC_FINAL,
+    priority: Priority.VALUE_BONUS + 4,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        return hasRelic(ctx.state, 'first_retain_bonus') && ctx.card.uuid === ctx.state.firstRetainBonusCardUuid;
+    },
+    execute: (ctx) => {
+        const relic = getRelic(ctx.state, 'first_retain_bonus');
+        const bonus = relic.effect.bonus || 20;
+        ctx.value += bonus;
+        ctx.log(`${relic.name} 生效：${ctx.card.name} 点数+${bonus}`);
     }
 });
 
@@ -279,14 +337,26 @@ registerEffect({
     priority: Priority.SLOT_MODIFIER - 20,
     condition: (ctx) => hasRelic(ctx.state, 'turn_monster_damage'),
     execute: (ctx) => {
-        const relic = getRelic(ctx.state, 'turn_monster_damage');
-        const damage = relic.effect.damage || 50;
-        ctx.state.monster.hp -= damage;
+        const relics = getPlayerRelics(ctx.state).filter(r => r.effect?.type === 'turn_monster_damage');
+        let totalDamage = 0;
+        for (const relic of relics) {
+            totalDamage += relic.effect.damage || 50;
+        }
+        const before = ctx.state.monster.hp;
+        ctx.state.monster.hp = Math.max(0, before - totalDamage);
         recordTimeline(ctx.state, 'monster_damage', {
-            amount: damage,
+            amount: totalDamage,
+            hpBefore: before,
+            hpAfter: ctx.state.monster.hp,
             reason: 'relic_turn_monster_damage'
         });
-        ctx.log(`高级镭射枪生效：怪物受到 ${damage} 点伤害`);
+        ctx.log(`高级镭射枪生效：怪物受到 ${totalDamage} 点伤害`);
+        if (ctx.state.monster.hp <= 0 && ctx.state.phase === 'playing') {
+            ctx.state.phase = 'ended';
+            ctx.state.result = 'win';
+            if (ctx.state.turn === 1) ctx.state.firstTurnKill = true;
+            recordTimeline(ctx.state, 'battle_result', { result: 'win', turn: ctx.state.turn, reason: 'relic_turn_monster_damage' });
+        }
     }
 });
 

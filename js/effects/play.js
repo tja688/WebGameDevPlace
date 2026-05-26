@@ -23,9 +23,16 @@ registerEffect({
             for (const c of slot.cards) {
                 if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate') && !c.dedicateTriggered) {
                     const val = ctx.getCardBaseValue(c);
-                    const bonus = Math.floor(val / 2);
+                    const disabledKey = ctx.state.monster?.disabledRelicKey;
+                    const hasYellowBone = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_1_5x' && (!disabledKey || (r.id || r.name) !== disabledKey));
+                    const bonus = hasYellowBone ? Math.floor(val * 1.5) : Math.floor(val / 2);
                     if (bonus > 0) {
-                        ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
+                        const isPermanentDedicate = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_permanent' && (!disabledKey || (r.id || r.name) !== disabledKey));
+                        if (isPermanentDedicate) {
+                            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + bonus;
+                        } else {
+                            ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
+                        }
                         c.dedicateTriggered = true;
                         recordTimeline(ctx.state, 'card_temp_bonus', {
                             sourceUuid: c.uuid,
@@ -33,7 +40,7 @@ registerEffect({
                             targetUuid: ctx.card.uuid,
                             targetDefId: ctx.card.defId,
                             amount: bonus,
-                            reason: 'dedicate',
+                            reason: isPermanentDedicate ? 'dedicate_permanent' : 'dedicate',
                             slotIndex: ctx.slotIndex
                         });
                         ctx.log(`${c.name} 奉献了 ${bonus} 点给 ${ctx.card.name}！`);
@@ -66,12 +73,12 @@ registerEffect({
         }
         // 学徒铸造/大师铸造：给下一张同格卡牌永久加点
         if (slot.apprenticeForgeBonus && slot.apprenticeForgeBonus > 0) {
-            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + slot.apprenticeForgeBonus;
+            ctx.card.battleBonus = (ctx.card.battleBonus || 0) + slot.apprenticeForgeBonus;
             ctx.log(`学徒铸造生效：${ctx.card.name} 本场战斗永久+${slot.apprenticeForgeBonus}`);
             slot.apprenticeForgeBonus = 0;
         }
         if (slot.masterForgeBonus && slot.masterForgeBonus > 0) {
-            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + slot.masterForgeBonus;
+            ctx.card.battleBonus = (ctx.card.battleBonus || 0) + slot.masterForgeBonus;
             ctx.log(`大师铸造生效：${ctx.card.name} 本场战斗永久+${slot.masterForgeBonus}`);
             slot.masterForgeBonus = 0;
         }
@@ -110,6 +117,7 @@ registerEffect({
     execute: (ctx) => {
         const copy = createCardInstance(ctx.card.defId);
         copy.permanentBonus = ctx.card.permanentBonus;
+        copy.battleBonus = ctx.card.battleBonus || 0;
         copy.baseValue = ctx.card.baseValue;
         copy.growAmount = ctx.card.growAmount;
         copy.chainCount = ctx.card.chainCount;
@@ -216,6 +224,43 @@ registerEffect({
     }
 });
 
+// 遗物：对应倍率格卡牌永久+1，累计到阈值后永久强化该格倍率
+registerEffect({
+    id: 'relic_slot_grow',
+    triggers: Trigger.ON_PLAY,
+    priority: Priority.GROW + 8,
+    condition: (ctx) => {
+        if (!ctx.card || !ctx.state.runDataRef) return false;
+        const disabledKey = ctx.state.monster?.disabledRelicKey;
+        return ctx.state.runDataRef.relics?.some(r => r.effect?.type === 'slot_grow' && r.effect.slotIndex === ctx.slotIndex && (!disabledKey || (r.id || r.name) !== disabledKey));
+    },
+    execute: (ctx) => {
+        const disabledKey = ctx.state.monster?.disabledRelicKey;
+        const relics = ctx.state.runDataRef.relics.filter(r => r.effect?.type === 'slot_grow' && r.effect.slotIndex === ctx.slotIndex && (!disabledKey || (r.id || r.name) !== disabledKey));
+        for (const relic of relics) {
+            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + 1;
+            if (!ctx.state.runDataRef.relicSlotGrowth) ctx.state.runDataRef.relicSlotGrowth = {};
+            const key = String(ctx.slotIndex);
+            ctx.state.runDataRef.relicSlotGrowth[key] = (ctx.state.runDataRef.relicSlotGrowth[key] || 0) + 1;
+            recordTimeline(ctx.state, 'card_permanent_bonus', {
+                cardUuid: ctx.card.uuid,
+                cardDefId: ctx.card.defId,
+                amount: 1,
+                reason: 'relic_slot_grow',
+                slotIndex: ctx.slotIndex
+            });
+            const growPer = relic.effect.growPer || 50;
+            while (ctx.state.runDataRef.relicSlotGrowth[key] >= growPer) {
+                ctx.state.runDataRef.relicSlotGrowth[key] -= growPer;
+                ctx.state.runDataRef.slotUpgrades[ctx.slotIndex] = (ctx.state.runDataRef.slotUpgrades[ctx.slotIndex] || 0) + (relic.effect.slotBonus || 1);
+                ctx.state.slots[ctx.slotIndex].multiplier += (relic.effect.slotBonus || 1);
+                ctx.log(`${relic.name} 累计成长达标，第${ctx.slotIndex + 1}格倍率+${relic.effect.slotBonus || 1}`);
+            }
+            ctx.log(`${relic.name} 生效：${ctx.card.name} 永久+1`);
+        }
+    }
+});
+
 // ===== 6. 传令（messenger）：从牌组拿一张入手牌 =====
 registerEffect({
     id: 'messenger_effect',
@@ -249,11 +294,6 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'luxury_gear',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 只在“已在倍率格”时生效（格子里已有其他牌）
-        if (slot.cards.length <= 1) {
-            ctx.log(`${ctx.card.name} 打出时倍率格为空，效果未触发`);
-            return;
-        }
         for (const s of ctx.state.slots) {
             if (Math.abs(s.index - ctx.slotIndex) === 1) {
                 s.roundMultiplierBonus = (s.roundMultiplierBonus || 0) + 1;
@@ -278,11 +318,6 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'cogito_ergo_sum',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 只在“已在倍率格”时生效（格子里已有其他牌）
-        if (slot.cards.length <= 1) {
-            ctx.log(`${ctx.card.name} 打出时倍率格为空，效果未触发`);
-            return;
-        }
         // 防止同回合同格多次叠加导致倍数不稳定
         if (!slot.cogitoAppliedThisTurn) {
             slot.cogitoAppliedThisTurn = true;
@@ -320,11 +355,6 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'intense_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 只在“已在倍率格”时生效（格子里已有其他牌）
-        if (slot.cards.length <= 1) {
-            ctx.log(`${ctx.card.name} 打出时倍率格为空，猛训练未激活`);
-            return;
-        }
         slot.intenseTrainingActive = true;
         recordTimeline(ctx.state, 'slot_flag_enabled', {
             sourceUuid: ctx.card.uuid,
@@ -364,7 +394,7 @@ registerEffect({
     priority: Priority.SPECIAL + 10,
     condition: (ctx) => ctx.card.defId === 'first_advantage',
     execute: (ctx) => {
-        if (!ctx.state.cardsPlayedThisTurn || ctx.state.cardsPlayedThisTurn.length === 1) {
+        if (ctx.card === ctx.state.firstCardPlayedThisTurn) {
             ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 5;
             ctx.card.keywords = ctx.card.keywords || [];
             if (!ctx.card.keywords.includes('remain')) {
@@ -389,16 +419,17 @@ registerEffect({
     }
 });
 
-// 锦上添花：任意倍率格有3张牌时，从牌组移到手牌（作为打出效果，已在场上时直接加入手牌）
+// 锦上添花：任意倍率格有3张牌时，从牌组移到手牌
 registerEffect({
     id: 'icing_on_cake_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.DRAW - 5,
-    condition: (ctx) => ctx.card.defId === 'icing_on_cake',
+    condition: (ctx) => true,
     execute: (ctx) => {
         const hasThree = ctx.state.slots.some(s => s.cards.length >= 3);
         if (hasThree && ctx.state.deck.length > 0) {
-            const idx = Math.floor(Math.random() * ctx.state.deck.length);
+            const idx = ctx.state.deck.findIndex(c => c.defId === 'icing_on_cake');
+            if (idx < 0) return;
             const card = ctx.state.deck.splice(idx, 1)[0];
             ctx.state.hand.push(card);
             recordTimeline(ctx.state, 'deck_to_hand', {
@@ -408,7 +439,7 @@ registerEffect({
                 cardDefId: card.defId,
                 reason: 'icing_on_cake'
             });
-            ctx.log(`${ctx.card.name} 锦上添花触发，从牌组抽来 ${card.name}`);
+            ctx.log(`锦上添花触发，${card.name} 从牌组移到手牌`);
         }
     }
 });
@@ -474,17 +505,15 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'no_wisdom',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
-            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
-                sourceUuid: ctx.card.uuid,
-                sourceDefId: ctx.card.defId,
-                slotIndex: ctx.slotIndex,
-                amount: -1,
-                reason: 'no_wisdom'
-            });
-            ctx.log(`${ctx.card.name} 何须智慧触发，第${ctx.slotIndex + 1}格倍率-1`);
-        }
+        slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
+        recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+            sourceUuid: ctx.card.uuid,
+            sourceDefId: ctx.card.defId,
+            slotIndex: ctx.slotIndex,
+            amount: -1,
+            reason: 'no_wisdom'
+        });
+        ctx.log(`${ctx.card.name} 何须智慧触发，第${ctx.slotIndex + 1}格倍率-1`);
     }
 });
 
@@ -547,7 +576,7 @@ registerEffect({
     priority: Priority.SPECIAL + 10,
     condition: (ctx) => ctx.card.defId === 'borrow',
     execute: (ctx) => {
-        ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) - 10;
+        ctx.card.battleBonus = (ctx.card.battleBonus || 0) - 10;
         ctx.log(`${ctx.card.name} 预借触发，本次战斗永久点数-10`);
     }
 });
@@ -572,7 +601,7 @@ registerEffect({
     priority: Priority.SPECIAL + 10,
     condition: (ctx) => ctx.card.defId === 'skilled_borrow',
     execute: (ctx) => {
-        ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) - 5;
+        ctx.card.battleBonus = (ctx.card.battleBonus || 0) - 5;
         ctx.log(`${ctx.card.name} 熟练预借触发，本次战斗永久点数-5`);
     }
 });
@@ -608,10 +637,8 @@ registerEffect({
     condition: (ctx) => ctx.card.defId === 'support_training',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        if (slot.cards.length > 1) {
-            slot.supportTrainingActive = true;
-            ctx.log(`${ctx.card.name} 辅助训练激活！下一张同格卡牌获得成长1`);
-        }
+        slot.supportTrainingActive = true;
+        ctx.log(`${ctx.card.name} 辅助训练激活！下一张同格卡牌获得成长1`);
     }
 });
 

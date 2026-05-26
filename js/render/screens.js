@@ -827,7 +827,7 @@ export function drawShop(renderer, ctx, state) {
         const y = 130;
         const isHover = state.data.hoverShopItem === `card_${i}`;
         const isBought = item.bought;
-        const price = item.price;
+        const price = runData.relics?.some(r => r.effect?.type === 'free_card_purchase') ? 0 : item.price;
 
         ctx.globalAlpha = isBought ? 0.4 : (isHover ? 0.95 : 0.85);
         const grad = ctx.createLinearGradient(x, y, x, y + cardH);
@@ -933,11 +933,12 @@ export function drawShop(renderer, ctx, state) {
 
     const btnY = 430;
     const btnH = 45;
+    const refreshCost = (runData.freeRefreshCount > 0 || runData.shopFriendRefreshAvailable) ? 0 : runData.shopRefreshCost;
     const services = [
         { key: 'remove_card', text: `🗑️ 删牌服务 (${runData.shopRemoveCost || 2}金币)`, x: 60, cost: runData.shopRemoveCost || 2 },
         { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (2金币起)`, x: 240, cost: 0 },
         { key: 'buy_strategy', text: `📜 计策等级提升 (4金币)`, x: 440, cost: 4 },
-        { key: 'refresh', text: `🔄 刷新商店 (${runData.shopRefreshCost}金币)`, x: 640, cost: runData.shopRefreshCost },
+        { key: 'refresh', text: `🔄 刷新商店 (${refreshCost}金币)`, x: 640, cost: refreshCost },
     ];
     state.data.shopServiceRects = [];
     for (const svc of services) {
@@ -956,13 +957,6 @@ export function drawShop(renderer, ctx, state) {
         ctx.fillText(svc.text, svc.x + btnW / 2, btnY + 28);
 
         state.data.shopServiceRects.push({ x: svc.x, y: btnY, w: btnW, h: btnH, key: svc.key, cost: svc.cost });
-    }
-
-    if (runData.firstUpgradeDiscount) {
-        ctx.fillStyle = '#ffaa44';
-        ctx.font = '12px Microsoft YaHei';
-        ctx.textAlign = 'left';
-        ctx.fillText('⭐ 新人福利：首次强化-1金币', 60, btnY + 65);
     }
 
     drawBackButton(ctx, state, '返回地图', renderer.width, renderer.height);
@@ -1091,24 +1085,24 @@ export function drawBlacksmith(renderer, ctx, state) {
 
     // 附魔费用按词条稀有度定价：低级 2 / 中级 4 / 高级 8
     const ENCHANT_COST_MAP = { basic: 2, medium: 4, advanced: 8 };
-    const refreshCost = runData.firstBlacksmithRefreshFree ? 0 : runData.blacksmithRefreshCost;
+    const refreshCost = runData.blacksmithFriendRefreshAvailable ? 0 : runData.blacksmithRefreshCost;
     const enchantKeywords = stock.enchantKeywords || [];
     for (const keyword of enchantKeywords) {
         const kwData = KEYWORDS[keyword];
-        const cost = kwData ? (ENCHANT_COST_MAP[kwData.tier] || 2) : 2;
+        const cost = runData.blacksmithFirstEnchantFree ? 0 : (kwData ? (ENCHANT_COST_MAP[kwData.tier] || 2) : 2);
         columns[2].items.push({
             type: 'enchant',
             keyword,
             name: kwData ? `附魔【${kwData.name}】` : '附魔词条',
             cost: cost,
-            subText: kwData ? `效果：${kwData.desc}` : '选定卡牌添加词条'
+            subText: runData.blacksmithFirstEnchantFree ? '新人福利：本次附魔免费' : (kwData ? `效果：${kwData.desc}` : '选定卡牌添加词条')
         });
     }
     columns[2].items.push({
         type: 'refresh',
         name: '刷新遗物+词条',
         cost: refreshCost,
-        subText: runData.firstBlacksmithRefreshFree ? '首次免费！' : '重新生成遗物和附魔词条'
+        subText: runData.blacksmithFriendRefreshAvailable ? '朋友证：本次免费' : '重新生成遗物和附魔词条'
     });
 
     for (let c = 0; c < columns.length; c++) {

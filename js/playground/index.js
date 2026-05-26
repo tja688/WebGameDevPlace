@@ -195,12 +195,20 @@ function parseMonsterSkills(monster) {
             case 'left_penalty_10': monster.leftPenalty = 10; break;
             case 'first_card_discard': monster.firstCardDiscard = true; break;
             case 'first_turn_less_draw': monster.firstTurnLessDraw = true; break;
+            case 'less_draw_1': monster.lessDraw = 1; break;
             case 'max_slot_penalty_1': monster.maxSlotPenalty = 1; break;
             case 'min_slot_penalty_1': monster.minSlotPenalty = 1; break;
             case 'steady_penalty': monster.steadyPenalty = true; break;
             case 'steal_gold': monster.stealGold = true; break;
             case 'first_card_value_penalty_5': monster.firstCardValuePenalty = 5; break;
             case 'dodge': monster.dodge = true; break;
+            case 'center_grow_1': monster.centerGrow1 = true; break;
+            case 'all_card_penalty_2': monster.allCardPenalty = 2; break;
+            case 'no_strategy_slot_penalty_10': monster.noStrategySlotPenalty = 10; break;
+            case 'prev_strategy_penalty_5': monster.prevStrategyPenalty = 5; break;
+            case 'disable_dedicate': monster.disableDedicate = true; break;
+            case 'yellow_domain': monster.yellowDomain = true; break;
+            case 'yellow_heart': monster.yellowHeart = true; break;
             case 'left_slot_bonus_1': monster.leftSlotBonus = 1; break;
             case 'center_card_penalty_5': monster.centerCardPenalty = 5; break;
             case 'first_card_random_slot_remain': monster.firstCardRandomSlotRemain = true; break;
@@ -217,7 +225,8 @@ function parseMonsterSkills(monster) {
 
 export function initPlaygroundBattleState(runData, monsterDefId) {
     const cls = CLASS_DEFS[runData.classId];
-    const monsterDef = MONSTER_DEFS[monsterDefId];
+    const safeMonsterDefId = MONSTER_DEFS[monsterDefId] ? monsterDefId : 'face_plant';
+    const monsterDef = MONSTER_DEFS[safeMonsterDefId];
 
     const slots = createBattleSlots({ slotUpgrades: runData.slotUpgrades });
     const deck = shuffleArray([...runData.deck]);
@@ -232,6 +241,7 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
             relic: cls.relic
         },
         monster: {
+            id: monsterDef.id,
             name: monsterDef.name,
             maxHp: monsterDef.hp,
             hp: monsterDef.hp,
@@ -244,6 +254,7 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
             healPerTurn: 0,
             firstCardDiscard: false,
             firstTurnLessDraw: false,
+            lessDraw: 0,
             edgePenalty: 0,
             leftPenalty: 0,
             maxSlotPenalty: 0,
@@ -252,6 +263,14 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
             stealGold: false,
             firstCardValuePenalty: 0,
             dodge: false,
+            centerGrow1: false,
+            allCardPenalty: 0,
+            noStrategySlotPenalty: 0,
+            prevStrategyPenalty: 0,
+            prevStrategyId: null,
+            disableDedicate: false,
+            yellowDomain: false,
+            yellowHeart: false,
             leftSlotBonus: 0,
             centerCardPenalty: 0,
             firstCardRandomSlotRemain: false,
@@ -263,6 +282,8 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
             cardsPlayedThisTurn: 0,
             monsterGrow: 0,
             disableRandomRelic: false,
+            disabledRelicId: null,
+            disabledRelicKey: null,
             disabledRelicEffect: null,
             loseGoldPerTurn: 0
         },
@@ -274,6 +295,7 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
         turnDamage: 0,
         currentStrategy: null,
         firstCardPlayedThisTurn: null,
+        firstCardPlayedThisBattle: null,
         selectedCard: null,
         hoveredSlot: null,
         draggedCard: null,
@@ -299,6 +321,9 @@ export function initPlaygroundBattleState(runData, monsterDefId) {
     shuffleDiscardToDeck(state);
 
     let drawCount = DRAW_COUNT;
+    if (state.monster.lessDraw > 0) {
+        drawCount = Math.max(1, drawCount - state.monster.lessDraw);
+    }
     if (state.monster.firstTurnLessDraw && state.turn === 1) {
         drawCount = Math.max(1, drawCount - 1);
     }
@@ -317,11 +342,11 @@ export function enterPlaygroundBattle(gameState, monsterDefId) {
     gameState.data = {
         pgView: 'battle',
         pgBattle: true,
-        pgMonsterId: monsterDefId
+        pgMonsterId: battleState.monster.id
     };
 
     PlaygroundState.view = 'battle';
-    PlaygroundState.pgMonsterId = monsterDefId;
+    PlaygroundState.pgMonsterId = battleState.monster.id;
 }
 
 export function resetPlaygroundBattle(gameState) {
@@ -334,7 +359,9 @@ export function resetPlaygroundBattle(gameState) {
     ];
     for (const c of allCards) {
         c.tempBonus = 0;
+        c.battleBonus = 0;
         c.dedicateTriggered = false;
+        delete c.removeRemainOnNextTurnStart;
     }
     gameState.deck = allCards.filter(c => !c.isDerived);
     gameState.hand = [];
@@ -356,6 +383,7 @@ export function resetPlaygroundBattle(gameState) {
     gameState.turnDamage = 0;
     gameState.currentStrategy = null;
     gameState.firstCardPlayedThisTurn = null;
+    gameState.firstCardPlayedThisBattle = null;
     gameState.heartsLost = 0;
     gameState.firstTurnKill = false;
     gameState.pendingPlaceEffects = [];
@@ -364,6 +392,9 @@ export function resetPlaygroundBattle(gameState) {
 
     shuffleDiscardToDeck(gameState);
     let drawCount = DRAW_COUNT;
+    if (gameState.monster.lessDraw > 0) {
+        drawCount = Math.max(1, drawCount - gameState.monster.lessDraw);
+    }
     if (gameState.monster.firstTurnLessDraw && gameState.turn === 1) {
         drawCount = Math.max(1, drawCount - 1);
     }
@@ -391,7 +422,9 @@ export function changePlaygroundMonster(gameState, monsterDefId) {
     ].filter(c => !c.isDerived);
     for (const c of allCards) {
         c.tempBonus = 0;
+        c.battleBonus = 0;
         c.dedicateTriggered = false;
+        delete c.removeRemainOnNextTurnStart;
     }
     runData.deck = allCards;
 
@@ -409,6 +442,7 @@ export function changePlaygroundMonster(gameState, monsterDefId) {
     gameState.turnDamage = bs.turnDamage;
     gameState.currentStrategy = bs.currentStrategy;
     gameState.firstCardPlayedThisTurn = bs.firstCardPlayedThisTurn;
+    gameState.firstCardPlayedThisBattle = bs.firstCardPlayedThisBattle;
     gameState.selectedCard = null;
     gameState.hoveredSlot = null;
     gameState.draggedCard = null;
@@ -429,11 +463,11 @@ export function changePlaygroundMonster(gameState, monsterDefId) {
     gameState.data = {
         pgView: 'battle',
         pgBattle: true,
-        pgMonsterId: monsterDefId
+        pgMonsterId: bs.monster.id
     };
     gameState.message = '已切换对手：' + bs.monster.name;
     gameState.messageTimer = 60;
-    PlaygroundState.pgMonsterId = monsterDefId;
+    PlaygroundState.pgMonsterId = bs.monster.id;
 }
 
 // ===== 全局暴露 =====

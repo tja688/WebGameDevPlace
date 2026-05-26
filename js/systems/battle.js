@@ -12,11 +12,16 @@ import { logCombat, drawCards, shuffleDiscardToDeck, recordTimeline } from '../c
 import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS } from '../data/index.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT, HAND_LIMIT } from '../core/constants.js';
-import { calculateTotalBoardDamage } from './board.js';
+import { calculateTotalBoardDamage, getCardFinalValue } from './board.js';
 import { createBattleSlots } from '../core/state.js';
 import { detectStrategy, getAllStrategies } from './strategy.js';
 
 export { logCombat, drawCards } from '../core/battle-core.js';
+
+function getActiveRelics(state) {
+    const disabledKey = state.monster?.disabledRelicKey;
+    return (state.runDataRef?.relics || []).filter(r => !disabledKey || (r.id || r.name) !== disabledKey);
+}
 
 // ===== 从RunData初始化战斗 =====
 
@@ -54,6 +59,7 @@ export function initBattleFromRun(runData) {
             relic: cls.relic
         },
         monster: {
+            id: monsterDef.id,
             name: monsterDef.name,
             maxHp: monsterMaxHp,
             hp: monsterMaxHp,
@@ -94,6 +100,8 @@ export function initBattleFromRun(runData) {
             cardsPlayedThisTurn: 0,
             monsterGrow: 0,
             disableRandomRelic: false,
+            disabledRelicId: null,
+            disabledRelicKey: null,
             disabledRelicEffect: null,
             loseGoldPerTurn: 0
         },
@@ -105,6 +113,7 @@ export function initBattleFromRun(runData) {
         turnDamage: 0,
         currentStrategy: null,
         firstCardPlayedThisTurn: null,
+        firstCardPlayedThisBattle: null,
 
         selectedCard: null,
         hoveredSlot: null,
@@ -149,11 +158,18 @@ export function initBattleFromRun(runData) {
         state.monster.prevStrategyId = pickRandom(allStrats.base).id;
     }
 
-    // 盗贼：遗物偷取——随机禁用一件遗物效果
-    if (state.monster.disableRandomRelic && state.player.relic) {
-        state.monster.disabledRelicEffect = { ...state.player.relic.effect };
-        state.player.relic.effect = null;
-        logCombat(state, `${state.monster.name} 的技能生效：${state.monster.disabledRelicEffect.type ? '你的遗物效果被偷走了！' : '但你的遗物似乎没什么可偷的...'}`);
+    // 盗贼：遗物偷取——随机禁用一件本场战斗内的遗物效果
+    if (state.monster.disableRandomRelic && runData.relics.length > 0) {
+        const candidates = runData.relics.filter(r => r.effect);
+        const stolen = candidates.length > 0 ? pickRandom(candidates) : null;
+        if (stolen) {
+            state.monster.disabledRelicId = stolen.id;
+            state.monster.disabledRelicKey = stolen.id || stolen.name;
+            state.monster.disabledRelicEffect = { ...stolen.effect };
+            logCombat(state, `${state.monster.name} 的技能生效：${stolen.name} 的效果本场战斗失效！`);
+        } else {
+            logCombat(state, `${state.monster.name} 的技能生效，但你的遗物似乎没什么可偷的...`);
+        }
     }
     recordTimeline(state, 'battle_start', {
         stageKey,
@@ -163,10 +179,41 @@ export function initBattleFromRun(runData) {
     });
 
     // 龙眼：手牌上限-2
-    const dragonEye = runData.relics.find(r => r.effect?.type === 'extra_draw_hand_limit');
+    const dragonEye = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_hand_limit');
     if (dragonEye) {
         const penalty = dragonEye.effect.handLimitPenalty || 2;
         state.handLimit = HAND_LIMIT - penalty;
+    }
+
+    // 黄之心：每场战斗开始赋予牌组内随机一张卡牌奉献词条
+    const yellowHeartRelic = getActiveRelics(state).find(r => r.effect?.type === 'dedicate_permanent');
+    if (yellowHeartRelic) {
+        const candidates = deck.filter(c => !c.keywords.includes('dedicate'));
+        if (candidates.length > 0) {
+            const card = pickRandom(candidates);
+            card.keywords.push('dedicate');
+            logCombat(state, `${yellowHeartRelic.name} 生效：${card.name} 获得奉献词条`);
+        }
+    }
+
+    // 黄之肉：牌组内所有带奉献词条的卡牌获得连携词条
+    const yellowFleshRelic = getActiveRelics(state).find(r => r.effect?.type === 'dedicate_chain');
+    if (yellowFleshRelic) {
+        let count = 0;
+        for (const card of deck) {
+            if (card.keywords.includes('dedicate') && !card.keywords.includes('chain')) {
+                card.keywords.push('chain');
+                count++;
+            }
+        }
+        if (count > 0) logCombat(state, `${yellowFleshRelic.name} 生效：${count} 张奉献牌获得连携`);
+    }
+
+    const startGoldRelic = getActiveRelics(state).find(r => r.effect?.type === 'battle_start_gold');
+    if (startGoldRelic) {
+        const gold = startGoldRelic.effect.gold || 1;
+        runData.gold = (runData.gold || 0) + gold;
+        logCombat(state, `${startGoldRelic.name} 生效：获得 ${gold} 金币`);
     }
 
     shuffleDiscardToDeck(state);
@@ -184,11 +231,18 @@ export function initBattleFromRun(runData) {
     drawCards(state, drawCount);
 
     // 战场经验/疾风卷轴：首回合多抽牌（玩家遗物效果）
-    const firstTurnDrawRelic = runData.relics.find(r => r.effect?.type === 'first_turn_extra_draw');
+    const firstTurnDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'first_turn_extra_draw');
     if (firstTurnDrawRelic && state.turn === 1) {
         const extraDraw = firstTurnDrawRelic.effect.bonus || 1;
         drawCards(state, extraDraw);
         logCombat(state, `${firstTurnDrawRelic.name} 生效，额外抽 ${extraDraw} 张牌`);
+    }
+
+    const bossDrawRelic = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
+    if (bossDrawRelic) {
+        const extraDraw = bossDrawRelic.effect.bonus || 1;
+        drawCards(state, extraDraw * 2);
+        logCombat(state, `${bossDrawRelic.name} 生效，首回合额外抽 ${extraDraw * 2} 张牌`);
     }
 
     // 龙眼：每回合额外抽2张牌
@@ -261,20 +315,20 @@ export function endTurn(state) {
     // 梦中的你——噩梦：玩家无法触发最常用计策的加成效果
     if (state.currentStrategy && state.monster.disableFrequentStrategy && state.runDataRef) {
         if (!state.runDataRef.strategyCounts) state.runDataRef.strategyCounts = {};
-        // 先增加当前计策计数
         const sid = state.currentStrategy.id;
-        state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
-        // 找出最常用计策
         let maxCount = -1;
-        let frequentId = null;
+        const frequentIds = [];
         for (const [id, count] of Object.entries(state.runDataRef.strategyCounts)) {
             if (count > maxCount) {
                 maxCount = count;
-                frequentId = id;
+                frequentIds.length = 0;
+                frequentIds.push(id);
+            } else if (count === maxCount) {
+                frequentIds.push(id);
             }
         }
-        // 如果当前计策是最常用的，禁用它
-        if (frequentId && state.currentStrategy.id === frequentId) {
+        // 基于本次尝试之前的历史判断，避免第一次使用任意计策就立刻被禁用
+        if (maxCount > 0 && frequentIds.includes(sid)) {
             recordTimeline(state, 'strategy_disabled', {
                 strategyId: state.currentStrategy.id,
                 strategyName: state.currentStrategy.name,
@@ -283,6 +337,7 @@ export function endTurn(state) {
             logCombat(state, `梦中的你——噩梦生效：最常用的计策【${state.currentStrategy.name}】被禁用了！`);
             state.currentStrategy = null;
         }
+        state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
     } else if (state.currentStrategy && state.runDataRef) {
         // 正常记录计策使用次数
         if (!state.runDataRef.strategyCounts) state.runDataRef.strategyCounts = {};
@@ -317,7 +372,7 @@ export function endTurn(state) {
     let totalDmg = calculateTotalBoardDamage(state);
 
     // 赏金袋：倍率格上卡牌点数超过50，获得2金币
-    const bountyBag = state.runDataRef?.relics?.find(r => r.effect?.type === 'slot_value_gold');
+    const bountyBag = getActiveRelics(state).find(r => r.effect?.type === 'slot_value_gold');
     if (bountyBag && state.runDataRef) {
         const threshold = bountyBag.effect.threshold || 50;
         const goldReward = bountyBag.effect.gold || 2;
@@ -423,11 +478,22 @@ export function endTurn(state) {
         return;
     }
 
+    // 点金术：回合结束时按当前手牌数获得金币
+    const alchemy = getActiveRelics(state).find(r => r.effect?.type === 'hand_gold_per_turn');
+    if (alchemy && state.runDataRef) {
+        const gold = (alchemy.effect.gold || 1) * state.hand.length;
+        if (gold > 0) {
+            state.runDataRef.gold += gold;
+            logCombat(state, `${alchemy.name} 生效：按手牌数获得 ${gold} 金币`);
+        }
+    }
+
     // 清理牌桌（留场保留，其余入弃牌堆）
     for (const slot of state.slots) {
         const remaining = [];
         for (const card of slot.cards) {
             if (card.keywords.includes('remain')) {
+                card.removeRemainOnNextTurnStart = true;
                 remaining.push(card);
             } else {
                 card.dedicateTriggered = false;
@@ -500,11 +566,18 @@ export function endTurn(state) {
     drawCards(state, nextDrawCount);
 
     // 龙眼：每回合额外抽2张牌
-    const dragonEyeNext = state.runDataRef?.relics?.find(r => r.effect?.type === 'extra_draw_hand_limit');
+    const dragonEyeNext = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_hand_limit');
     if (dragonEyeNext) {
         const extraDraw = dragonEyeNext.effect.drawBonus || 2;
         drawCards(state, extraDraw);
         logCombat(state, `龙眼生效，额外抽 ${extraDraw} 张牌`);
+    }
+
+    const bossDrawNext = getActiveRelics(state).find(r => r.effect?.type === 'extra_draw_first_turn');
+    if (bossDrawNext) {
+        const extraDraw = bossDrawNext.effect.bonus || 1;
+        drawCards(state, extraDraw);
+        logCombat(state, `${bossDrawNext.name} 生效，额外抽 ${extraDraw} 张牌`);
     }
 
     // 记录本回合计策，供下回合骷髅骑士武技判定

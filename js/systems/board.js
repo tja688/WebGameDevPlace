@@ -16,6 +16,11 @@ import { createCardInstance } from '../data/index.js';
 
 // ===== 工具函数 =====
 
+function getActiveRelics(state) {
+    const disabledKey = state.monster?.disabledRelicKey;
+    return (state.runDataRef?.relics || []).filter(r => !disabledKey || (r.id || r.name) !== disabledKey);
+}
+
 export function buildCardSlotMap(state) {
     const map = {};
     for (const slot of state.slots) {
@@ -27,7 +32,7 @@ export function buildCardSlotMap(state) {
 }
 
 export function getCardBaseValue(card) {
-    return card.baseValue + card.permanentBonus + (card.tempBonus || 0);
+    return (card.baseValue || 0) + (card.permanentBonus || 0) + (card.battleBonus || 0) + (card.tempBonus || 0);
 }
 
 // ===== 数值计算链（通过效果系统钩子） =====
@@ -96,13 +101,13 @@ export function calculateTotalBoardDamage(state) {
     let extraMultiplier = state.runDataRef?.extraMultiplier || 1;
 
     // 首击放大器：首回合额外指数+2
-    const firstTurnMultiplierRelic = state.runDataRef?.relics?.find(r => r.effect?.type === 'first_turn_extra_multiplier');
+    const firstTurnMultiplierRelic = getActiveRelics(state).find(r => r.effect?.type === 'first_turn_extra_multiplier');
     if (firstTurnMultiplierRelic && state.turn === 1) {
         extraMultiplier += firstTurnMultiplierRelic.effect.bonus || 2;
     }
 
     // 三重共鸣：每个倍率格上都有三张卡牌时，额外指数+3
-    const tripleCrowdRelic = state.runDataRef?.relics?.find(r => r.effect?.type === 'triple_crowd_bonus');
+    const tripleCrowdRelic = getActiveRelics(state).find(r => r.effect?.type === 'triple_crowd_bonus');
     if (tripleCrowdRelic) {
         const threshold = tripleCrowdRelic.effect.threshold || 3;
         const bonus = tripleCrowdRelic.effect.bonus || 3;
@@ -112,7 +117,7 @@ export function calculateTotalBoardDamage(state) {
     }
 
     // 超限核心：当触发任意超限计策时，额外指数+3
-    const overdriveRelic = state.runDataRef?.relics?.find(r => r.effect?.type === 'overdrive_bonus');
+    const overdriveRelic = getActiveRelics(state).find(r => r.effect?.type === 'overdrive_bonus');
     if (overdriveRelic && state.currentStrategy?.isOverdrive) {
         extraMultiplier += overdriveRelic.effect.bonus || 3;
     }
@@ -189,6 +194,9 @@ export function playCardToSlot(card, slotIndex, state) {
         if (state.monster.firstCardSlotIndex < 0) {
             state.monster.firstCardSlotIndex = slotIndex;
         }
+    }
+    if (!state.firstCardPlayedThisBattle) {
+        state.firstCardPlayedThisBattle = card;
     }
 
     // 怪物技能：第一张打出牌直接进弃牌堆（不触发ON_PLAY）

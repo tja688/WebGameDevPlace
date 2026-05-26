@@ -21,6 +21,7 @@ const EVENT_POOLS = {
         { name: '及时的帮助', desc: '获得一次三选一卡牌的机会', effect: 'card_pick_three' },
         { name: '求牌乞丐', desc: '获得一次免费删牌机会', effect: 'free_remove_card' },
         { name: '可疑商人', desc: '玩家-4金币，随机获得一件遗物', effect: 'buy_random_relic', param: 4 },
+        { name: '神秘肌肉男', desc: '获得一张何须智慧？', effect: 'gain_specific_card', param: 'no_wisdom' },
         { name: '乱涂乱画', desc: '选择牌组内任意一张卡牌随机转换为随机卡牌', effect: 'transform_card' },
         { name: '催熟激素', desc: '牌组内的成长牌立刻成长2次', effect: 'grow_cards_twice' },
         { name: '盲目岩壁', desc: '选择牌组内任意一张卡牌获得蔓延词条', effect: 'enchant_spread' },
@@ -30,6 +31,7 @@ const EVENT_POOLS = {
         { name: '抵御怪物', desc: '玩家立刻与X-7的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
         { name: '出土遗物', desc: '获得一次三选一中级遗物的机会', effect: 'pick_rare_relic' },
         { name: '残破克隆镜', desc: '下一场战斗，人群数+1', effect: 'next_battle_hearts_plus', param: 1 },
+        { name: '预言家', desc: '下一次商店刷新卡牌均为随机指定体系牌', effect: 'next_shop_system' },
         { name: '赝品画家', desc: '选择牌组内任意一张卡牌，将它的复制品加入卡组', effect: 'duplicate_card' },
         { name: '金钱壶', desc: '玩家获得8金币', effect: 'gain_gold', param: 8 }
     ],
@@ -100,6 +102,10 @@ export function resolveBattleEnd(battleState) {
         if (battleState.firstTurnKill) {
             goldGain += 2;
         }
+        const fastKillRelic = runData.relics.find(r => r.effect?.type === 'fast_kill_gold');
+        if (fastKillRelic && battleState.turn <= (fastKillRelic.effect.turns || 2)) {
+            goldGain += fastKillRelic.effect.gold || 2;
+        }
 
         runData.gold += goldGain;
         runData.heartsLostInStage = battleState.heartsLost;
@@ -120,7 +126,9 @@ export function resolveBattleEnd(battleState) {
         ];
         for (const c of allCards) {
             c.tempBonus = 0;
+            c.battleBonus = 0;
             c.dedicateTriggered = false;
+            delete c.removeRemainOnNextTurnStart;
             if (c._monsterAddedKeywords) {
                 const def = CARD_DEFS[c.defId];
                 const originalKeywords = def ? def.keywords : [];
@@ -158,7 +166,7 @@ export function resolveBattleEnd(battleState) {
                 result: 'win',
                 goldGained: goldGain,
                 nextScreen: 'boss_relic',
-                postBattleData: { relicOptions: pickBossRelics() }
+                postBattleData: { relicOptions: pickBossRelics(battleState.monster.id) }
             };
         }
 
@@ -188,13 +196,22 @@ function getEventPool(postBattleType) {
     }
 }
 
-function pickBossRelics() {
+function pickBossRelics(monsterId) {
     const options = [];
     const pool = RELIC_DEFS.filter(r => r.rarity === 'boss');
     const fallbackPool = RELIC_DEFS.filter(r => r.rarity === 'epic');
-    const usablePool = pool.length >= 3 ? pool : [...pool, ...fallbackPool];
+    const bossSpecificIds = {
+        yellow_king: ['relic_boss_yellow_bone', 'relic_boss_yellow_heart', 'relic_boss_yellow_flesh']
+    };
+    const specificPool = pool.filter(r => (bossSpecificIds[monsterId] || []).includes(r.id));
+    if (specificPool.length > 0) {
+        options.push(specificPool[Math.floor(Math.random() * specificPool.length)]);
+    }
+    const used = {};
+    for (const relic of options) used[relic.id] = true;
+    const usablePool = (pool.length >= 3 ? pool : [...pool, ...fallbackPool]).filter(r => !used[r.id]);
     const shuffled = [...usablePool].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < 3 && i < shuffled.length; i++) {
+    for (let i = 0; options.length < 3 && i < shuffled.length; i++) {
         options.push(shuffled[i]);
     }
     return options;

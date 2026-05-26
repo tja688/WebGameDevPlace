@@ -369,14 +369,13 @@ export const Input = {
 
                     if (data.selectMode === 'shop_upgrade') {
                         const cardCost = runData.shopUpgradeCosts[card.uuid] || 2;
-                        const upgradeCost = Math.max(0, cardCost - (runData.firstUpgradeDiscount ? 1 : 0));
+                        const upgradeCost = cardCost;
                         if (runData.gold < upgradeCost) {
                             showPlaceholderToast(`金币不足！需要${upgradeCost}金币`);
                             data.processing = false;
                             return;
                         }
                         runData.gold -= upgradeCost;
-                        if (runData.firstUpgradeDiscount) runData.firstUpgradeDiscount = false;
                         card.permanentBonus += 5;
                         runData.shopUpgradeCosts[card.uuid] = cardCost + 1;
                         showPlaceholderToast(`${card.name} 数值+5（消耗${upgradeCost}金币）！`);
@@ -503,7 +502,7 @@ export const Input = {
 
                     if (data.selectMode === 'blacksmith_enchant') {
                         const keyword = data.enchantKeyword;
-                        const cost = data.enchantCost;
+                        const cost = runData.blacksmithFirstEnchantFree ? 0 : data.enchantCost;
                         if (runData.gold < cost) {
                             showPlaceholderToast('金币不足！');
                             data.processing = false;
@@ -512,6 +511,7 @@ export const Input = {
                         const result = addKeywordToCard(card, keyword);
                         if (result.ok) {
                             runData.gold -= cost;
+                            if (runData.blacksmithFirstEnchantFree) runData.blacksmithFirstEnchantFree = false;
                             const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
                             showPlaceholderToast(`${card.name} 获得【${kwName}】！`);
                         } else {
@@ -520,6 +520,47 @@ export const Input = {
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                         data.processing = false;
                         switchScreen(this.state, 'blacksmith', data.returnData || { runData });
+                        return;
+                    }
+
+                    if (data.selectMode === 'boss_remove_four') {
+                        const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
+                        if (idx !== -1) runData.deck.splice(idx, 1);
+                        const remaining = Math.max(0, (data.bossRemoveRemaining || 1) - 1);
+                        showPlaceholderToast(`已删除 ${card.name}`);
+                        if (remaining > 0 && runData.deck.length > 0) {
+                            data.processing = false;
+                            switchScreen(this.state, 'card_select', {
+                                runData,
+                                title: '我爱玩小卡组',
+                                desc: `继续选择要删除的卡牌（剩余${remaining}张）`,
+                                cards: runData.deck,
+                                backText: '完成',
+                                selectMode: 'boss_remove_four',
+                                bossRemoveRemaining: remaining,
+                                returnScreen: 'boss_relic_done',
+                                returnData: data.returnData || { runData }
+                            });
+                        } else {
+                            setTimeout(() => {
+                                data.processing = false;
+                                this._afterBossRelicSelection(runData);
+                            }, 300);
+                        }
+                        return;
+                    }
+
+                    if (data.selectMode === 'boss_copy_four') {
+                        for (let i = 0; i < 4; i++) {
+                            const copy = JSON.parse(JSON.stringify(card));
+                            copy.uuid = Math.random().toString(36).slice(2, 11);
+                            runData.deck.push(copy);
+                        }
+                        showPlaceholderToast(`复制了 ${card.name} x4`);
+                        setTimeout(() => {
+                            data.processing = false;
+                            this._afterBossRelicSelection(runData);
+                        }, 300);
                         return;
                     }
 
@@ -536,6 +577,8 @@ export const Input = {
             } else if (data.returnScreen === 'map') {
                 runData.stageIndex++;
                 switchScreen(this.state, 'map', { runData });
+            } else if (data.returnScreen === 'boss_relic_done') {
+                this._afterBossRelicSelection(runData);
             } else {
                 switchScreen(this.state, data.returnScreen || 'map', data.returnData || { runData });
             }
@@ -628,18 +671,62 @@ export const Input = {
                     runData.relics.push(rect.data);
                     showPlaceholderToast(`获得BOSS遗物：${rect.data.name}`);
                     data.processing = true;
+                    if (rect.data.effect?.type === 'remove_four_cards') {
+                        setTimeout(() => {
+                            data.processing = false;
+                            if (runData.deck.length === 0) {
+                                this._afterBossRelicSelection(runData);
+                                return;
+                            }
+                            switchScreen(this.state, 'card_select', {
+                                runData,
+                                title: rect.data.name,
+                                desc: '选择牌组内4张卡牌删除',
+                                cards: runData.deck,
+                                backText: '完成',
+                                selectMode: 'boss_remove_four',
+                                bossRemoveRemaining: Math.min(4, runData.deck.length),
+                                returnScreen: 'boss_relic_done',
+                                returnData: { runData }
+                            });
+                        }, 300);
+                        return;
+                    }
+                    if (rect.data.effect?.type === 'copy_card_four') {
+                        setTimeout(() => {
+                            data.processing = false;
+                            if (runData.deck.length === 0) {
+                                this._afterBossRelicSelection(runData);
+                                return;
+                            }
+                            switchScreen(this.state, 'card_select', {
+                                runData,
+                                title: rect.data.name,
+                                desc: '选择牌组内一张卡牌复制4张加入牌组',
+                                cards: runData.deck,
+                                backText: '跳过',
+                                selectMode: 'boss_copy_four',
+                                returnScreen: 'boss_relic_done',
+                                returnData: { runData }
+                            });
+                        }, 300);
+                        return;
+                    }
                     setTimeout(() => {
                         data.processing = false;
-                        // BOSS战后进入事件
-                        const eventOptions = generatePostBattleEvents(runData);
-                        switchScreen(this.state, 'event', {
-                            runData, options: eventOptions, postBattle: true
-                        });
+                        this._afterBossRelicSelection(runData);
                     }, 400);
                     return;
                 }
             }
         }
+    },
+
+    _afterBossRelicSelection(runData) {
+        const eventOptions = generatePostBattleEvents(runData);
+        switchScreen(this.state, 'event', {
+            runData, options: eventOptions, postBattle: true
+        });
     },
 
     // ===== 战后选择 =====
@@ -777,8 +864,10 @@ export const Input = {
         if (data.shopItemRects) {
             for (const rect of data.shopItemRects) {
                 if (this.hitTest(pos, rect) && !rect.item.bought) {
-                    if (runData.gold >= rect.price) {
-                        runData.gold -= rect.price;
+                    const freeCardPurchase = rect.type === 'card' && runData.relics?.some(r => r.effect?.type === 'free_card_purchase');
+                    const actualPrice = freeCardPurchase ? 0 : rect.price;
+                    if (runData.gold >= actualPrice) {
+                        runData.gold -= actualPrice;
                         rect.item.bought = true;
                         if (rect.type === 'card') {
                             const newCard = createCardInstance(rect.item.defId);
@@ -813,6 +902,13 @@ export const Input = {
                                 runData.shopRefreshCost += 1;
                                 if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                                 showPlaceholderToast('商店已刷新（使用免费次数）');
+                            } else if (runData.shopFriendRefreshAvailable) {
+                                runData.shopFriendRefreshAvailable = false;
+                                refreshShopStock(runData);
+                                data.stock = runData.shopStock;
+                                runData.shopRefreshCost += 1;
+                                if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                                showPlaceholderToast('朋友证生效：商店已免费刷新');
                             } else {
                                 runData.gold -= rect.cost;
                                 refreshShopStock(runData);
@@ -945,8 +1041,8 @@ export const Input = {
                             enchantKeyword: keyword, enchantCost: rect.item.cost
                         });
                     } else if (rect.item.type === 'refresh') {
-                        if (runData.firstBlacksmithRefreshFree) {
-                            runData.firstBlacksmithRefreshFree = false;
+                        if (runData.blacksmithFriendRefreshAvailable) {
+                            runData.blacksmithFriendRefreshAvailable = false;
                         } else {
                             runData.gold -= rect.item.cost;
                         }
@@ -1126,6 +1222,17 @@ export const Input = {
                     });
                 }
                 return;
+            case 'gain_specific_card':
+                {
+                    const defId = param || 'no_wisdom';
+                    const card = createCardInstance(defId);
+                    if (card) {
+                        runData.deck.push(card);
+                        showPlaceholderToast(`获得卡牌：${card.name}`);
+                    }
+                    this._finishEvent(runData);
+                }
+                return;
             case 'free_remove_card':
                 if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
                 switchScreen(this.state, 'card_select', {
@@ -1187,6 +1294,16 @@ export const Input = {
                 showPlaceholderToast(`下一场战斗人群+${param || 1}`);
                 this._finishEvent(runData);
                 return;
+            case 'next_shop_system':
+                {
+                    const systems = ['neutral', 'big_number', 'growth'];
+                    const names = { neutral: '中立', big_number: '大数字', growth: '成长' };
+                    const system = systems[Math.floor(Math.random() * systems.length)];
+                    runData.nextShopCardSystem = system;
+                    showPlaceholderToast(`预言家生效：下次商店卡牌刷新为${names[system]}体系`);
+                    this._finishEvent(runData);
+                }
+                return;
             case 'pick_rare_relic':
                 {
                     const options = pickExcavatedRelicOptions()
@@ -1214,7 +1331,7 @@ export const Input = {
                 });
                 return;
             case 'fight_monster':
-                this._startEventBattle(runData, 'normal');
+                this._startEventBattle(runData, 'normal_x7');
                 return;
             case 'fight_elite':
                 this._startEventBattle(runData, 'elite');
@@ -1305,7 +1422,9 @@ export const Input = {
 
     _startEventBattle(runData, type) {
         const actPrefix = `${runData.act}-`;
-        const stageKeys = Object.keys(STAGE_CONFIG).filter(k => k.startsWith(actPrefix) && STAGE_CONFIG[k].type === type);
+        const stageKeys = type === 'normal_x7'
+            ? Object.keys(STAGE_CONFIG).filter(k => k === `${runData.act}-7`)
+            : Object.keys(STAGE_CONFIG).filter(k => k.startsWith(actPrefix) && STAGE_CONFIG[k].type === type);
         if (stageKeys.length === 0) {
             showPlaceholderToast('附近没有合适的怪物！');
             this._finishEvent(runData);
@@ -1668,7 +1787,20 @@ export const Input = {
                         ];
                         for (const c of allCards) {
                             c.tempBonus = 0;
+                            c.battleBonus = 0;
                             c.dedicateTriggered = false;
+                            delete c.removeRemainOnNextTurnStart;
+                            if (c._monsterAddedKeywords) {
+                                const def = CARD_DEFS[c.defId];
+                                const originalKeywords = def ? def.keywords : [];
+                                for (const kw of c._monsterAddedKeywords) {
+                                    if (!originalKeywords.includes(kw)) {
+                                        const idx = c.keywords.indexOf(kw);
+                                        if (idx !== -1) c.keywords.splice(idx, 1);
+                                    }
+                                }
+                                delete c._monsterAddedKeywords;
+                            }
                         }
                         runData.deck = allCards.filter(c => !c.isDerived);
                         if (this.state._originalStageIndex !== undefined) {
@@ -1774,7 +1906,7 @@ export const Input = {
         html += `<p style="color:#4ecdc4">✋ 拖拽卡牌至此</p>`;
         if (slot.cards.length > 0) {
             const top = slot.cards[slot.cards.length - 1];
-            html += `<p style="margin-top:6px">顶部卡牌: <b>${top.name}</b> (${top.baseValue + top.permanentBonus}点)</p>`;
+            html += `<p style="margin-top:6px">顶部卡牌: <b>${top.name}</b> (${top.baseValue + top.permanentBonus + (top.battleBonus || 0)}点)</p>`;
         }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');

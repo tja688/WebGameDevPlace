@@ -475,11 +475,11 @@ export const CARD_DEFS = {
     intense_training: {
         id: 'intense_training',
         name: '猛训练',
-        baseValue: 10,
+        baseValue: 5,
         size: 1,
         keywords: [],
         extraEffects: ['intense_training_effect'],
-        rarity: 'blue',
+        rarity: 'white',
         description: '若本牌已在倍率格，则后续打出在同倍率格卡牌的成长效果多触发一次',
         color: '#1B4F72',
         accentColor: '#5DADE2',

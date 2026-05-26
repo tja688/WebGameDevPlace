@@ -86,6 +86,7 @@ export function createCardInstance(defId) {
         defId: defId,
         baseValue: def.baseValue,
         permanentBonus: 0,
+        battleBonus: 0,
         tempBonus: 0,
         currentValue: def.baseValue,
         size: def.size,

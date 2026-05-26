@@ -60,6 +60,7 @@ function buildCardFromSetup(cardSetup) {
     // 覆盖字段
     if (cardSetup.baseValue !== undefined) card.baseValue = cardSetup.baseValue;
     if (cardSetup.permanentBonus !== undefined) card.permanentBonus = cardSetup.permanentBonus;
+    if (cardSetup.battleBonus !== undefined) card.battleBonus = cardSetup.battleBonus;
     if (cardSetup.tempBonus !== undefined) card.tempBonus = cardSetup.tempBonus;
     if (cardSetup.keywords !== undefined) card.keywords = [...cardSetup.keywords];
     if (cardSetup.growAmount !== undefined) card.growAmount = cardSetup.growAmount;
@@ -78,8 +79,9 @@ function createFallbackCard(setup) {
         name: setup.name || '自定义卡牌',
         baseValue: setup.baseValue || 0,
         permanentBonus: setup.permanentBonus || 0,
+        battleBonus: setup.battleBonus || 0,
         tempBonus: setup.tempBonus || 0,
-        currentValue: (setup.baseValue || 0) + (setup.permanentBonus || 0) + (setup.tempBonus || 0),
+        currentValue: (setup.baseValue || 0) + (setup.permanentBonus || 0) + (setup.battleBonus || 0) + (setup.tempBonus || 0),
         size: setup.size || 1,
         keywords: [...(setup.keywords || [])],
         extraEffects: setup.extraEffects ? [...setup.extraEffects] : [],

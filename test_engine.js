@@ -5,6 +5,7 @@ import { initBattleFromRun } from './js/systems/battle.js';
 import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier, getCardBaseValue } from './js/systems/board.js';
 import { createCardInstance, createBlacksmithStock, addKeywordToCard } from './js/data/index.js';
 import { detectStrategy } from './js/systems/strategy.js';
+import { resolveBattleEnd } from './js/systems/post-battle.js';
 import { enterPlaygroundBattle } from './js/playground/index.js';
 import { Input } from './js/input/index.js';
 import { FX, EffectContext } from './js/effects/core.js';
@@ -352,6 +353,80 @@ playCardToSlot(s30.hand[0], 0, s30);
 playCardToSlot(s30.hand[0], 1, s30);
 playCardToSlot(s30.hand[0], 2, s30);
 assert(getSlotEffectiveMultiplier(s30.slots[0], s30) === -4, '骷髅骑士复现上回合计策时，倍率格应额外-5');
+
+// Test 31: 留场牌下回合开始移除留场词条，但牌仍保留在场上到本回合结束
+const s31 = makeTestState(['hold_position']);
+s31.monster.hp = 9999;
+playCardToSlot(s31.hand[0], 0, s31);
+endTurn(s31);
+assert(s31.slots[0].cards.length === 1, '留场牌会保留到下回合牌桌');
+assert(!s31.slots[0].cards[0].keywords.includes('remain'), '留场牌在下回合开始移除留场词条');
+
+// Test 32: 本场战斗永久加成不会污染战后牌组
+const run32 = createRunData('veteran');
+const s32 = makeTestState(['apprentice_forge', 'brute_force']);
+s32.runDataRef = run32;
+s32.stageKey = '1-1';
+playCardToSlot(s32.hand[0], 0, s32);
+playCardToSlot(s32.hand[0], 0, s32);
+assert(s32.slots[0].cards[1].battleBonus === 5 && s32.slots[0].cards[1].permanentBonus === 0, '学徒铸造使用本场战斗永久加成');
+s32.result = 'win';
+resolveBattleEnd(s32);
+assert(run32.deck.some(c => c.defId === 'brute_force' && (c.battleBonus || 0) === 0 && c.permanentBonus === 0), '战斗结束后本场战斗永久加成清零');
+
+// Test 33: 先手优势只在本回合第一张牌时触发
+const s33 = makeTestState(['brute_force', 'first_advantage']);
+playCardToSlot(s33.hand[0], 0, s33);
+playCardToSlot(s33.hand[0], 1, s33);
+assert((s33.slots[1].cards[0].tempBonus || 0) === 0, '非第一张打出的先手优势不会获得+5');
+assert(!s33.slots[1].cards[0].keywords.includes('remain'), '非第一张打出的先手优势不会获得留场');
+
+// Test 34: 锦上添花从牌组响应上手，而不是打出后抽随机牌
+const s34 = makeTestState(['brute_force', 'brute_force', 'brute_force']);
+s34.deck = [createCardInstance('icing_on_cake')];
+playCardToSlot(s34.hand[0], 0, s34);
+playCardToSlot(s34.hand[0], 0, s34);
+playCardToSlot(s34.hand[0], 0, s34);
+assert(s34.hand.some(c => c.defId === 'icing_on_cake'), '任意倍率格三张牌时，牌组中的锦上添花移到手牌');
+assert(!s34.deck.some(c => c.defId === 'icing_on_cake'), '锦上添花响应后离开牌组');
+
+// Test 35: 一人成军统计整套当前战斗牌组，不只统计抽牌堆
+const s35 = makeTestState(['one_man_army', 'war_training']);
+s35.deck = [createCardInstance('brute_force')];
+s35.discard = [createCardInstance('big_brute_force')];
+playCardToSlot(s35.hand[0], 0, s35);
+assert(getCardFinalValue(s35.slots[0].cards[0], s35) === 53, '一人成军会统计抽牌堆、手牌、弃牌堆和牌桌上的非衍生牌');
+
+// Test 36: 每场战斗第一张牌遗物不会在每回合重复触发
+const s36 = makeTestState(['brute_force']);
+s36.runDataRef = { relics: [{ id: 'test_blitz', name: '闪电战', effect: { type: 'first_card_per_battle_bonus', bonus: 20 } }] };
+s36.monster.hp = 9999;
+playCardToSlot(s36.hand[0], 0, s36);
+assert(getCardFinalValue(s36.slots[0].cards[0], s36) === 35, '闪电战会强化每场战斗第一张牌');
+endTurn(s36);
+s36.hand = [createCardInstance('brute_force')];
+s36.deck = [];
+playCardToSlot(s36.hand[0], 0, s36);
+assert(getCardFinalValue(s36.slots[0].cards[0], s36) === 15, '闪电战不会在第二回合第一张牌重复触发');
+
+// Test 37: 连击手套首次填满倍率格时，场上每张牌都获得点数+10
+const s37 = makeTestState(['brute_force', 'brute_force', 'brute_force']);
+s37.runDataRef = { relics: [{ id: 'test_glove', name: '连击手套', effect: { type: 'full_board_bonus', bonus: 10 } }] };
+playCardToSlot(s37.hand[0], 0, s37);
+playCardToSlot(s37.hand[0], 1, s37);
+playCardToSlot(s37.hand[0], 2, s37);
+assert(s37.slots.every(slot => getCardFinalValue(slot.cards[0], s37) === 25), '连击手套会让首次填满时场上每张牌都+10');
+
+// Test 38: 击败黄色君王后，BOSS遗物三选一必定包含一个黄色君王专属遗物
+const run38 = createRunData('veteran');
+run38.stageIndex = 7;
+const s38 = initBattleFromRun(run38);
+s38.phase = 'ended';
+s38.result = 'win';
+s38.monster.hp = 0;
+const res38 = resolveBattleEnd(s38);
+const yellowBossRelicIds = ['relic_boss_yellow_bone', 'relic_boss_yellow_heart', 'relic_boss_yellow_flesh'];
+assert(res38.postBattleData.relicOptions.some(r => yellowBossRelicIds.includes(r.id)), '黄色君王战后BOSS遗物必定包含一个专属遗物');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);
