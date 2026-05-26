@@ -258,7 +258,7 @@ export const MONSTER_DEFS = {
     layer2_normal5: {
         id: 'layer2_normal5',
         name: '熔岩行者',
-        hp: 7500,
+        hp: 500,
         description: '在熔岩中行走的怪物',
         keywords: ['max_slot_penalty_1'],
         keywordDesc: '数值最高的倍率格点数-1',
