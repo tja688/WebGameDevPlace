@@ -83,7 +83,7 @@ export const MONSTER_DEFS = {
     one_arm_giant: {
         id: 'one_arm_giant',
         name: '独臂巨人',
-        hp: 600,
+        hp: 500,
         description: '只剩下一只手臂的巨人，但力量依然惊人',
         keywords: ['left_slot_bonus_1', 'center_card_penalty_5'],
         keywordDesc: '左侧虚弱：最左侧倍率格点数+1；中丢石：打出在最中间倍率格上的卡牌点数-5',
@@ -258,7 +258,7 @@ export const MONSTER_DEFS = {
     layer2_normal5: {
         id: 'layer2_normal5',
         name: '熔岩行者',
-        hp: 500,
+        hp: 7500,
         description: '在熔岩中行走的怪物',
         keywords: ['max_slot_penalty_1'],
         keywordDesc: '数值最高的倍率格点数-1',
