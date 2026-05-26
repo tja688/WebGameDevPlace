@@ -28,6 +28,9 @@ export const Input = {
     isDragging: false,
     dragStartX: 0,
     dragStartY: 0,
+    _windowMouseUpHandler: null,
+    _windowTouchEndHandler: null,
+    _windowTouchCancelHandler: null,
 
     init(gameState, renderer) {
         this.state = gameState;
@@ -54,6 +57,28 @@ export const Input = {
             e.preventDefault();
             this.onMouseUp(e);
         }, { passive: false });
+        this.canvas.addEventListener('touchcancel', e => {
+            e.preventDefault();
+            this.onMouseUp(e);
+        }, { passive: false });
+
+        if (this._windowMouseUpHandler) {
+            window.removeEventListener('mouseup', this._windowMouseUpHandler);
+        }
+        if (this._windowTouchEndHandler) {
+            window.removeEventListener('touchend', this._windowTouchEndHandler);
+        }
+        if (this._windowTouchCancelHandler) {
+            window.removeEventListener('touchcancel', this._windowTouchCancelHandler);
+        }
+
+        this._windowMouseUpHandler = e => this.onMouseUp(e);
+        this._windowTouchEndHandler = e => this.onMouseUp(e);
+        this._windowTouchCancelHandler = e => this.onMouseUp(e);
+
+        window.addEventListener('mouseup', this._windowMouseUpHandler);
+        window.addEventListener('touchend', this._windowTouchEndHandler, { passive: false });
+        window.addEventListener('touchcancel', this._windowTouchCancelHandler, { passive: false });
     },
 
     getCanvasPos(clientX, clientY) {
@@ -66,10 +91,24 @@ export const Input = {
         };
     },
 
+    getEventCanvasPos(e) {
+        const touch = e?.changedTouches?.[0] || e?.touches?.[0];
+        const clientX = touch ? touch.clientX : e?.clientX;
+        const clientY = touch ? touch.clientY : e?.clientY;
+        if (Number.isFinite(clientX) && Number.isFinite(clientY)) {
+            return this.getCanvasPos(clientX, clientY);
+        }
+        if (this.isDragging && Number.isFinite(this.state?.dragX) && Number.isFinite(this.state?.dragY)) {
+            return { x: this.state.dragX, y: this.state.dragY };
+        }
+        return null;
+    },
+
     onMouseDown(e) {
         if (Tutorial.isActive()) return;
 
-        const pos = this.getCanvasPos(e.clientX, e.clientY);
+        const pos = this.getEventCanvasPos(e);
+        if (!pos) return;
         const state = this.state;
 
         if (state.data && state.data.viewingDeck) {
@@ -116,7 +155,8 @@ export const Input = {
             return;
         }
 
-        const pos = this.getCanvasPos(e.clientX, e.clientY);
+        const pos = this.getEventCanvasPos(e);
+        if (!pos) return;
         const state = this.state;
 
         this.clearAllHovers(state);
@@ -175,7 +215,7 @@ export const Input = {
             return;
         }
 
-        const pos = this.getCanvasPos(e.clientX || 0, e.clientY || 0);
+        const pos = this.getEventCanvasPos(e) || { x: this.state.dragX, y: this.state.dragY };
         const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
 
         if (slotIdx !== null && this.state.draggedCard) {
@@ -201,7 +241,7 @@ export const Input = {
         this.hideTooltip();
 
         if (this.isDragging) {
-            this.onMouseUp(e);
+            this.state.hoveredSlot = null;
             return;
         }
 
