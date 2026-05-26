@@ -800,10 +800,10 @@ function drawSettingsPanel(renderer, ctx, state) {
     const data = state.data || (state.data = {});
     if (data.settingsExpanded === undefined) data.settingsExpanded = false;
 
-    // 设置按钮位置：右上方，书本按钮下方
+    // 设置按钮位置：右上方，书本按钮（DOM #btn-toggle-keyword: top:10, right:10, 44x44）正下方
     const btnSize = 36;
-    const btnX = renderer.width - 20 - btnSize;
-    const btnY = 64; // 书本按钮在 top:10, height:44, 所以下方是 64
+    const btnX = renderer.width - 10 - btnSize; // 与书本按钮 right:10px 对齐
+    const btnY = 10 + 44 + 6; // 书本按钮底部 + 6px 间隔
 
     // 折叠态：只显示设置按钮
     if (!data.settingsExpanded) {
@@ -929,10 +929,11 @@ function drawFeedbackLink(renderer, ctx, state) {
     const w = textW + paddingX * 2;
     const h = fontSize + paddingY * 2 + 2;
 
-    // 位置：右上方，在设置按钮（y=64, height=36）下方
-    const btnSize = 36;
-    const x = renderer.width - 20 - w;
-    const y = 64 + btnSize + 8;
+    // 位置：右上方，在设置按钮正下方
+    const settingBtnSize = 36;
+    const settingBtnY = 10 + 44 + 6; // 与 drawSettingsPanel 一致
+    const x = renderer.width - 10 - w; // 右对齐，与书本按钮 right:10px 一致
+    const y = settingBtnY + settingBtnSize + 6;
 
     const isHover = data.hoverFeedbackLink;
 

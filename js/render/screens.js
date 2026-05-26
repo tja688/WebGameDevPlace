@@ -44,10 +44,6 @@ export function drawTitle(renderer, ctx, state) {
     ctx.fillText('🕯 生死烛局', cx, cy - 60);
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#aaa';
-    ctx.font = '18px Microsoft YaHei';
-    ctx.fillText('按任意处开始', cx, cy - 10);
-
     // 版本号
     ctx.fillStyle = '#666';
     ctx.font = '12px Microsoft YaHei';
