@@ -280,6 +280,23 @@ export const FX = {
     register: registerEffect
 };
 
+// ===== 伤害拆解系统所需的查询接口 =====
+
+/**
+ * 获取所有已注册的效果处理器（只读副本）
+ */
+export function getRegisteredHandlers() {
+    return _handlers.slice();
+}
+
+/**
+ * 获取指定触发时机的所有效果处理器（已排序、已过滤条件的副本）
+ * 注意：condition 可能依赖运行时 ctx，这里返回的是原始 handlers
+ */
+export function getHandlersForTrigger(trigger) {
+    return (_triggerMap[trigger] || []).slice();
+}
+
 // ===== 成长数值计算（训练体系） =====
 
 export function calculateGrowAmount(card, slotIndex, state) {

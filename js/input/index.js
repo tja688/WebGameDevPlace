@@ -12,13 +12,14 @@ import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { drawCards } from '../core/battle-core.js';
 import { resolveBattleEnd, generatePostBattleEvents, pickExcavatedRelicOptions } from '../systems/post-battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue } from '../systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue, getCardFinalValue } from '../systems/board.js';
+import { getCardDamageBreakdown, getExternalDamageSources } from '../systems/damage-breakdown.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, RELIC_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { HAND_LIMIT } from '../core/constants.js';
 import { STAGE_CONFIG } from '../data/index.js';
-import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt } from '../render/renderer.js';
+import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt, getSlotCardAt } from '../render/renderer.js';
 import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios, enterPlaygroundBattle, resetPlaygroundBattle } from '../playground/index.js';
 import { Tutorial } from '../tutorial.js';
 
@@ -1702,7 +1703,13 @@ export const Input = {
                 this.state.hoveredMonster = false;
                 this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'pointer';
-                this.updateSlotTooltip(slotIdx, pos.x, pos.y);
+                // 检测是否指向格子内的某张卡牌
+                const slotCard = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
+                if (slotCard) {
+                    this.updateSlotCardTooltip(slotCard.card, slotCard.slotIndex, pos.x, pos.y);
+                } else {
+                    this.updateSlotTooltip(slotIdx, pos.x, pos.y);
+                }
                 this._playHoverSound();
             } else if (isOverPlayer) {
                 this.state.selectedCard = null;
@@ -2016,6 +2023,100 @@ export const Input = {
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 300);
         const y = Math.min(clientY + 20, window.innerHeight - 200);
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    },
+
+    updateSlotCardTooltip(card, slotIdx, clientX, clientY) {
+        const tooltip = document.getElementById('tooltip');
+        const bd = getCardDamageBreakdown(card, slotIdx, this.state);
+
+        let html = `<h4>${card.name} <span style="color:#ffd700;font-size:13px">[格${slotIdx + 1}]</span></h4>`;
+
+        // 计算链
+        html += `<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">`;
+        html += `<p style="font-size:12px;color:#998866;margin-bottom:6px">📊 伤害计算链</p>`;
+
+        // 基础点数
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+        html += `<span style="color:#aaa">基础点数</span>`;
+        html += `<span style="color:#fff">${bd.baseValue}</span>`;
+        html += `</div>`;
+
+        // 有效点数阶段
+        for (const step of bd.steps.filter(s => s.phase === 'effective')) {
+            const color = step.amount >= 0 ? '#2ecc71' : '#ff6666';
+            const sign = step.amount >= 0 ? '+' : '';
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+            html += `<span style="color:#aaa">${step.source}</span>`;
+            html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+            html += `</div>`;
+        }
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;border-top:1px dashed #554433;padding-top:4px">`;
+        html += `<span style="color:#ccc">有效点数</span>`;
+        html += `<span style="color:#ffd700">${bd.effectiveValue}</span>`;
+        html += `</div>`;
+
+        // 最终点数阶段
+        for (const step of bd.steps.filter(s => s.phase === 'final')) {
+            const color = step.amount >= 0 ? '#2ecc71' : '#ff6666';
+            const sign = step.amount >= 0 ? '+' : '';
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+            html += `<span style="color:#aaa">${step.source}</span>`;
+            html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+            html += `</div>`;
+        }
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;border-top:1px dashed #554433;padding-top:4px">`;
+        html += `<span style="color:#ccc">最终点数</span>`;
+        html += `<span style="color:#ffd700">${bd.finalValue}</span>`;
+        html += `</div>`;
+
+        // 倍率阶段
+        html += `<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">`;
+        html += `<p style="font-size:12px;color:#998866;margin-bottom:6px">🎯 倍率计算</p>`;
+        for (const step of bd.steps.filter(s => s.phase === 'slot')) {
+            const color = step.amount >= 0 ? '#2ecc71' : '#ff6666';
+            const sign = step.amount >= 0 ? '+' : '';
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+            html += `<span style="color:#aaa">${step.source}</span>`;
+            html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+            html += `</div>`;
+        }
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;border-top:1px dashed #554433;padding-top:4px">`;
+        html += `<span style="color:#ccc">最终倍率</span>`;
+        html += `<span style="color:#ffd700">${bd.slotMultiplier}X</span>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        // 伤害汇总
+        html += `<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">`;
+        html += `<p style="font-size:12px;color:#998866;margin-bottom:6px">💥 伤害汇总</p>`;
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+        html += `<span style="color:#aaa">卡牌输出</span>`;
+        html += `<span style="color:#fff">${bd.finalValue} × ${bd.slotMultiplier} = <b style="color:#ffd700">${bd.cardOutput}</b></span>`;
+        html += `</div>`;
+        if (bd.strategyExtra > 0) {
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+            html += `<span style="color:#aaa">计策额外</span>`;
+            html += `<span style="color:#2ecc71">+${bd.strategyExtra}</span>`;
+            html += `</div>`;
+        }
+        if (bd.extraMultiplier !== 1) {
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
+            html += `<span style="color:#aaa">全局倍率</span>`;
+            html += `<span style="color:#ffaa44">×${bd.extraMultiplier}</span>`;
+            html += `</div>`;
+        }
+        html += `<div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px solid #665544;padding-top:4px">`;
+        html += `<span style="color:#fff;font-weight:bold">本卡总伤害</span>`;
+        html += `<span style="color:#ff4444;font-weight:bold;font-size:16px">${bd.totalOutput}</span>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        const x = Math.min(clientX + 20, window.innerWidth - 340);
+        const y = Math.min(clientY + 20, window.innerHeight - 400);
         tooltip.style.left = x + 'px';
         tooltip.style.top = y + 'px';
     },

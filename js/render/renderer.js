@@ -94,5 +94,6 @@ export {
     getHandCardRect,
     getSlotRect,
     getSlotIndexAt,
+    getSlotCardAt,
     getHandCardIndexAt
 } from './battle.js';

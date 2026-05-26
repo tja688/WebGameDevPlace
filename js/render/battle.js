@@ -11,9 +11,10 @@ import {
 import { KEYWORDS } from '../data/index.js';
 import {
     getCardBaseValue, getCardFinalValue, buildCardSlotMap,
-    canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview
+    canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview,
+    calculateTotalBoardDamage, getStrategySlotBonuses
 } from '../systems/board.js';
-import { calculateTotalBoardDamage } from '../systems/board.js';
+import { getCardDamageBreakdown } from '../systems/damage-breakdown.js';
 import { detectStrategy, getAllStrategies } from '../systems/strategy.js';
 import { CARD_DEFS, MONSTER_COLOR_THEMES } from '../data/index.js';
 import { FX } from './fx.js';
@@ -1033,14 +1034,14 @@ function drawBoardArea(renderer, ctx, state) {
             const cy = y + 10 + c * 38;
             const cw = slotW - 20;
             const ch = 34;
-            drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state, c);
+            drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state, c, i);
         }
 
 
     }
 }
 
-function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex) {
+function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex, slotIndex) {
     // 堆叠偏移阴影
     if (stackIndex > 0) {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -1061,18 +1062,34 @@ function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex) {
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
 
-    const finalVal = getCardFinalValue(card, state);
-    const output = finalVal * multiplier;
+    // 计算该卡在当前状态下的最终总伤害（含计策加成、全局倍率）
+    let totalOutput = 0;
+    try {
+        const bd = getCardDamageBreakdown(card, slotIndex, state);
+        totalOutput = bd.totalOutput;
+    } catch (e) {
+        // fallback: 旧算法
+        const finalVal = getCardFinalValue(card, state);
+        totalOutput = finalVal * multiplier;
+        const strategyBonuses = getStrategySlotBonuses(state);
+        const strategyBonus = strategyBonuses[slotIndex] || 0;
+        if (strategyBonus > 0) {
+            totalOutput += finalVal * strategyBonus;
+        }
+        const extraMul = state.runDataRef?.extraMultiplier || 1;
+        totalOutput = Math.floor(totalOutput * extraMul);
+    }
 
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Microsoft YaHei';
     ctx.textAlign = 'left';
     ctx.fillText(card.name, x + 6, y + 16);
 
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 13px Microsoft YaHei';
+    // 右上角显示该卡在当前状态下的最终总伤害
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 14px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`${finalVal}→${output}`, x + w - 6, y + 16);
+    ctx.fillText(`${totalOutput}`, x + w - 6, y + 16);
 
     ctx.textAlign = 'left';
     let tagX = x + 6;
@@ -1634,6 +1651,30 @@ export function getSlotIndexAt(renderer, px, py, slotCount) {
         const r = getSlotRect(renderer, i, slotCount);
         if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) {
             return i;
+        }
+    }
+    return null;
+}
+
+/**
+ * 检测鼠标是否指向倍率格内的某张卡牌
+ * @returns {object|null} { slotIndex, cardIndex, card, rect }
+ */
+export function getSlotCardAt(renderer, px, py, slots) {
+    const slotCount = slots.length;
+    for (let i = 0; i < slotCount; i++) {
+        const slot = slots[i];
+        if (slot.cards.length === 0) continue;
+        const sr = getSlotRect(renderer, i, slotCount);
+        for (let c = 0; c < slot.cards.length; c++) {
+            const card = slot.cards[c];
+            const cx = sr.x + 10;
+            const cy = sr.y + 10 + c * 38;
+            const cw = sr.w - 20;
+            const ch = 34;
+            if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch) {
+                return { slotIndex: i, cardIndex: c, card, rect: { x: cx, y: cy, w: cw, h: ch } };
+            }
         }
     }
     return null;
