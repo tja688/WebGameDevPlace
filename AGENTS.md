@@ -107,7 +107,6 @@ class CombatState {
 | ❌ 引入 Luban / Excel 配表 | 策划不用 Excel，Obsidian 就是源数据 |
 | ❌ 引入 JSON Schema 校验 | 增加维护负担，AI 生成代码时自然会校验 |
 | ❌ 写单元测试框架 | 先保证能玩，测试靠 playtest |
-| ❌ 搞 Replay / 存档系统 | 需要时再补，现在不是刚需 |
 | ❌ 引入 Redux / XState 等状态管理库 | 回合制卡牌用 async/await 足够 |
 | ❌ 搞 Command 模式 / 事件溯源 | 过度抽象，增加 AI 理解成本 |
 | ❌ 把效果系统搞成类继承 + 多态 | switch 工厂对 AI 更友好 |
@@ -115,7 +114,3 @@ class CombatState {
 > **核心洞察**：AI 迁移 Unity 时，最需要的不是"完美的跨平台架构"，而是**清晰、集中、无歧义的代码**。
 
 ---
-
-## 设计文档增量同步
-
-开工前必须使用 `design-doc-sync` skill 执行增量核对。详见 `.kimi/skills/design-doc-sync/SKILL.md`。
