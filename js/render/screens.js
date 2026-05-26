@@ -70,6 +70,30 @@ export function drawTitle(renderer, ctx, state) {
     }
 
     state.data.startBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // 重看教程按钮
+    const tutBtnW = 160;
+    const tutBtnH = 40;
+    const tutBtnX = cx - tutBtnW / 2;
+    const tutBtnY = btnY + btnH + 20;
+    const tutHover = state.data.hoverTutorial;
+
+    ctx.fillStyle = tutHover ? 'rgba(50,70,90,0.95)' : 'rgba(40,55,75,0.9)';
+    ctx.strokeStyle = tutHover ? '#88aacc' : '#6688aa';
+    ctx.lineWidth = 2;
+    ctx.fillRect(tutBtnX, tutBtnY, tutBtnW, tutBtnH);
+    ctx.strokeRect(tutBtnX, tutBtnY, tutBtnW, tutBtnH);
+
+    ctx.fillStyle = tutHover ? '#ccddff' : '#aabbdd';
+    ctx.font = '16px Microsoft YaHei';
+    ctx.fillText('📖 重看教程', cx, tutBtnY + 27);
+
+    if (tutHover) {
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(tutBtnX, tutBtnY, tutBtnW, tutBtnH / 2);
+    }
+
+    state.data.tutorialBtnRect = { x: tutBtnX, y: tutBtnY, w: tutBtnW, h: tutBtnH };
 }
 
 export function drawClassSelect(renderer, ctx, state) {

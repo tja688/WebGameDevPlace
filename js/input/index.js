@@ -243,18 +243,32 @@ export const Input = {
 
     // ===== 标题界面 =====
     handleTitleHover(pos, state) {
+        let hovering = false;
         if (state.data.startBtnRect && this.hitTest(pos, state.data.startBtnRect)) {
             state.data.hoverStart = true;
-            this.canvas.style.cursor = 'pointer';
+            hovering = true;
         } else {
-            this.canvas.style.cursor = 'default';
+            state.data.hoverStart = false;
         }
+        if (state.data.tutorialBtnRect && this.hitTest(pos, state.data.tutorialBtnRect)) {
+            state.data.hoverTutorial = true;
+            hovering = true;
+        } else {
+            state.data.hoverTutorial = false;
+        }
+        this.canvas.style.cursor = hovering ? 'pointer' : 'default';
     },
 
     handleTitleClick(pos) {
         if (this.state.data.startBtnRect && this.hitTest(pos, this.state.data.startBtnRect)) {
             if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
             switchScreen(this.state, 'class_select', {});
+            return;
+        }
+        if (this.state.data.tutorialBtnRect && this.hitTest(pos, this.state.data.tutorialBtnRect)) {
+            if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+            Tutorial.reset();
+            return;
         }
     },
 
