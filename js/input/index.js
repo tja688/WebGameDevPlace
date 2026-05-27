@@ -12,14 +12,14 @@ import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { drawCards } from '../core/battle-core.js';
 import { resolveBattleEnd, generatePostBattleEvents, pickExcavatedRelicOptions } from '../systems/post-battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue, getCardFinalValue, isCardDraggableFromSlot, moveSlotCard, getSlotDragPreview } from '../systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue, isCardDraggableFromSlot, moveSlotCard } from '../systems/board.js';
 import { getCardDamageBreakdown, getExternalDamageSources } from '../systems/damage-breakdown.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, RELIC_DEFS, createCardRewardOptions } from '../data/index.js';
 import { showPlaceholderToast } from '../core/battle-core.js';
 import { HAND_LIMIT } from '../core/constants.js';
 import { STAGE_CONFIG } from '../data/index.js';
-import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotIndexAt, getSlotCardAt } from '../render/renderer.js';
+import { Renderer, getEndTurnButtonRect, getHandCardIndexAt, getSlotRect, getSlotIndexAt, getSlotCardAt } from '../render/renderer.js';
 import { PlaygroundState, enterEffectSandbox, backToPlaygroundMenu, getAllScenarios, enterPlaygroundBattle, resetPlaygroundBattle } from '../playground/index.js';
 import { Tutorial } from '../tutorial.js';
 
@@ -40,6 +40,14 @@ export const Input = {
     draggedSlotCardIndex: -1,
     dragInsertSlotIndex: -1,
     dragInsertCardIndex: -1,
+
+    _getSlotHeaderAt(pos) {
+        const rects = this.state?.data?.slotHeaderRects || [];
+        for (const rect of rects) {
+            if (this.hitTest(pos, rect)) return rect;
+        }
+        return null;
+    },
 
     init(gameState, renderer) {
         this.state = gameState;
@@ -223,11 +231,18 @@ export const Input = {
         // 处理入场卡牌拖动释放
         if (this.isDraggingSlotCard && this.draggedSlotCard) {
             const pos = this.getEventCanvasPos(e) || { x: this.state.dragX, y: this.state.dragY };
-            const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+            let slotIdx = this.dragInsertSlotIndex;
+            let insertIdx = this.dragInsertCardIndex;
 
-            if (slotIdx !== null) {
-                // 计算插入位置
-                const insertIdx = this._calculateInsertIndex(slotIdx, pos.y);
+            if (slotIdx < 0 && pos) {
+                const hoveredSlot = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+                if (hoveredSlot !== null) {
+                    slotIdx = hoveredSlot;
+                    insertIdx = this._calculateInsertIndex(hoveredSlot, pos.y);
+                }
+            }
+
+            if (slotIdx >= 0 && insertIdx >= 0) {
                 const success = moveSlotCard(
                     this.draggedSlotCard,
                     this.draggedSlotCardFromIndex,
@@ -281,6 +296,7 @@ export const Input = {
         this.dragInsertCardIndex = -1;
         this.state.dragX = 0;
         this.state.dragY = 0;
+        this.state.hoveredSlot = null;
         this.canvas.style.cursor = 'default';
     },
 
@@ -290,18 +306,21 @@ export const Input = {
         const cardH = 34;
         const cardGap = 4;
         const startY = sr.y + 10;
+        const visibleCards = (this.isDraggingSlotCard && this.draggedSlotCard && slotIndex === this.draggedSlotCardFromIndex)
+            ? slot.cards.filter(card => card.uuid !== this.draggedSlotCard.uuid)
+            : slot.cards;
 
         // 如果没有卡牌，插入到开头
-        if (slot.cards.length === 0) return 0;
+        if (visibleCards.length === 0) return 0;
 
         // 根据Y坐标判断插入位置
-        for (let i = 0; i < slot.cards.length; i++) {
+        for (let i = 0; i < visibleCards.length; i++) {
             const cardCenterY = startY + i * (cardH + cardGap) + cardH / 2;
             if (py < cardCenterY) {
                 return i;
             }
         }
-        return slot.cards.length;
+        return visibleCards.length;
     },
 
     onMouseLeave(e) {
@@ -345,6 +364,7 @@ export const Input = {
         state.data.deckViewHoverClose = false;
         state.data.hoverStrategyOption = null;
         state.data.hoverStrategyRow = null;
+        state.data.hoverSlotHeader = null;
     },
 
     hitTest(pos, rect) {
@@ -1691,10 +1711,16 @@ export const Input = {
         // 优先检测是否点击了倍率格内的卡牌（入场卡牌拖动）
         const slotCardInfo = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
         if (slotCardInfo && isCardDraggableFromSlot(slotCardInfo.card)) {
+            this.isDragging = false;
+            this.state.draggedCard = null;
+            this.state.selectedCard = null;
+            this.state.hoveredSlot = null;
             this.isDraggingSlotCard = true;
             this.draggedSlotCard = slotCardInfo.card;
             this.draggedSlotCardFromIndex = slotCardInfo.slotIndex;
             this.draggedSlotCardIndex = slotCardInfo.cardIndex;
+            this.dragInsertSlotIndex = slotCardInfo.slotIndex;
+            this.dragInsertCardIndex = this._calculateInsertIndex(slotCardInfo.slotIndex, pos.y);
             this.state.dragX = pos.x;
             this.state.dragY = pos.y;
             this.canvas.style.cursor = 'grabbing';
@@ -1753,6 +1779,8 @@ export const Input = {
             }
             this.canvas.style.cursor = 'grabbing';
             this.hideTooltip();
+            this.state.selectedCard = null;
+            this.state.hoveredSlot = null;
             this.state.hoveredMonster = false;
             this.state.hoveredEndTurn = false;
             return;
@@ -1767,12 +1795,12 @@ export const Input = {
             this.state.hoveredMonster = false;
             this.state.hoveredEndTurn = false;
         } else {
-            const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
             const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
             const endTurnRect = getEndTurnButtonRect(this.renderer);
             const isOverEndTurn = this.hitTest(pos, endTurnRect);
             const isOverMonster = pos.x >= this.renderer.width * 0.5 - 150 && pos.x <= this.renderer.width * 0.5 + 150 && pos.y >= 0 && pos.y <= 220;
             const isOverPlayer = pos.x >= 0 && pos.x <= 200 && pos.y >= 40 && pos.y <= 240;
+            const slotHeader = this._getSlotHeaderAt(pos);
 
             // 优先检测倍率格内的卡牌悬停（避免被格子悬停抢走）
             const slotCard = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
@@ -1811,13 +1839,14 @@ export const Input = {
                 this.canvas.style.cursor = 'help';
                 this.updateMonsterTooltip(pos.x, pos.y);
                 this._playHoverSound();
-            } else if (slotIdx !== null) {
+            } else if (slotHeader) {
                 this.state.selectedCard = null;
-                this.state.hoveredSlot = slotIdx;
+                this.state.hoveredSlot = null;
                 this.state.hoveredMonster = false;
                 this.state.hoveredEndTurn = false;
+                this.state.data.hoverSlotHeader = slotHeader.slotIndex;
                 this.canvas.style.cursor = 'pointer';
-                this.updateSlotTooltip(slotIdx, pos.x, pos.y);
+                this.updateSlotTooltip(slotHeader.slotIndex, pos.x, pos.y);
                 this._playHoverSound();
             } else if (isOverPlayer) {
                 this.state.selectedCard = null;
@@ -2124,10 +2153,13 @@ export const Input = {
     updateSlotTooltip(slotIdx, clientX, clientY) {
         const tooltip = document.getElementById('tooltip');
         const slot = this.state.slots[slotIdx];
+        const totalCards = slot.cards.length;
         let html = `<h4>倍率格 ${slotIdx + 1}</h4>`;
         html += `<p>当前倍率: <b style="color:#ffd700">${slot.multiplier}X</b></p>`;
-        html += `<p style="color:#4ecdc4">✋ 拖拽卡牌至此</p>`;
-        if (slot.cards.length > 0) {
+        html += `<p>当前驻场: <b style="color:#ffcc88">${totalCards}</b> 张</p>`;
+        html += `<p style="color:#4ecdc4">✋ 手牌可拖到这个倍率格</p>`;
+        html += `<p style="color:#998866;font-size:12px">格内已有卡牌时，优先悬停/拖动卡牌本身</p>`;
+        if (totalCards > 0) {
             const top = slot.cards[slot.cards.length - 1];
             html += `<p style="margin-top:6px">顶部卡牌: <b>${top.name}</b> (${top.baseValue + top.permanentBonus + (top.battleBonus || 0)}点)</p>`;
         }

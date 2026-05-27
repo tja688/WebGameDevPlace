@@ -125,20 +125,38 @@ export function isCardDraggableFromSlot(card) {
     return true;
 }
 
+function resolveSlotMove(state, card, fromSlotIndex, toSlotIndex, insertIndex) {
+    const fromSlot = state.slots[fromSlotIndex];
+    const toSlot = state.slots[toSlotIndex];
+    if (!fromSlot || !toSlot || !card) return null;
+
+    const sourceIndex = fromSlot.cards.findIndex(c => c.uuid === card.uuid);
+    if (sourceIndex === -1) return null;
+
+    const sameSlot = fromSlotIndex === toSlotIndex;
+    const visibleCount = Math.max(0, toSlot.cards.length - (sameSlot ? 1 : 0));
+    const targetIndex = Math.max(0, Math.min(insertIndex, visibleCount));
+
+    return {
+        fromSlot,
+        toSlot,
+        sourceIndex,
+        targetIndex,
+        sameSlot,
+        isNoOp: sameSlot && targetIndex === sourceIndex
+    };
+}
+
 // ===== 移动已入场卡牌 =====
 
 export function moveSlotCard(card, fromSlotIndex, toSlotIndex, insertIndex, state) {
-    const fromSlot = state.slots[fromSlotIndex];
-    const toSlot = state.slots[toSlotIndex];
+    if (!isCardDraggableFromSlot(card)) return false;
 
-    // 从原位置移除
-    const cardIdx = fromSlot.cards.findIndex(c => c.uuid === card.uuid);
-    if (cardIdx === -1) return false;
-    fromSlot.cards.splice(cardIdx, 1);
+    const move = resolveSlotMove(state, card, fromSlotIndex, toSlotIndex, insertIndex);
+    if (!move || move.isNoOp) return false;
 
-    // 插入到新位置
-    const targetIdx = Math.max(0, Math.min(insertIndex, toSlot.cards.length));
-    toSlot.cards.splice(targetIdx, 0, card);
+    move.fromSlot.cards.splice(move.sourceIndex, 1);
+    move.toSlot.cards.splice(move.targetIndex, 0, card);
 
     // 记录时间线
     recordTimeline(state, 'move_slot_card', {
@@ -147,7 +165,7 @@ export function moveSlotCard(card, fromSlotIndex, toSlotIndex, insertIndex, stat
         cardName: card.name,
         fromSlot: fromSlotIndex,
         toSlot: toSlotIndex,
-        insertIndex: targetIdx
+        insertIndex: move.targetIndex
     });
 
     // 检测计策变化
@@ -165,29 +183,27 @@ export function getSlotDragPreview(card, fromSlotIndex, toSlotIndex, insertIndex
         cards: [...s.cards]
     }));
 
-    // 从原位置移除
-    const fromSlot = tempSlots[fromSlotIndex];
-    const cardIdx = fromSlot.cards.findIndex(c => c.uuid === card.uuid);
-    if (cardIdx === -1) return null;
-    fromSlot.cards.splice(cardIdx, 1);
-
-    // 插入到新位置
-    const toSlot = tempSlots[toSlotIndex];
-    const targetIdx = Math.max(0, Math.min(insertIndex, toSlot.cards.length));
-    toSlot.cards.splice(targetIdx, 0, card);
-
     const tempState = {
         ...state,
         slots: tempSlots
     };
 
+    const move = resolveSlotMove(tempState, card, fromSlotIndex, toSlotIndex, insertIndex);
+    if (!move) return null;
+    if (!move.isNoOp) {
+        move.fromSlot.cards.splice(move.sourceIndex, 1);
+        move.toSlot.cards.splice(move.targetIndex, 0, card);
+    }
+
     const total = calculateTotalBoardDamage(tempState);
+    const strategyBonuses = getStrategySlotBonuses(tempState);
+    const effectiveSlotMultiplier = getSlotEffectiveMultiplier(tempState.slots[toSlotIndex], tempState) + (strategyBonuses[toSlotIndex] || 0);
 
     return {
         totalDamage: total,
         monsterRemaining: Math.max(0, state.monster.hp - total),
         willKill: total >= state.monster.hp,
-        cardOutput: getCardFinalValue(card, tempState) * getSlotEffectiveMultiplier(toSlot, tempState)
+        cardOutput: getCardFinalValue(card, tempState) * effectiveSlotMultiplier
     };
 }
 

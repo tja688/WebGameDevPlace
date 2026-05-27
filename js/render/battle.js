@@ -990,6 +990,8 @@ function drawBoardArea(renderer, ctx, state) {
     const draggedSlotCard = Input.draggedSlotCard || null;
     const dragInsertSlotIndex = Input.dragInsertSlotIndex !== undefined ? Input.dragInsertSlotIndex : -1;
     const dragInsertCardIndex = Input.dragInsertCardIndex !== undefined ? Input.dragInsertCardIndex : -1;
+    const data = state.data || (state.data = {});
+    data.slotHeaderRects = [];
 
     for (let i = 0; i < state.slots.length; i++) {
         const slot = state.slots[i];
@@ -998,15 +1000,22 @@ function drawBoardArea(renderer, ctx, state) {
 
         const effMul = getSlotEffectiveMultiplier(slot, state);
         const mulLabel = `${effMul}X`;
+        const isHeaderHovered = data.hoverSlotHeader === i;
 
         // 倍率标签 - 金属铭牌
         drawStoneTile(ctx, x, y - 40, slotW, 36, {});
-        drawMetalFrame(ctx, x, y - 40, slotW, 36, { color: '#665544', thickness: 1.5, radius: 4 });
+        drawMetalFrame(ctx, x, y - 40, slotW, 36, {
+            color: isHeaderHovered ? '#d9b36c' : '#665544',
+            glowColor: isHeaderHovered ? '#d9b36c' : null,
+            thickness: isHeaderHovered ? 2 : 1.5,
+            radius: 4
+        });
+        data.slotHeaderRects.push({ x, y: y - 40, w: slotW, h: 36, slotIndex: i });
 
         // 倍率文字
         const isHighMul = effMul >= 3;
         drawGlowText(ctx, `倍率 ${mulLabel}`, x + slotW / 2, y - 16, {
-            color: isHighMul ? '#ffaa44' : '#ffd700',
+            color: isHeaderHovered ? '#ffe3a6' : (isHighMul ? '#ffaa44' : '#ffd700'),
             glowColor: isHighMul ? '#ff6600' : '#b8860b',
             glowBlur: isHighMul ? 8 : 4,
             font: 'bold 17px Microsoft YaHei',

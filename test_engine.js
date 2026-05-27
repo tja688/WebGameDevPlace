@@ -2,7 +2,7 @@ import { createInitialState, startBattle } from './js/core/state.js';
 import { createGameState, createRunData } from './js/core/state.js';
 import { drawCards, endTurn } from './js/systems/battle.js';
 import { initBattleFromRun } from './js/systems/battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier, getCardBaseValue } from './js/systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, buildCardSlotMap, getCardEffectiveValue, getCardFinalValue, canPlaceCard, getSlotEffectiveMultiplier, getCardBaseValue, moveSlotCard, getSlotDragPreview } from './js/systems/board.js';
 import { createCardInstance, createBlacksmithStock, addKeywordToCard } from './js/data/index.js';
 import { detectStrategy } from './js/systems/strategy.js';
 import { resolveBattleEnd } from './js/systems/post-battle.js';
@@ -419,6 +419,27 @@ s38.monster.hp = 0;
 const res38 = resolveBattleEnd(s38);
 const yellowBossRelicIds = ['relic_boss_yellow_bone', 'relic_boss_yellow_heart', 'relic_boss_yellow_flesh'];
 assert(res38.postBattleData.relicOptions.some(r => yellowBossRelicIds.includes(r.id)), '黄色君王战后BOSS遗物必定包含一个专属遗物');
+
+// Test 38: 入场卡牌在同倍率格内向后重排时，插入索引应按移除后的可见列表计算
+const s39 = makeTestState(['brute_force', 'veteran_ambition', 'unity_strike']);
+playCardToSlot(s39.hand[0], 0, s39);
+playCardToSlot(s39.hand[0], 0, s39);
+playCardToSlot(s39.hand[0], 0, s39);
+const moved39 = moveSlotCard(s39.slots[0].cards[0], 0, 0, 2, s39);
+assert(moved39, '同倍率格内可将入场卡牌向后重排');
+assert(
+    s39.slots[0].cards.map(card => card.defId).join(',') === 'veteran_ambition,unity_strike,brute_force',
+    '同倍率格内向后重排后，卡牌顺序应稳定正确'
+);
+
+// Test 39: 入场卡牌拖动预览应使用与实际移动一致的插入规则
+const s40 = makeTestState(['brute_force', 'veteran_ambition', 'unity_strike']);
+playCardToSlot(s40.hand[0], 0, s40);
+playCardToSlot(s40.hand[0], 0, s40);
+playCardToSlot(s40.hand[0], 0, s40);
+const preview40 = getSlotDragPreview(s40.slots[0].cards[0], 0, 0, 2, s40);
+assert(!!preview40, '同倍率格拖动时应能生成预览');
+assert(preview40.totalDamage === calculateTotalBoardDamage(s40), '同倍率格纯重排不会错误改变总伤害');
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);
 if (fail > 0) process.exit(1);
