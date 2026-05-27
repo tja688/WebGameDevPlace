@@ -991,24 +991,10 @@ export const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
-        // 计策二选一弹窗
+        // 计策系统已废弃，忽略计策二选一弹窗点击
         if (data.strategyOptions && data.strategyOptionRects) {
-            for (const rect of data.strategyOptionRects) {
-                if (this.hitTest(pos, rect)) {
-                    const strategyNames = {
-                        attempt_push: '尝试推进', left_assault: '左侧强袭', right_assault: '右侧强袭',
-                        mid_assault: '中线强袭', steady_push: '稳重推进', plan_left: '计划左攻',
-                        plan_right: '计划右攻', plan_mid: '计划中攻', forceful_push: '强硬推进'
-                    };
-                    runData.strategyLevels[rect.strategyId] = (runData.strategyLevels[rect.strategyId] || 0) + 1;
-                    showPlaceholderToast(`计策【${strategyNames[rect.strategyId]}】等级+1！`);
-                    data.strategyOptions = null;
-                    data.strategyOptionRects = null;
-                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                    return;
-                }
-            }
-            return;
+            data.strategyOptions = null;
+            data.strategyOptionRects = null;
         }
 
         if (data.shopItemRects) {
@@ -1336,15 +1322,9 @@ export const Input = {
                 return;
             case 'random_strategy_level':
                 {
-                    const strategies = ['attempt_push', 'left_assault', 'right_assault', 'mid_assault', 'steady_push', 'plan_left', 'plan_right', 'plan_mid', 'forceful_push'];
-                    const randomStrategy = strategies[Math.floor(Math.random() * strategies.length)];
-                    runData.strategyLevels[randomStrategy] = (runData.strategyLevels[randomStrategy] || 0) + 1;
-                    const strategyNames = {
-                        attempt_push: '尝试推进', left_assault: '左侧强袭', right_assault: '右侧强袭',
-                        mid_assault: '中线强袭', steady_push: '稳重推进', plan_left: '计划左攻',
-                        plan_right: '计划右攻', plan_mid: '计划中攻', forceful_push: '强硬推进'
-                    };
-                    showPlaceholderToast(`计策【${strategyNames[randomStrategy] || randomStrategy}】等级+1！`);
+                    // 计策系统已废弃，改为获得1金币
+                    runData.gold = (runData.gold || 0) + 1;
+                    showPlaceholderToast('获得1金币');
                     this._finishEvent(runData);
                 }
                 return;
@@ -2331,25 +2311,7 @@ export const Input = {
 
     updateStrategyTooltip(strat, clientX, clientY) {
         const tooltip = document.getElementById('tooltip');
-        if (!strat) {
-            tooltip.classList.add('hidden');
-            return;
-        }
-        const isOverdrive = !!strat.condition;
-        const titleColor = isOverdrive ? '#ff9999' : '#ffd76a';
-        let html = `<h4 style="color:${titleColor}">${strat.name}</h4>`;
-        html += `<p>需求: 倍率格堆叠 <b>${strat.req.join('-')}</b>（共${strat.total}张）</p>`;
-        html += `<p style="color:#ffcc88;margin-top:6px">效果: ${strat.description || ''}</p>`;
-        if (strat.levelBonus) {
-            const levelDesc = strat.levelBonus.map((b, i) => b > 0 ? `格${i + 1}+${b}` : null).filter(Boolean).join('，');
-            html += `<p style="color:#aaa;font-size:12px;margin-top:6px">每级强化: ${levelDesc}</p>`;
-        }
-        tooltip.innerHTML = html;
-        tooltip.classList.remove('hidden');
-        const x = Math.min(clientX + 20, window.innerWidth - 320);
-        const y = Math.min(clientY + 20, window.innerHeight - 250);
-        tooltip.style.left = x + 'px';
-        tooltip.style.top = y + 'px';
+        tooltip.classList.add('hidden');
     },
 
     updateBlacksmithTooltip(item, clientX, clientY) {

@@ -7,9 +7,10 @@
  * 设计原则：纯函数、纯对象返回，方便未来 AI 迁移到 Unity。
  */
 
-import { getCardBaseValue, getStrategySlotBonuses } from './board.js';
+import { getCardBaseValue } from './board.js';
 import { Trigger } from '../core/constants.js';
 import { getHandlersForTrigger } from '../effects/core.js';
+import { getStackingBonus } from './strategy.js';
 
 
 
@@ -105,6 +106,17 @@ function breakdownCardFinalValue(card, state, effectiveValue) {
         }
     }
 
+    // 叠牌加成：所在格卡牌点数
+    const slotIndex = ctx.getCardSlotIndex ? ctx.getCardSlotIndex(card) : -1;
+    if (slotIndex >= 0) {
+        const slot = state.slots[slotIndex];
+        const stacking = getStackingBonus(slot.cards.length);
+        if (stacking.cardBonus > 0) {
+            ctx.value += stacking.cardBonus;
+            steps.push({ source: '叠牌加成', amount: stacking.cardBonus, detail: `格内${slot.cards.length}张牌叠牌加成` });
+        }
+    }
+
     return { final: Math.max(0, ctx.value), steps };
 }
 
@@ -115,6 +127,13 @@ function breakdownSlotMultiplier(slot, state) {
     const ctx = makeSlotCalcCtx(state, slot.index, baseMul);
     const steps = [];
     steps.push({ source: '基础倍率', amount: baseMul, detail: `基础${slot.multiplier} + 回合${slot.roundMultiplierBonus || 0}` });
+
+    // 叠牌加成：倍率格点数
+    const stacking = getStackingBonus(slot.cards.length);
+    if (stacking.slotBonus > 0) {
+        ctx.value += stacking.slotBonus;
+        steps.push({ source: '叠牌加成', amount: stacking.slotBonus, detail: `格内${slot.cards.length}张牌叠牌加成` });
+    }
 
     let handlers = [];
     try {
@@ -202,9 +221,6 @@ function effectIdToName(id) {
  */
 export function getCardDamageBreakdown(card, slotIndex, state) {
     const slot = state.slots[slotIndex];
-    const strategy = state.currentStrategy;
-    const strategyBonuses = getStrategySlotBonuses(state);
-    const strategyBonus = strategyBonuses[slotIndex] || 0;
 
     // 阶段1：有效点数
     const eff = breakdownCardEffectiveValue(card, state);
@@ -215,23 +231,13 @@ export function getCardDamageBreakdown(card, slotIndex, state) {
     const slotMul = mulBreak.final;
 
     const cardOutput = fin.final * slotMul;
-    const strategyExtra = strategyBonus > 0 ? fin.final * strategyBonus : 0;
-    const totalOutput = cardOutput + strategyExtra;
+    const totalOutput = cardOutput;
 
     const steps = [
         ...eff.steps.map(s => ({ phase: 'effective', ...s })),
         ...fin.steps.map(s => ({ phase: 'final', ...s })),
         ...mulBreak.steps.map(s => ({ phase: 'slot', ...s })),
     ];
-
-    if (strategyBonus > 0) {
-        steps.push({
-            phase: 'strategy',
-            source: `计策【${strategy ? strategy.name : '未知'}】`,
-            amount: strategyBonus,
-            detail: `格${slotIndex + 1} 倍率+${strategyBonus}`
-        });
-    }
 
     // 额外乘数（如 runData.extraMultiplier）
     const extraMul = state.runDataRef?.extraMultiplier || 1;
@@ -248,12 +254,12 @@ export function getCardDamageBreakdown(card, slotIndex, state) {
         cardName: card.name,
         slotIndex,
         slotMultiplier: slotMul,
-        strategyBonus,
+        strategyBonus: 0,
         baseValue: getCardBaseValue(card),
         effectiveValue: eff.final,
         finalValue: fin.final,
         cardOutput,
-        strategyExtra,
+        strategyExtra: 0,
         totalOutput: Math.floor(totalOutput * extraMul),
         extraMultiplier: extraMul,
         steps

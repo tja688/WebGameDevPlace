@@ -14,7 +14,7 @@ import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT, HAND_LIMIT } from '../core/constants.js';
 import { calculateTotalBoardDamage, getCardFinalValue } from './board.js';
 import { createBattleSlots } from '../core/state.js';
-import { detectStrategy, getAllStrategies } from './strategy.js';
+import { getAllStrategies } from './strategy.js';
 
 export { logCombat, drawCards, addBattleLog } from '../core/battle-core.js';
 
@@ -147,10 +147,9 @@ export function initBattleFromRun(runData) {
     // 解析怪物技能
     parseMonsterSkills(state.monster);
 
-    // 骷髅骑士：第一回合随机指定上回合计策
+    // 骷髅骑士：第一回合随机指定上回合计策（计策系统已废弃，保留空逻辑）
     if (state.monster.prevStrategyPenalty > 0) {
-        const allStrats = getAllStrategies();
-        state.monster.prevStrategyId = pickRandom(allStrats.base).id;
+        state.monster.prevStrategyId = null;
     }
 
     // 盗贼：遗物偷取——随机禁用一件本场战斗内的遗物效果
@@ -299,70 +298,8 @@ export function endTurn(state) {
     if (typeof GameAudio !== 'undefined') GameAudio.playEndTurn();
     recordTimeline(state, 'turn_end_start', { turn: state.turn });
 
-    // 检测当前计策
-    state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
-
-    // 梦中的你——噩梦：玩家无法触发最常用计策的加成效果
-    if (state.currentStrategy && state.monster.disableFrequentStrategy && state.runDataRef) {
-        if (!state.runDataRef.strategyCounts) state.runDataRef.strategyCounts = {};
-        const sid = state.currentStrategy.id;
-        let maxCount = -1;
-        const frequentIds = [];
-        for (const [id, count] of Object.entries(state.runDataRef.strategyCounts)) {
-            if (count > maxCount) {
-                maxCount = count;
-                frequentIds.length = 0;
-                frequentIds.push(id);
-            } else if (count === maxCount) {
-                frequentIds.push(id);
-            }
-        }
-        // 基于本次尝试之前的历史判断，避免第一次使用任意计策就立刻被禁用
-        if (maxCount > 0 && frequentIds.includes(sid)) {
-            recordTimeline(state, 'strategy_disabled', {
-                strategyId: state.currentStrategy.id,
-                strategyName: state.currentStrategy.name,
-                reason: 'disable_frequent_strategy'
-            });
-            logCombat(state, `梦中的你——噩梦生效：最常用的计策【${state.currentStrategy.name}】被禁用了！`);
-            addBattleLog(state, 'monster_skill', { text: `噩梦：计策【${state.currentStrategy.name}】被禁用` });
-            state.currentStrategy = null;
-        }
-        state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
-    } else if (state.currentStrategy && state.runDataRef) {
-        // 正常记录计策使用次数
-        if (!state.runDataRef.strategyCounts) state.runDataRef.strategyCounts = {};
-        const sid = state.currentStrategy.id;
-        state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
-    }
-
-    if (state.currentStrategy) {
-        recordTimeline(state, 'strategy_detected', {
-            strategyId: state.currentStrategy.id,
-            strategyName: state.currentStrategy.name,
-            bonuses: [...state.currentStrategy.bonuses],
-            isOverdrive: !!state.currentStrategy.isOverdrive
-        });
-        logCombat(state, `触发计策：${state.currentStrategy.name}！`);
-        addBattleLog(state, 'strategy', {
-            strategyName: state.currentStrategy.name,
-            text: `触发计策【${state.currentStrategy.name}】`
-        });
-    }
-
-    // 稳重推进惩罚检测（怪物技能）
-    if (state.monster.steadyPenalty && state.currentStrategy && state.currentStrategy.id === 'steady_push') {
-        for (const slot of state.slots) {
-            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
-        }
-        recordTimeline(state, 'monster_strategy_penalty', {
-            monsterName: state.monster.name,
-            strategyId: state.currentStrategy.id,
-            amount: -1
-        });
-        logCombat(state, `${state.monster.name} 的技能生效：使用稳重推进，所有倍率格点数-1`);
-        addBattleLog(state, 'monster_skill', { text: `${state.monster.name}：稳重推进倍率格-1` });
-    }
+    // 计策系统已废弃，叠牌加成自动生效
+    state.currentStrategy = null;
 
     // 计算伤害（含计策加成）
     let totalDmg = calculateTotalBoardDamage(state);
@@ -535,8 +472,6 @@ export function endTurn(state) {
     }
     recordTimeline(state, 'turn_cleanup_done', { nextTurn: state.turn + 1 });
 
-    const prevStrategyId = state.currentStrategy ? state.currentStrategy.id : null;
-
     state.turn++;
     state.turnDamage = 0;
     state.currentStrategy = null;
@@ -569,9 +504,6 @@ export function endTurn(state) {
         drawCards(state, extraDraw);
         logCombat(state, `${firstTurnDrawNext.name} 生效，首回合额外抽 ${extraDraw} 张牌`);
     }
-
-    // 记录本回合计策，供下回合骷髅骑士武技判定
-    state.monster.prevStrategyId = prevStrategyId;
 
     // 触发回合开始效果
     FX.fire(Trigger.ON_TURN_START, new EffectContext({

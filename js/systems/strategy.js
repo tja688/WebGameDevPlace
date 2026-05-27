@@ -1,196 +1,75 @@
 /**
- * 生死烛局 - 计策系统（第二版）
+ * 生死烛局 - 阵型系统（叠牌加成版）
  *
- * 按 4.计策.md 实现
- * 9种基础计策 + 4种超限计策
+ * 规则：每个倍率格每叠2张触发一次加成，无限循环递增。
+ * - 第1次（2张）：倍率格+1
+ * - 第2次（4张）：倍率格+1，本格所有卡牌+10
+ * - 第3次（6张）：倍率格+2，本格所有卡牌+10
+ * - 第4次（8张）：倍率格+2，本格所有卡牌+20
+ * - 第5次（10张）：倍率格+3，本格所有卡牌+20
+ * - 依此类推...
+ *
+ * 奇数次叠2张 → 给倍率格加（轮次+1）//2 点数
+ * 偶数次叠2张 → 给本格所有卡牌加（轮次）//2 * 10 点数
  */
-
-// ===== 基础计策定义 =====
-const BASE_STRATEGIES = [
-    {
-        id: 'attempt_push',
-        name: '尝试推进',
-        req: [1, 1, 1],
-        total: 3,
-        bonuses: [1, 1, 1],
-        levelBonus: [1, 1, 1],
-        description: '所有倍率格点数+1'
-    },
-    {
-        id: 'left_assault',
-        name: '左侧强袭',
-        req: [3, 1, 1],
-        total: 5,
-        bonuses: [2, 0, 0],
-        levelBonus: [2, 0, 0],
-        description: '倍率格1点数+2'
-    },
-    {
-        id: 'right_assault',
-        name: '右侧强袭',
-        req: [1, 1, 3],
-        total: 5,
-        bonuses: [0, 0, 2],
-        levelBonus: [0, 0, 2],
-        description: '倍率格3点数+2'
-    },
-    {
-        id: 'mid_assault',
-        name: '中线强袭',
-        req: [1, 3, 1],
-        total: 5,
-        bonuses: [0, 2, 0],
-        levelBonus: [0, 2, 0],
-        description: '倍率格2点数+2'
-    },
-    {
-        id: 'steady_push',
-        name: '稳重推进',
-        req: [2, 2, 2],
-        total: 6,
-        bonuses: [3, 3, 3],
-        levelBonus: [2, 2, 2],
-        description: '所有倍率格点数+3'
-    },
-    {
-        id: 'plan_left',
-        name: '计划左攻',
-        req: [4, 2, 2],
-        total: 8,
-        bonuses: [4, 1, 1],
-        levelBonus: [3, 1, 1],
-        description: '所有倍率格点数+1，倍率格1额外+3'
-    },
-    {
-        id: 'plan_right',
-        name: '计划右攻',
-        req: [2, 2, 4],
-        total: 8,
-        bonuses: [1, 1, 4],
-        levelBonus: [1, 1, 3],
-        description: '所有倍率格点数+1，倍率格3额外+3'
-    },
-    {
-        id: 'plan_mid',
-        name: '计划中攻',
-        req: [2, 4, 2],
-        total: 8,
-        bonuses: [1, 4, 1],
-        levelBonus: [1, 3, 1],
-        description: '所有倍率格点数+1，倍率格2额外+3'
-    },
-    {
-        id: 'forceful_push',
-        name: '强硬推进',
-        req: [3, 3, 3],
-        total: 9,
-        bonuses: [5, 5, 5],
-        levelBonus: [3, 3, 3],
-        description: '所有倍率格点数+5'
-    }
-];
-
-// ===== 超限计策定义 =====
-const OVERDRIVE_STRATEGIES = [
-    {
-        id: 'overdrive_push',
-        name: '超限推进',
-        req: [4, 4, 4],
-        total: 12,
-        bonuses: [10, 10, 10],
-        levelBonus: [5, 5, 5],
-        condition: (counts) => counts[0] === counts[1] && counts[1] === counts[2],
-        description: '所有倍率格点数+10（需三格数量相等且总和≥12）'
-    },
-    {
-        id: 'overdrive_left',
-        name: '超限左攻',
-        req: [6, 3, 3],
-        total: 12,
-        bonuses: [12, 6, 6],
-        levelBonus: [5, 5, 5],
-        condition: (counts) => counts[0] >= 6 && counts[1] === 3 && counts[2] === 3,
-        description: '倍率格1点数+12，其余+6（需格1≥6，其余=3）'
-    },
-    {
-        id: 'overdrive_right',
-        name: '超限右攻',
-        req: [3, 3, 6],
-        total: 12,
-        bonuses: [6, 6, 12],
-        levelBonus: [5, 5, 5],
-        condition: (counts) => counts[2] >= 6 && counts[0] === 3 && counts[1] === 3,
-        description: '倍率格3点数+12，其余+6（需格3≥6，其余=3）'
-    },
-    {
-        id: 'overdrive_mid',
-        name: '超限中攻',
-        req: [3, 6, 3],
-        total: 12,
-        bonuses: [6, 12, 6],
-        levelBonus: [5, 5, 5],
-        condition: (counts) => counts[1] >= 6 && counts[0] === 3 && counts[2] === 3,
-        description: '倍率格2点数+12，其余+6（需格2≥6，其余=3）'
-    }
-];
 
 /**
- * 检测当前牌桌的计策
+ * 计算单个倍率格的叠牌加成
+ * @param {number} cardCount - 格内卡牌数量
+ * @returns {Object} { slotBonus, cardBonus }
+ *   slotBonus: 倍率格额外点数
+ *   cardBonus: 本格每张卡牌额外点数
+ */
+export function getStackingBonus(cardCount) {
+    // 每2张为一个周期
+    const cycles = Math.floor(cardCount / 2);
+    if (cycles <= 0) return { slotBonus: 0, cardBonus: 0 };
+
+    let slotBonus = 0;
+    let cardBonus = 0;
+
+    for (let c = 1; c <= cycles; c++) {
+        if (c % 2 === 1) {
+            // 奇数次：给倍率格加 (c+1)//2 点数
+            slotBonus += Math.floor((c + 1) / 2);
+        } else {
+            // 偶数次：给卡牌加 (c//2) * 10 点数
+            cardBonus += Math.floor(c / 2) * 10;
+        }
+    }
+
+    return { slotBonus, cardBonus };
+}
+
+/**
+ * 获取所有倍率格的叠牌加成汇总
  * @param {Array} slots - 三格牌桌
- * @param {Object} strategyLevels - 计策强化等级 {strategyId: level}
- * @returns {Object|null} { name, id, bonuses: [s0, s1, s2], isOverdrive }
+ * @returns {Array} 每个格子的 { slotBonus, cardBonus }
+ */
+export function getAllStackingBonuses(slots) {
+    return slots.map(slot => ({
+        index: slot.index,
+        ...getStackingBonus(slot.cards.length)
+    }));
+}
+
+/**
+ * 检测当前牌桌的计策（已废弃，保留空函数兼容旧代码）
  */
 export function detectStrategy(slots, strategyLevels = {}) {
-    const counts = slots.map(s => s.cards.length);
-    const total = counts.reduce((a, b) => a + b, 0);
-
-    if (total === 0) return null;
-
-    // 超限计策检测（总和≥12）
-    if (total >= 12) {
-        for (const strat of OVERDRIVE_STRATEGIES) {
-            if (strat.condition(counts)) {
-                const level = strategyLevels[strat.id] || 0;
-                const bonuses = strat.bonuses.map((b, i) => b + strat.levelBonus[i] * level);
-                return { name: strat.name, id: strat.id, bonuses, isOverdrive: true, level };
-            }
-        }
-    }
-
-    // 基础计策必须精确匹配。多打一张后如果没有新的计策，当前计策消失。
-    const sortedBase = [...BASE_STRATEGIES].sort((a, b) => b.total - a.total);
-    for (const strat of sortedBase) {
-        if (total !== strat.total) continue;
-        let match = true;
-        for (let i = 0; i < 3; i++) {
-            if (counts[i] !== strat.req[i]) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            const level = strategyLevels[strat.id] || 0;
-            const bonuses = strat.bonuses.map((b, i) => b + strat.levelBonus[i] * level);
-            return { name: strat.name, id: strat.id, bonuses, isOverdrive: false, level };
-        }
-    }
-
     return null;
 }
 
 /**
- * 获取计策列表（用于显示所有可能的计策）
+ * 获取计策列表（已废弃，返回空）
  */
 export function getAllStrategies() {
-    return {
-        base: BASE_STRATEGIES,
-        overdrive: OVERDRIVE_STRATEGIES
-    };
+    return { base: [], overdrive: [] };
 }
 
 /**
- * 获取计策基础名称（用于强化选择）
+ * 获取计策基础名称（已废弃，返回空）
  */
 export function getStrategyBaseNames() {
-    return BASE_STRATEGIES.map(s => ({ id: s.id, name: s.name }));
+    return [];
 }

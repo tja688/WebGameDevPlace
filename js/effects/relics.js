@@ -8,7 +8,7 @@
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { recordTimeline, drawCards } from '../core/battle-core.js';
-import { detectStrategy } from '../systems/strategy.js';
+
 
 // ===== 辅助函数：获取玩家拥有的所有遗物 =====
 function getPlayerRelics(state) {
@@ -148,16 +148,12 @@ registerEffect({
     }
 });
 
-// ===== 7. 无脑战术：未触发计策时所有倍率格点数+2 =====
+// ===== 7. 无脑战术：未触发计策时所有倍率格点数+2（计策系统已废弃，改为常驻+2）=====
 registerEffect({
     id: 'relic_no_strategy_slot_bonus',
     triggers: Trigger.ON_SLOT_CALC,
     priority: Priority.SLOT_MODIFIER + 1,
-    condition: (ctx) => {
-        if (!hasRelic(ctx.state, 'no_strategy_slot_bonus')) return false;
-        const strategy = detectStrategy(ctx.state.slots, ctx.state.runDataRef?.strategyLevels);
-        return strategy === null;
-    },
+    condition: (ctx) => hasRelic(ctx.state, 'no_strategy_slot_bonus'),
     execute: (ctx) => {
         const relic = getRelic(ctx.state, 'no_strategy_slot_bonus');
         const bonus = relic.effect.bonus || 2;

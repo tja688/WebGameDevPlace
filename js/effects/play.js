@@ -8,7 +8,7 @@ import { registerEffect, calculateGrowAmount } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { drawCards, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
-import { detectStrategy } from '../systems/strategy.js';
+
 import { getCardFinalValue } from '../systems/board.js';
 
 // ===== 1. 格子加成（奉献等） =====
@@ -474,27 +474,24 @@ registerEffect({
     }
 });
 
-// 灵活调度：如果触发计策，所在倍率格点数+1
+// 灵活调度：所在倍率格点数+1（计策系统已废弃，改为常驻效果）
 registerEffect({
     id: 'flexible_dispatch_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SLOT_MODIFIER,
     condition: (ctx) => ctx.card.defId === 'flexible_dispatch',
     execute: (ctx) => {
-        const strategy = detectStrategy(ctx.state.slots, ctx.state.runDataRef?.strategyLevels);
-        if (strategy) {
-            const slot = ctx.state.slots[ctx.slotIndex];
-            slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
-            recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
-                sourceUuid: ctx.card.uuid,
-                sourceDefId: ctx.card.defId,
-                slotIndex: ctx.slotIndex,
-                amount: 1,
-                reason: 'flexible_dispatch'
-            });
-            ctx.log(`${ctx.card.name} 灵活调度触发，第${ctx.slotIndex + 1}格倍率+1`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 灵活调度：第${ctx.slotIndex + 1}格倍率+1` });
-        }
+        const slot = ctx.state.slots[ctx.slotIndex];
+        slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
+        recordTimeline(ctx.state, 'slot_round_multiplier_bonus', {
+            sourceUuid: ctx.card.uuid,
+            sourceDefId: ctx.card.defId,
+            slotIndex: ctx.slotIndex,
+            amount: 1,
+            reason: 'flexible_dispatch'
+        });
+        ctx.log(`${ctx.card.name} 灵活调度触发，第${ctx.slotIndex + 1}格倍率+1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 灵活调度：第${ctx.slotIndex + 1}格倍率+1` });
     }
 });
 

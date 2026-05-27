@@ -16,7 +16,7 @@ import {
     isCardDraggableFromSlot, getSlotDragPreview
 } from '../systems/board.js';
 import { getCardDamageBreakdown } from '../systems/damage-breakdown.js';
-import { detectStrategy, getAllStrategies } from '../systems/strategy.js';
+import { detectStrategy, getAllStrategies, getStackingBonus } from '../systems/strategy.js';
 import { CARD_DEFS, MONSTER_COLOR_THEMES } from '../data/index.js';
 import { FX } from './fx.js';
 
@@ -686,7 +686,7 @@ function drawRelicsBar(renderer, ctx, state) {
 }
 
 // ============================================================
-// 计策固定面板
+// 阵型叠牌加成面板
 // ============================================================
 
 function drawStrategyPanel(renderer, ctx, state) {
@@ -698,75 +698,86 @@ function drawStrategyPanel(renderer, ctx, state) {
     const h = 355;
     const counts = state.slots.map(s => s.cards.length);
     const totalCards = counts.reduce((sum, n) => sum + n, 0);
-    const current = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
-    state.currentStrategy = current;
 
     drawParchment(ctx, x, y, w, h, { alpha: 0.78, radius: 8 });
-    ctx.strokeStyle = current ? (current.isOverdrive ? '#ff6666' : '#d6a94d') : 'rgba(184,134,11,0.55)';
-    ctx.lineWidth = current ? 2 : 1;
+    ctx.strokeStyle = 'rgba(184,134,11,0.55)';
+    ctx.lineWidth = 1;
     roundRect(ctx, x, y, w, h, 8);
     ctx.stroke();
 
     ctx.fillStyle = '#f0d29a';
     ctx.font = 'bold 16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('计策阵型', x + 14, y + 26);
+    ctx.fillText('叠牌加成', x + 14, y + 26);
 
     ctx.fillStyle = '#9f8b72';
     ctx.font = '12px Microsoft YaHei';
     ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}`, x + 14, y + 48);
 
-    if (current) {
-        ctx.fillStyle = current.isOverdrive ? 'rgba(120,30,30,0.55)' : 'rgba(80,60,25,0.55)';
-        roundRect(ctx, x + 10, y + 58, w - 20, 30, 6);
-        ctx.fill();
-
-        ctx.fillStyle = current.isOverdrive ? '#ff9999' : '#ffd76a';
-        ctx.font = 'bold 14px Microsoft YaHei';
-        const levelText = current.level > 0 ? ` Lv.${current.level}` : '';
-        ctx.fillText(current.name + levelText, x + 18, y + 78);
-    } else {
-        ctx.fillStyle = '#8f8170';
-        ctx.font = '12px Microsoft YaHei';
-        ctx.fillText(totalCards > 0 ? '当前没有命中阵型' : '放牌后会实时提示阵型', x + 14, y + 80);
-    }
-
+    // 规则说明
     ctx.fillStyle = '#8f8170';
     ctx.font = '11px Microsoft YaHei';
-    ctx.fillText('右侧数字为倍率格打出卡牌数量', x + 14, y + 108);
+    ctx.fillText('每2张触发一次加成', x + 14, y + 68);
 
-    const all = getAllStrategies();
-    const rows = [...all.base, ...all.overdrive];
-    let rowY = y + 125;
-    const rowH = 16;
+    // 各格当前加成状态
+    let rowY = y + 88;
+    const rowH = 20;
     ctx.font = '12px Microsoft YaHei';
 
     state.data = state.data || {};
     state.data.strategyRowRects = [];
 
-    for (const strat of rows) {
-        const isCurrent = current && current.id === strat.id;
-        if (isCurrent) {
-            ctx.fillStyle = current.isOverdrive ? 'rgba(255,80,80,0.22)' : 'rgba(255,215,0,0.18)';
+    for (let i = 0; i < state.slots.length; i++) {
+        const slot = state.slots[i];
+        const bonus = getStackingBonus(slot.cards.length);
+        const hasBonus = bonus.slotBonus > 0 || bonus.cardBonus > 0;
+
+        if (hasBonus) {
+            ctx.fillStyle = 'rgba(255,215,0,0.12)';
             roundRect(ctx, x + 8, rowY - 11, w - 16, rowH, 3);
             ctx.fill();
         }
 
-        const count = state.runDataRef?.strategyCounts?.[strat.id] || 0;
-        const nameText = count > 0 ? `${strat.name} (${count})` : strat.name;
-        ctx.fillStyle = isCurrent ? '#ffe08a' : (strat.condition ? '#c68686' : '#bca98b');
+        ctx.fillStyle = hasBonus ? '#ffe08a' : '#bca98b';
         ctx.textAlign = 'left';
-        ctx.fillText(nameText, x + 14, rowY);
-        ctx.textAlign = 'right';
-        ctx.fillText(strat.req.join('-'), x + w - 14, rowY);
+        const slotLabel = `格${i + 1} (${slot.cards.length}张)`;
+        ctx.fillText(slotLabel, x + 14, rowY);
 
-        // 记录该区域用于 hover 检测
-        state.data.strategyRowRects.push({
-            x: x + 8, y: rowY - 11, w: w - 16, h: rowH,
-            strat
-        });
+        ctx.textAlign = 'right';
+        const parts = [];
+        if (bonus.slotBonus > 0) parts.push(`格+${bonus.slotBonus}`);
+        if (bonus.cardBonus > 0) parts.push(`卡+${bonus.cardBonus}`);
+        const bonusText = parts.length > 0 ? parts.join(', ') : '-';
+        ctx.fillText(bonusText, x + w - 14, rowY);
 
         rowY += rowH;
+    }
+
+    // 规则速查表
+    rowY += 6;
+    ctx.fillStyle = 'rgba(80,60,25,0.35)';
+    roundRect(ctx, x + 8, rowY - 4, w - 16, 120, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#9f8b72';
+    ctx.font = 'bold 11px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText('叠牌规则速查:', x + 14, rowY + 10);
+
+    ctx.fillStyle = '#bca98b';
+    ctx.font = '10px Microsoft YaHei';
+    const rules = [
+        '2张: 倍率格+1',
+        '4张: 倍率格+1, 卡牌+10',
+        '6张: 倍率格+2, 卡牌+10',
+        '8张: 倍率格+2, 卡牌+20',
+        '10张: 倍率格+3, 卡牌+20',
+        '12张: 倍率格+3, 卡牌+30...'
+    ];
+    let ruleY = rowY + 26;
+    for (const rule of rules) {
+        ctx.fillText(rule, x + 14, ruleY);
+        ruleY += 16;
     }
 
     ctx.textAlign = 'left';
@@ -1124,7 +1135,7 @@ function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex, slot
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
 
-    // 计算该卡在当前状态下的最终总伤害（含计策加成、全局倍率）
+    // 计算该卡在当前状态下的最终总伤害（含叠牌加成、全局倍率）
     let totalOutput = 0;
     try {
         const bd = getCardDamageBreakdown(card, slotIndex, state);
@@ -1133,11 +1144,6 @@ function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex, slot
         // fallback: 旧算法
         const finalVal = getCardFinalValue(card, state);
         totalOutput = finalVal * multiplier;
-        const strategyBonuses = getStrategySlotBonuses(state);
-        const strategyBonus = strategyBonuses[slotIndex] || 0;
-        if (strategyBonus > 0) {
-            totalOutput += finalVal * strategyBonus;
-        }
         const extraMul = state.runDataRef?.extraMultiplier || 1;
         totalOutput = Math.floor(totalOutput * extraMul);
     }

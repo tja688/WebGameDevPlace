@@ -11,7 +11,7 @@
 import { logCombat, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger } from '../core/constants.js';
-import { detectStrategy } from './strategy.js';
+import { detectStrategy, getStackingBonus } from './strategy.js';
 import { createCardInstance } from '../data/index.js';
 
 // ===== 工具函数 =====
@@ -54,11 +54,25 @@ export function getCardFinalValue(card, state) {
         card, value: val
     });
     FX.fire(Trigger.ON_CALC_FINAL, ctx);
+
+    // 叠牌加成：所在格卡牌点数
+    const slotIndex = ctx.getCardSlotIndex ? ctx.getCardSlotIndex(card) : -1;
+    if (slotIndex >= 0) {
+        const slot = state.slots[slotIndex];
+        const stacking = getStackingBonus(slot.cards.length);
+        ctx.value += stacking.cardBonus;
+    }
+
     return ctx.value;
 }
 
 export function getSlotEffectiveMultiplier(slot, state) {
     let mul = slot.multiplier + (slot.roundMultiplierBonus || 0);
+
+    // 叠牌加成：倍率格点数
+    const stacking = getStackingBonus(slot.cards.length);
+    mul += stacking.slotBonus;
+
     const ctx = new EffectContext({
         state, trigger: Trigger.ON_SLOT_CALC,
         slotIndex: slot.index, value: mul
@@ -67,13 +81,11 @@ export function getSlotEffectiveMultiplier(slot, state) {
     return ctx.value;
 }
 
-// ===== 计策加成计算 =====
+// ===== 计策加成计算（已废弃，计策系统改为叠牌加成）=====
 
 export function getStrategySlotBonuses(state) {
-    const strategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
-    state.currentStrategy = strategy;
-    if (!strategy) return [0, 0, 0];
-    return strategy.bonuses;
+    state.currentStrategy = null;
+    return [0, 0, 0];
 }
 
 // ===== 伤害计算 =====
@@ -85,12 +97,9 @@ export function calculateCardOutput(card, slot, state) {
 }
 
 export function calculateTotalBoardDamage(state) {
-    const strategyBonuses = getStrategySlotBonuses(state);
     let total = 0;
     for (const slot of state.slots) {
         let slotMul = getSlotEffectiveMultiplier(slot, state);
-        // 应用计策加成
-        slotMul += strategyBonuses[slot.index] || 0;
         let slotDamage = 0;
         for (const card of slot.cards) {
             slotDamage += getCardFinalValue(card, state);
