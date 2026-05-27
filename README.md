@@ -170,14 +170,6 @@ WebGameDevPlace/
 
 ---
 
-## 当前被设计的玩法事实
-
-见C:\Users\jinji\Desktop\文档\MyNote\游戏开发项目\生死烛局\第二版设计
-
-注意，此为设计事实，而非实现事实，此路径为唯一事实权威文档，实现和设计冲突时应该以此路径文档为准
-
----
-
 ## Playground 与 AI 后门
 
 Playground 从主界面按钮进入，包含两个用途：

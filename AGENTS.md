@@ -10,7 +10,7 @@
 
 ## 提交规范
 
-维护完成后，必须执行**全量提交**到 Git：
+维护完成后，必须执行**全量提交**到 Git，哪怕有非自己产出的变更，也必须一并提交：
 ```bash
 git add .
 git commit -m "<描述变更的提交信息>"
@@ -39,81 +39,22 @@ git commit -m "<描述变更的提交信息>"
 
 ### 原则1：数据置顶（Data on Top）
 
-所有卡牌、敌人、效果、Buff 的定义，必须是**顶层纯对象常量**，不能埋在函数或 DOM 操作里。
-
-```javascript
-// ✅ 正确：AI 一眼能看懂，未来直接翻译成 C# ScriptableObject 或 JSON
-export const CARDS = {
-  fireball: {
-    id: 'fireball',
-    name: '火球术',
-    baseValue: 10,
-    keywords: ['grow']
-  }
-};
-
-// ❌ 错误：数据逻辑耦合在 UI 事件里，AI 找不到
-function onCardClick(cardId) {
-  if (cardId === 'fireball') {
-    enemy.hp -= 10;  // 数据埋在函数里
-  }
-}
-```
-
 ### 原则2：效果用"配置+工厂"，不用类继承
-
-**禁止** `class DamageEffect extends CardEffectBase` 这种多态架构。效果必须是纯对象配置 + switch/工厂函数。
-
-```javascript
-// ✅ 正确：简单、直接、AI 能秒懂
-registerEffect({
-  id: 'damage',
-  triggers: 'on_play',
-  priority: 100,
-  condition: (ctx) => ctx.card.keywords.includes('damage'),
-  execute: (ctx) => { ctx.target.hp -= ctx.amount; }
-});
-
-// ❌ 错误：过度抽象，AI 迁移时要理解继承链
-class DamageEffect extends EffectBase {
-  execute(ctx) { ... }
-}
-```
 
 ### 原则3：状态保持"JSON 可打印"
 
-战斗状态必须是**纯对象/数组**，禁止用 `Map`、`Set`、`class` 实例。方法抽成纯函数，接收对象作为参数。
+具体案例、写法、已经项目整体架构等信息可以从 README.md 进行进一步了解。
 
-```javascript
-// ✅ 正确：console.log(state) 就能看全貌
-let state = {
-  turn: 1,
-  player: { hp: 50, maxHp: 60, buffs: [] },
-  hand: [{ id: 'fireball', baseValue: 10 }]
-};
+---
 
-// ❌ 错误：包含 class 实例、Map、闭包，AI 无法迁移
-class CombatState {
-  constructor() {
-    this.player = new PlayerEntity();
-    this.enemies = new Map();
-  }
-}
-```
+## 当前被设计的玩法事实
 
-### 禁止清单
+见C:\Users\jinji\Desktop\文档\MyNote\游戏开发项目\卡牌地下城\卡牌地下城_正式设计
 
-| 禁止项 | 原因 |
-|-------|------|
-| ❌ 拆 package / 拆 repo | 增加构建复杂度，无此需求 |
-| ❌ 引入 TypeScript | 增加编译步骤，vibe coding 变慢 |
-| ❌ 引入 Luban / Excel 配表 | 策划不用 Excel，Obsidian 就是源数据 |
-| ❌ 引入 JSON Schema 校验 | 增加维护负担，AI 生成代码时自然会校验 |
-| ❌ 写单元测试框架 | 先保证能玩，测试靠 playtest |
-| ❌ 引入 Redux / XState 等状态管理库 | 回合制卡牌用 async/await 足够 |
-| ❌ 搞 Command 模式 / 事件溯源 | 过度抽象，增加 AI 理解成本 |
-| ❌ 把效果系统搞成类继承 + 多态 | switch 工厂对 AI 更友好 |
+注意，此为设计事实，而非实现事实，此路径为唯一事实权威文档，任何实现和设计冲突时应该以此路径下的设计事实文档为准
 
-> **核心洞察**：AI 迁移 Unity 时，最需要的不是"完美的跨平台架构"，而是**清晰、集中、无歧义的代码**。
+如果开发者在提示词中给出的要求你认为实现起来跟设计事实有严重冲突，需要立刻停下进行提问
+
+如果开发过程中，部分设计你觉得模糊不清，不能确定，或者有缺失，可以在任务结束后进行说明
 
 ---
