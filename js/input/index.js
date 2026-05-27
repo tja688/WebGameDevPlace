@@ -2341,27 +2341,33 @@ export const Input = {
     },
 
     onWheel(e) {
-        if (Tutorial.isActive()) {
-            e.preventDefault();
+        e.preventDefault();
+        const state = this.state;
+        const pos = this.getEventCanvasPos(e);
+
+        // 对战记录面板滚轮
+        if (pos && state.data && state.data.battleLogRect && this.hitTest(pos, state.data.battleLogRect)) {
+            const delta = e.deltaY > 0 ? 2 : -2;
+            state.data.battleLogScrollY = (state.data.battleLogScrollY || 0) + delta;
+            if (state.data.battleLogScrollY < 0) state.data.battleLogScrollY = 0;
             return;
         }
 
-        const state = this.state;
-        if (state.screen === 'card_select') {
-            e.preventDefault();
-            const scrollY = state.data.cardSelectScrollY || 0;
-            const maxScroll = state.data.cardSelectMaxScroll || 0;
-            let newScroll = scrollY + e.deltaY;
-            newScroll = Math.max(0, Math.min(newScroll, maxScroll));
-            state.data.cardSelectScrollY = newScroll;
-        }
         if (state.data && state.data.viewingDeck) {
-            e.preventDefault();
-            const scrollY = state.data.deckViewScrollY || 0;
-            const maxScroll = state.data.deckViewMaxScroll || 0;
-            let newScroll = scrollY + e.deltaY;
-            newScroll = Math.max(0, Math.min(newScroll, maxScroll));
-            state.data.deckViewScrollY = newScroll;
+            const delta = e.deltaY > 0 ? 60 : -60;
+            state.data.deckViewScrollY = (state.data.deckViewScrollY || 0) + delta;
+            // 限制滚动范围
+            const maxScroll = Math.max(0, state.data.deckViewMaxScroll || 0);
+            if (state.data.deckViewScrollY < 0) state.data.deckViewScrollY = 0;
+            if (state.data.deckViewScrollY > maxScroll) state.data.deckViewScrollY = maxScroll;
+            return;
+        }
+        if (state.screen === 'card_select' && state.data && state.data.optionRects) {
+            const delta = e.deltaY > 0 ? 40 : -40;
+            state.data.cardSelectScrollY = (state.data.cardSelectScrollY || 0) + delta;
+            const maxScroll = Math.max(0, state.data.cardSelectMaxScroll || 0);
+            if (state.data.cardSelectScrollY < 0) state.data.cardSelectScrollY = 0;
+            if (state.data.cardSelectScrollY > maxScroll) state.data.cardSelectScrollY = maxScroll;
         }
     },
 

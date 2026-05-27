@@ -6,7 +6,7 @@
 
 import { registerEffect, calculateGrowAmount } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
-import { drawCards, recordTimeline } from '../core/battle-core.js';
+import { drawCards, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
 import { detectStrategy } from '../systems/strategy.js';
 import { getCardFinalValue } from '../systems/board.js';
@@ -106,6 +106,7 @@ registerEffect({
         const count = ctx.card.chainCount || 1;
         drawCards(ctx.state, count);
         ctx.log(`${ctx.card.name} 连携效果触发，抽${count}张牌`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 连携：抽${count}张牌` });
     }
 });
 
@@ -135,6 +136,7 @@ registerEffect({
             reason: 'twin'
         });
         ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌（已移除双生）`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 双生：复制加入手牌` });
     }
 });
 
@@ -156,6 +158,7 @@ registerEffect({
             reason: 'spread'
         });
         ctx.log(`${ctx.card.name} 蔓延效果触发，加入一张扩散牌`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 蔓延：加入扩散牌` });
     }
 });
 
@@ -175,6 +178,7 @@ registerEffect({
             slotIndex: ctx.slotIndex
         });
         ctx.log(`人面草的香甜诱饵生效：${ctx.card.name} 成长了！永久点数+1`);
+        addBattleLog(ctx.state, 'monster_skill', { text: `香甜诱饵：${ctx.card.name} 永久+1` });
     }
 });
 
@@ -208,6 +212,7 @@ registerEffect({
             slotIndex: ctx.slotIndex
         });
         ctx.log(`${ctx.card.name} 成长了！永久点数+${amount}`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 成长：永久+${amount}` });
         if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
         if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
         ctx.state.pendingGrowthEffects.push({ slotIndex: ctx.slotIndex });
@@ -256,8 +261,10 @@ registerEffect({
                 ctx.state.runDataRef.slotUpgrades[ctx.slotIndex] = (ctx.state.runDataRef.slotUpgrades[ctx.slotIndex] || 0) + (relic.effect.slotBonus || 1);
                 ctx.state.slots[ctx.slotIndex].multiplier += (relic.effect.slotBonus || 1);
                 ctx.log(`${relic.name} 累计成长达标，第${ctx.slotIndex + 1}格倍率+${relic.effect.slotBonus || 1}`);
+                addBattleLog(ctx.state, 'relic', { relicName: relic.name, text: `第${ctx.slotIndex + 1}格倍率+${relic.effect.slotBonus || 1}` });
             }
             ctx.log(`${relic.name} 生效：${ctx.card.name} 永久+1`);
+            addBattleLog(ctx.state, 'relic', { relicName: relic.name, text: `${ctx.card.name} 永久+1` });
         }
     }
 });
@@ -281,6 +288,7 @@ registerEffect({
                 reason: 'messenger'
             });
             ctx.log(`${ctx.card.name} 传令效果触发，从牌组抽来 ${card.name}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 传令：抽来${card.name}` });
         } else {
             ctx.log(`${ctx.card.name} 传令效果触发，但牌组已空`);
         }
@@ -306,6 +314,7 @@ registerEffect({
                     reason: 'luxury_gear'
                 });
                 ctx.log(`${ctx.card.name} 提升了第${s.index + 1}格倍率！`);
+                addBattleLog(ctx.state, 'other', { text: `${ctx.card.name}：第${s.index + 1}格倍率+1` });
             }
         }
     }
@@ -331,6 +340,7 @@ registerEffect({
                 reason: 'cogito_ergo_sum'
             });
             ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name}：第${ctx.slotIndex + 1}格倍率翻倍` });
         } else {
             ctx.log(`${ctx.card.name} 效果未叠加（本回合同格已翻倍过）`);
         }
@@ -403,6 +413,7 @@ registerEffect({
                 ctx.card._tempRemainAdded = true;
             }
             ctx.log(`${ctx.card.name} 先手优势触发！点数+5并获得留场`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 先手优势：+5并获得留场` });
         }
     }
 });
@@ -417,6 +428,7 @@ registerEffect({
         if (ctx.state.hand.length === 0) {
             ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 10;
             ctx.log(`${ctx.card.name} 殿后触发！手牌为空，点数+10`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 殿后：+10` });
         }
     }
 });
@@ -442,6 +454,7 @@ registerEffect({
                 reason: 'icing_on_cake'
             });
             ctx.log(`锦上添花触发，${card.name} 从牌组移到手牌`);
+            addBattleLog(ctx.state, 'other', { text: `锦上添花：${card.name}移入手牌` });
         }
     }
 });
@@ -456,6 +469,7 @@ registerEffect({
         if (ctx.state.runDataRef) {
             ctx.state.runDataRef.gold = (ctx.state.runDataRef.gold || 0) + 1;
             ctx.log(`${ctx.card.name} 顺手的事触发，获得1金币`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 顺手的事：+1金币` });
         }
     }
 });
@@ -479,6 +493,7 @@ registerEffect({
                 reason: 'flexible_dispatch'
             });
             ctx.log(`${ctx.card.name} 灵活调度触发，第${ctx.slotIndex + 1}格倍率+1`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 灵活调度：第${ctx.slotIndex + 1}格倍率+1` });
         }
     }
 });
@@ -495,6 +510,7 @@ registerEffect({
         if (totalBase > 100) {
             drawCards(ctx.state, 1);
             ctx.log(`${ctx.card.name} 丑陋炫耀触发，倍率格基础点数${totalBase}超过100，抽一张牌`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 丑陋炫耀：抽一张牌` });
         }
     }
 });
@@ -516,6 +532,7 @@ registerEffect({
             reason: 'no_wisdom'
         });
         ctx.log(`${ctx.card.name} 何须智慧触发，第${ctx.slotIndex + 1}格倍率-1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 何须智慧：第${ctx.slotIndex + 1}格倍率-1` });
     }
 });
 
@@ -531,6 +548,7 @@ registerEffect({
             const card = ctx.state.hand.splice(idx, 1)[0];
             ctx.state.deck.push(card);
             ctx.log(`${ctx.card.name} 合力触发，将 ${card.name} 放回牌组`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 合力：${card.name}放回牌组` });
         }
     }
 });
@@ -545,6 +563,7 @@ registerEffect({
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.apprenticeForgeBonus = (slot.apprenticeForgeBonus || 0) + 5;
         ctx.log(`${ctx.card.name} 学徒铸造激活！下一张同格卡牌本场战斗永久+5`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 学徒铸造：下一张同格+5` });
     }
 });
 
@@ -567,6 +586,7 @@ registerEffect({
                 reason: 'body_wisdom'
             });
             ctx.log(`${ctx.card.name} 肉体智慧触发，第${ctx.slotIndex + 1}格倍率+1`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 肉体智慧：第${ctx.slotIndex + 1}格倍率+1` });
         }
     }
 });
@@ -580,6 +600,7 @@ registerEffect({
     execute: (ctx) => {
         ctx.card.battleBonus = (ctx.card.battleBonus || 0) - 10;
         ctx.log(`${ctx.card.name} 预借触发，本次战斗永久点数-10`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 预借：永久-10` });
     }
 });
 
@@ -593,6 +614,7 @@ registerEffect({
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.masterForgeBonus = (slot.masterForgeBonus || 0) + 10;
         ctx.log(`${ctx.card.name} 大师铸造激活！下一张同格卡牌本场战斗永久+10`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 大师铸造：下一张同格+10` });
     }
 });
 
@@ -605,6 +627,7 @@ registerEffect({
     execute: (ctx) => {
         ctx.card.battleBonus = (ctx.card.battleBonus || 0) - 5;
         ctx.log(`${ctx.card.name} 熟练预借触发，本次战斗永久点数-5`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 熟练预借：永久-5` });
     }
 });
 
@@ -627,6 +650,7 @@ registerEffect({
         }
         if (count > 0) {
             ctx.log(`${ctx.card.name} 训练集合触发，从牌组打出${count}张同名卡牌到第${ctx.slotIndex + 1}格`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 训练集合：打出${count}张到格${ctx.slotIndex + 1}` });
         }
     }
 });
@@ -641,6 +665,7 @@ registerEffect({
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.supportTrainingActive = true;
         ctx.log(`${ctx.card.name} 辅助训练激活！下一张同格卡牌获得成长1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 辅助训练：下一张同格获得成长1` });
     }
 });
 
@@ -653,6 +678,7 @@ registerEffect({
     execute: (ctx) => {
         ctx.card.growAmount = (ctx.card.growAmount || 1) + 1;
         ctx.log(`${ctx.card.name} 30小时训练触发，成长数+1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 30小时训练：成长数+1` });
     }
 });
 
@@ -676,6 +702,7 @@ registerEffect({
                 reason: 'steroid_training'
             });
             ctx.log(`${ctx.card.name} 激素训练触发，当前点数${val}，第${ctx.slotIndex + 1}格倍率+${bonus}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 激素训练：第${ctx.slotIndex + 1}格倍率+${bonus}` });
         }
     }
 });
@@ -702,6 +729,7 @@ registerEffect({
                 reason: 'regular_training'
             });
             ctx.log(`${ctx.card.name} 规律训练触发，从牌组抽来 ${card.name}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 规律训练：抽来${card.name}` });
         }
     }
 });

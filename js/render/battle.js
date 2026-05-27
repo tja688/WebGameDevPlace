@@ -38,6 +38,7 @@ export function drawBattle(renderer, ctx, state) {
     drawMonsterFlash(renderer, ctx, state);
     drawPreview(renderer, ctx, state);
     drawSlotDragPreview(renderer, ctx, state);
+    drawBattleLog(renderer, ctx, state);
 }
 
 // ============================================================
@@ -1842,4 +1843,124 @@ function hexToRgb(hex) {
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
     } : { r: 255, g: 255, b: 255 };
+}
+
+// ============================================================
+// 对战记录面板
+// ============================================================
+
+function drawBattleLog(renderer, ctx, state) {
+    // 只在正式冒险战斗中显示，playground 不显示
+    if (state.screen !== 'battle' || state._playgroundBattle || !state.runDataRef) return;
+    if (!state.battleLog || state.battleLog.length === 0) return;
+
+    const data = state.data || (state.data = {});
+    const panelX = renderer.width - 250;
+    const panelY = 260;
+    const panelW = 240;
+    const panelH = 355;
+    const lineHeight = 18;
+    const maxVisibleLines = Math.floor((panelH - 50) / lineHeight);
+
+    // 初始化滚动位置
+    if (data.battleLogScrollY === undefined) data.battleLogScrollY = 0;
+
+    // 计算总内容高度
+    const totalLines = state.battleLog.length;
+    const maxScroll = Math.max(0, totalLines - maxVisibleLines);
+    if (data.battleLogScrollY > maxScroll) data.battleLogScrollY = maxScroll;
+    if (data.battleLogScrollY < 0) data.battleLogScrollY = 0;
+
+    // 面板背景
+    drawParchment(ctx, panelX, panelY, panelW, panelH, { alpha: 0.78, radius: 8 });
+    ctx.strokeStyle = 'rgba(184,134,11,0.55)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, panelX, panelY, panelW, panelH, 8);
+    ctx.stroke();
+
+    // 标题
+    ctx.fillStyle = '#f0d29a';
+    ctx.font = 'bold 14px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText('对战记录', panelX + 10, panelY + 20);
+
+    // 滚动指示
+    if (maxScroll > 0) {
+        ctx.fillStyle = '#9f8b72';
+        ctx.font = '10px Microsoft YaHei';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${data.battleLogScrollY + 1}/${maxScroll + 1}`, panelX + panelW - 10, panelY + 20);
+    }
+
+    // 裁剪区域
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, panelX + 2, panelY + 28, panelW - 4, panelH - 32, 6);
+    ctx.clip();
+
+    const startIdx = data.battleLogScrollY;
+    const endIdx = Math.min(totalLines, startIdx + maxVisibleLines);
+    let lineY = panelY + 44;
+
+    for (let i = startIdx; i < endIdx; i++) {
+        const entry = state.battleLog[i];
+        const isHeartLoss = entry.type === 'heart_loss';
+        const isDamage = entry.type === 'damage';
+        const isStrategy = entry.type === 'strategy';
+
+        if (isHeartLoss) {
+            // 扣血事件：显眼的分隔符样式
+            const sepY = lineY - 6;
+            ctx.fillStyle = 'rgba(180,40,40,0.35)';
+            roundRect(ctx, panelX + 6, sepY, panelW - 12, lineHeight + 4, 4);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,80,80,0.6)';
+            ctx.lineWidth = 1;
+            roundRect(ctx, panelX + 6, sepY, panelW - 12, lineHeight + 4, 4);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ff6666';
+            ctx.font = 'bold 12px Microsoft YaHei';
+            ctx.textAlign = 'center';
+            ctx.fillText(`--- ${entry.text || entry.text} ---`, panelX + panelW / 2, lineY + 4);
+            ctx.textAlign = 'left';
+        } else {
+            // 普通事件
+            let color = '#c8b89a';
+            if (isDamage) color = '#ff8888';
+            else if (isStrategy) color = '#ffd76a';
+            else if (entry.type === 'relic') color = '#88ccff';
+            else if (entry.type === 'monster_skill') color = '#ff9999';
+            else if (entry.type === 'play_card') color = '#aaddaa';
+            else if (entry.type === 'heal') color = '#66ff66';
+
+            ctx.fillStyle = color;
+            ctx.font = '11px Microsoft YaHei';
+            ctx.textAlign = 'left';
+
+            const turnLabel = entry.turn ? `[T${entry.turn}] ` : '';
+            const text = entry.text || '';
+            const fullText = turnLabel + text;
+
+            // 截断过长的文本
+            const maxTextW = panelW - 20;
+            let displayText = fullText;
+            while (ctx.measureText(displayText).width > maxTextW && displayText.length > 3) {
+                displayText = displayText.slice(0, -2) + '…';
+            }
+
+            ctx.fillText(displayText, panelX + 10, lineY);
+        }
+
+        lineY += lineHeight;
+    }
+
+    ctx.restore();
+
+    // 记录面板区域用于滚轮检测
+    data.battleLogRect = { x: panelX, y: panelY, w: panelW, h: panelH };
+}
+
+export function getBattleLogRect(renderer) {
+    return { x: renderer.width - 250, y: 260, w: 240, h: 355 };
 }

@@ -325,6 +325,7 @@ export function endTurn(state) {
                 reason: 'disable_frequent_strategy'
             });
             logCombat(state, `梦中的你——噩梦生效：最常用的计策【${state.currentStrategy.name}】被禁用了！`);
+            addBattleLog(state, 'monster_skill', { text: `噩梦：计策【${state.currentStrategy.name}】被禁用` });
             state.currentStrategy = null;
         }
         state.runDataRef.strategyCounts[sid] = (state.runDataRef.strategyCounts[sid] || 0) + 1;
@@ -343,6 +344,10 @@ export function endTurn(state) {
             isOverdrive: !!state.currentStrategy.isOverdrive
         });
         logCombat(state, `触发计策：${state.currentStrategy.name}！`);
+        addBattleLog(state, 'strategy', {
+            strategyName: state.currentStrategy.name,
+            text: `触发计策【${state.currentStrategy.name}】`
+        });
     }
 
     // 稳重推进惩罚检测（怪物技能）
@@ -356,6 +361,7 @@ export function endTurn(state) {
             amount: -1
         });
         logCombat(state, `${state.monster.name} 的技能生效：使用稳重推进，所有倍率格点数-1`);
+        addBattleLog(state, 'monster_skill', { text: `${state.monster.name}：稳重推进倍率格-1` });
     }
 
     // 计算伤害（含计策加成）
@@ -372,6 +378,7 @@ export function endTurn(state) {
                 amount: origDmg - totalDmg
             });
             logCombat(state, `${state.monster.name} 闪避了 ${origDmg - totalDmg} 点伤害`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 闪避${origDmg - totalDmg}伤害` });
         }
     }
 
@@ -383,6 +390,7 @@ export function endTurn(state) {
         if (state.runDataRef && stolen > 0) {
             state.runDataRef.gold -= stolen;
             logCombat(state, `${state.monster.name} 窃取了 ${stolen} 金币！`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 窃取${stolen}金币` });
         }
     }
 
@@ -451,6 +459,13 @@ export function endTurn(state) {
     }
     logCombat(state, `失去 1 人群！剩余 ${state.player.hearts} 人群`);
 
+    // 对战记录：扣血事件（作为回合分隔符，显眼）
+    addBattleLog(state, 'heart_loss', {
+        amount: 1,
+        heartsAfter: state.player.hearts,
+        text: `失去 1 人群（剩余${state.player.hearts}）`
+    });
+
     if (state.player.hearts <= 0) {
         state.phase = 'ended';
         state.result = 'lose';
@@ -465,6 +480,7 @@ export function endTurn(state) {
         if (gold > 0) {
             state.runDataRef.gold += gold;
             logCombat(state, `${alchemy.name} 生效：按手牌数获得 ${gold} 金币`);
+            addBattleLog(state, 'relic', { relicName: alchemy.name, text: `按手牌数获得${gold}金币` });
         }
     }
 

@@ -7,7 +7,7 @@
 import { registerEffect } from './core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { CARD_DEFS } from '../data/index.js';
-import { drawCards, recordTimeline } from '../core/battle-core.js';
+import { drawCards, recordTimeline, addBattleLog } from '../core/battle-core.js';
 
 // ===== ON_TURN_START：回合开始 =====
 
@@ -70,6 +70,10 @@ registerEffect({
                 hpAfter: ctx.state.monster.hp
             });
             ctx.log(`${ctx.state.monster.name} 恢复了 ${actualHeal} 点血量`);
+            addBattleLog(ctx.state, 'heal', {
+                amount: actualHeal,
+                text: `${ctx.state.monster.name} 恢复${actualHeal}HP`
+            });
         }
     }
 });
@@ -97,6 +101,7 @@ registerEffect({
             reason: 'yellow_heart'
         });
         ctx.log(`黄色君王的黄之心生效：${card.name} 被赋予了奉献词条`);
+        addBattleLog(ctx.state, 'monster_skill', { text: `黄之心：${card.name} 获得奉献` });
     }
 });
 
@@ -119,6 +124,7 @@ registerEffect({
                 hpAfter: ctx.state.monster.hp
             });
             ctx.log(`${ctx.state.monster.name} 的成长生效：血量提升 ${actualGrow} 点`);
+            addBattleLog(ctx.state, 'monster_skill', { text: `${ctx.state.monster.name} 成长：血量+${actualGrow}` });
         }
     }
 });
@@ -138,6 +144,7 @@ registerEffect({
                 goldAfter: ctx.state.runDataRef.gold
             });
             ctx.log(`${ctx.state.monster.name} 的技能生效：失去 ${lost} 金币`);
+            addBattleLog(ctx.state, 'monster_skill', { text: `${ctx.state.monster.name}：失去${lost}金币` });
         }
     }
 });
@@ -159,6 +166,7 @@ registerEffect({
         if (Math.random() < chance) {
             drawCards(ctx.state, 1);
             ctx.log(`${relic.name} 生效：抽一张牌`);
+            addBattleLog(ctx.state, 'relic', { relicName: relic.name, text: `抽一张牌` });
         }
     }
 });
@@ -189,5 +197,6 @@ registerEffect({
             reason: 'retain_hand_card'
         });
         ctx.log(`梦中的你——怀念生效：${card.name} 被赋予了保留词条，本回合无法使用`);
+        addBattleLog(ctx.state, 'monster_skill', { text: `怀念：${card.name} 获得保留（本回合禁用）` });
     }
 });

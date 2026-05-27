@@ -8,7 +8,7 @@
  * 4. 放置预览
  */
 
-import { logCombat, recordTimeline } from '../core/battle-core.js';
+import { logCombat, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger } from '../core/constants.js';
 import { detectStrategy } from './strategy.js';
@@ -217,6 +217,14 @@ export function playCardToSlot(card, slotIndex, state) {
         slotIndex
     });
 
+    // 对战记录：出牌事件
+    addBattleLog(state, 'play_card', {
+        cardName: card.name,
+        slotIndex,
+        baseValue: card.baseValue || 0,
+        text: `打出【${card.name}】到格${slotIndex + 1}`
+    });
+
     // 怪奇舞者——踢踏舞：第一张打出的卡牌随机打出在任意倍率格并留场
     if (!state.firstCardPlayedThisTurn && state.monster.firstCardRandomSlotRemain) {
         const randomSlot = Math.floor(Math.random() * state.slots.length);
@@ -236,6 +244,7 @@ export function playCardToSlot(card, slotIndex, state) {
                 monsterName: state.monster.name
             });
             logCombat(state, `${state.monster.name} 的踢踏舞生效：${card.name} 被随机打到了第 ${randomSlot + 1} 格！`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 踢踏舞：${card.name}→格${randomSlot + 1}` });
         }
         // 赋予留场效果
         if (!card.keywords.includes('remain')) {
@@ -271,6 +280,7 @@ export function playCardToSlot(card, slotIndex, state) {
                 monsterName: state.monster.name
             });
             logCombat(state, `${state.monster.name} 的技能生效：第一张打出的 ${discarded.name} 直接进入弃牌堆！`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name}：${discarded.name}被丢弃` });
             state.slotFlashes.push({ slotIndex, timer: 20 });
             if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
             return true;
@@ -324,6 +334,7 @@ export function playCardToSlot(card, slotIndex, state) {
                     monsterName: state.monster.name
                 });
                 logCombat(state, `${state.monster.name} 的孢子云生效：一张【扩散】被打出到了第 ${randomSlot + 1} 格！`);
+                addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 孢子云：扩散→格${randomSlot + 1}` });
                 state.slotFlashes.push({ slotIndex: randomSlot, timer: 20 });
             }
         }

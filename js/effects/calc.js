@@ -5,6 +5,7 @@
  */
 
 import { registerEffect } from './core.js';
+import { addBattleLog } from '../core/battle-core.js';
 import { Trigger, Priority } from '../core/constants.js';
 import { detectStrategy } from '../systems/strategy.js';
 
@@ -310,6 +311,7 @@ registerEffect({
         ctx.value += total;
         if (total > 0) {
             ctx.log(`${ctx.card.name} 完美借力触发，获得相邻两侧最高卡牌点数之和 ${total}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 完美借力：+${total}` });
         }
     }
 });
@@ -329,6 +331,7 @@ registerEffect({
         ctx.value += total;
         if (total > 0) {
             ctx.log(`${ctx.card.name} 一人成军触发，获得当前抽牌堆点数之和 ${total}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 一人成军：+${total}` });
         }
     }
 });
@@ -345,6 +348,7 @@ registerEffect({
             const bonus = count * 2;
             ctx.value += bonus;
             ctx.log(`${ctx.card.name} 训练成果触发，本局已打出${count}张成长牌，点数+${bonus}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 训练成果：+${bonus}` });
         }
     }
 });

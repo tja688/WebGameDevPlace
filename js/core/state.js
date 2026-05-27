@@ -181,6 +181,7 @@ export function createInitialState() {
         message: null,
         messageTimer: 0,
         combatLog: [],
+        battleLog: [],
         runDataRef: null,
         stageKey: 'test',
         heartsLost: 0,
