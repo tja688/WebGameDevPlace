@@ -745,8 +745,8 @@ function drawStrategyPanel(renderer, ctx, state) {
 
         ctx.textAlign = 'right';
         const parts = [];
-        if (bonus.slotBonus > 0) parts.push(`格+${bonus.slotBonus}`);
-        if (bonus.cardBonus > 0) parts.push(`卡+${bonus.cardBonus}`);
+        if (bonus.slotBonus > 0) parts.push(`倍率格倍率+${bonus.slotBonus}`);
+        if (bonus.cardBonus > 0) parts.push(`卡牌数值+${bonus.cardBonus}`);
         const bonusText = parts.length > 0 ? parts.join(', ') : '-';
         ctx.fillText(bonusText, x + w - 14, rowY);
 
@@ -767,12 +767,12 @@ function drawStrategyPanel(renderer, ctx, state) {
     ctx.fillStyle = '#bca98b';
     ctx.font = '10px Microsoft YaHei';
     const rules = [
-        '2张: 倍率格+1',
-        '4张: 倍率格+1, 卡牌+10',
-        '6张: 倍率格+2, 卡牌+10',
-        '8张: 倍率格+2, 卡牌+20',
-        '10张: 倍率格+3, 卡牌+20',
-        '12张: 倍率格+3, 卡牌+30...'
+        '2张: 倍率格倍率+1',
+        '4张: 倍率格倍率+1, 卡牌数值+10',
+        '6张: 倍率格倍率+2, 卡牌数值+10',
+        '8张: 倍率格倍率+2, 卡牌数值+20',
+        '10张: 倍率格倍率+3, 卡牌数值+20',
+        '12张: 倍率格倍率+3, 卡牌数值+30...'
     ];
     let ruleY = rowY + 26;
     for (const rule of rules) {
