@@ -17,6 +17,7 @@ import { Tutorial } from './tutorial.js';
 // 挂载到全局，供各系统使用
 window.GameAudio = GameAudio;
 window.RenderFX = RenderFX;
+window.GameInput = null; // 将在 Input.init 后设置
 
 // 必须导入以触发效果注册副作用
 import './effects/index.js';
@@ -64,6 +65,7 @@ function init() {
 
     window.gameState = createGameState('title');
     Input.init(window.gameState, Renderer);
+    window.GameInput = Input;
     initPlaygroundUI(window.gameState);
 
     // Playground 主菜单按钮（DOM事件）

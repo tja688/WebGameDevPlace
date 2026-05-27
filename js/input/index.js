@@ -12,7 +12,7 @@ import { createRunData } from '../core/state.js';
 import { initBattleFromRun, endTurn } from '../systems/battle.js';
 import { drawCards } from '../core/battle-core.js';
 import { resolveBattleEnd, generatePostBattleEvents, pickExcavatedRelicOptions } from '../systems/post-battle.js';
-import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue, getCardFinalValue } from '../systems/board.js';
+import { playCardToSlot, calculateTotalBoardDamage, getCardBaseValue, getCardFinalValue, isCardDraggableFromSlot, moveSlotCard, getSlotDragPreview } from '../systems/board.js';
 import { getCardDamageBreakdown, getExternalDamageSources } from '../systems/damage-breakdown.js';
 import { getOrCreateShopStock, refreshShopStock, getOrCreateBlacksmithStock, refreshBlacksmithStock } from '../systems/shop.js';
 import { createCardInstance, addKeywordToCard, KEYWORDS, CARD_DEFS, MONSTER_DEFS, RELIC_DEFS, createCardRewardOptions } from '../data/index.js';
@@ -32,6 +32,14 @@ export const Input = {
     _windowMouseUpHandler: null,
     _windowTouchEndHandler: null,
     _windowTouchCancelHandler: null,
+
+    // 入场卡牌拖动状态
+    isDraggingSlotCard: false,
+    draggedSlotCard: null,
+    draggedSlotCardFromIndex: -1,
+    draggedSlotCardIndex: -1,
+    dragInsertSlotIndex: -1,
+    dragInsertCardIndex: -1,
 
     init(gameState, renderer) {
         this.state = gameState;
@@ -203,11 +211,38 @@ export const Input = {
     onMouseUp(e) {
         if (Tutorial.isActive()) {
             this.isDragging = false;
+            this.isDraggingSlotCard = false;
             if (this.state) {
                 this.state.draggedCard = null;
                 this.state.hoveredSlot = null;
             }
             this.canvas.style.cursor = 'default';
+            return;
+        }
+
+        // 处理入场卡牌拖动释放
+        if (this.isDraggingSlotCard && this.draggedSlotCard) {
+            const pos = this.getEventCanvasPos(e) || { x: this.state.dragX, y: this.state.dragY };
+            const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+
+            if (slotIdx !== null) {
+                // 计算插入位置
+                const insertIdx = this._calculateInsertIndex(slotIdx, pos.y);
+                const success = moveSlotCard(
+                    this.draggedSlotCard,
+                    this.draggedSlotCardFromIndex,
+                    slotIdx,
+                    insertIdx,
+                    this.state
+                );
+                if (success) {
+                    this.state.turnDamage = calculateTotalBoardDamage(this.state);
+                    if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
+                }
+            }
+
+            this._clearSlotDragState();
+            this.checkBattleEnd();
             return;
         }
 
@@ -237,11 +272,43 @@ export const Input = {
         this.checkBattleEnd();
     },
 
+    _clearSlotDragState() {
+        this.isDraggingSlotCard = false;
+        this.draggedSlotCard = null;
+        this.draggedSlotCardFromIndex = -1;
+        this.draggedSlotCardIndex = -1;
+        this.dragInsertSlotIndex = -1;
+        this.dragInsertCardIndex = -1;
+        this.state.dragX = 0;
+        this.state.dragY = 0;
+        this.canvas.style.cursor = 'default';
+    },
+
+    _calculateInsertIndex(slotIndex, py) {
+        const slot = this.state.slots[slotIndex];
+        const sr = getSlotRect(this.renderer, slotIndex, this.state.slots.length);
+        const cardH = 34;
+        const cardGap = 4;
+        const startY = sr.y + 10;
+
+        // 如果没有卡牌，插入到开头
+        if (slot.cards.length === 0) return 0;
+
+        // 根据Y坐标判断插入位置
+        for (let i = 0; i < slot.cards.length; i++) {
+            const cardCenterY = startY + i * (cardH + cardGap) + cardH / 2;
+            if (py < cardCenterY) {
+                return i;
+            }
+        }
+        return slot.cards.length;
+    },
+
     onMouseLeave(e) {
         this.canvas.style.cursor = 'default';
         this.hideTooltip();
 
-        if (this.isDragging) {
+        if (this.isDragging || this.isDraggingSlotCard) {
             this.state.hoveredSlot = null;
             return;
         }
@@ -1621,6 +1688,19 @@ export const Input = {
             return;
         }
 
+        // 优先检测是否点击了倍率格内的卡牌（入场卡牌拖动）
+        const slotCardInfo = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
+        if (slotCardInfo && isCardDraggableFromSlot(slotCardInfo.card)) {
+            this.isDraggingSlotCard = true;
+            this.draggedSlotCard = slotCardInfo.card;
+            this.draggedSlotCardFromIndex = slotCardInfo.slotIndex;
+            this.draggedSlotCardIndex = slotCardInfo.cardIndex;
+            this.state.dragX = pos.x;
+            this.state.dragY = pos.y;
+            this.canvas.style.cursor = 'grabbing';
+            return;
+        }
+
         const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
         if (handIdx !== null) {
             const card = this.state.hand[handIdx];
@@ -1660,6 +1740,24 @@ export const Input = {
             return;
         }
 
+        // 处理入场卡牌拖动
+        if (this.isDraggingSlotCard && this.draggedSlotCard) {
+            this.state.dragX = pos.x;
+            this.state.dragY = pos.y;
+            const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
+            this.dragInsertSlotIndex = slotIdx !== null ? slotIdx : -1;
+            if (slotIdx !== null) {
+                this.dragInsertCardIndex = this._calculateInsertIndex(slotIdx, pos.y);
+            } else {
+                this.dragInsertCardIndex = -1;
+            }
+            this.canvas.style.cursor = 'grabbing';
+            this.hideTooltip();
+            this.state.hoveredMonster = false;
+            this.state.hoveredEndTurn = false;
+            return;
+        }
+
         if (this.isDragging && this.state.draggedCard) {
             this.state.dragX = pos.x;
             this.state.dragY = pos.y;
@@ -1670,15 +1768,28 @@ export const Input = {
             this.state.hoveredEndTurn = false;
         } else {
             const slotIdx = getSlotIndexAt(this.renderer, pos.x, pos.y, this.state.slots.length);
-            this.state.hoveredSlot = slotIdx;
             const handIdx = getHandCardIndexAt(this.renderer, pos.x, pos.y, this.state.hand.length);
             const endTurnRect = getEndTurnButtonRect(this.renderer);
             const isOverEndTurn = this.hitTest(pos, endTurnRect);
             const isOverMonster = pos.x >= this.renderer.width * 0.5 - 150 && pos.x <= this.renderer.width * 0.5 + 150 && pos.y >= 0 && pos.y <= 220;
             const isOverPlayer = pos.x >= 0 && pos.x <= 200 && pos.y >= 40 && pos.y <= 240;
 
+            // 优先检测倍率格内的卡牌悬停（避免被格子悬停抢走）
+            const slotCard = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
+            if (slotCard) {
+                this.state.selectedCard = null;
+                this.state.hoveredSlot = null;
+                this.state.hoveredMonster = false;
+                this.state.hoveredEndTurn = false;
+                this.canvas.style.cursor = isCardDraggableFromSlot(slotCard.card) ? 'grab' : 'help';
+                this.updateSlotCardTooltip(slotCard.card, slotCard.slotIndex, pos.x, pos.y);
+                this._playHoverSound();
+                return;
+            }
+
             if (handIdx !== null) {
                 this.state.selectedCard = this.state.hand[handIdx];
+                this.state.hoveredSlot = null;
                 this.state.hoveredMonster = false;
                 this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'grab';
@@ -1686,6 +1797,7 @@ export const Input = {
                 this._playHoverSound();
             } else if (isOverEndTurn) {
                 this.state.selectedCard = null;
+                this.state.hoveredSlot = null;
                 this.state.hoveredMonster = false;
                 this.state.hoveredEndTurn = true;
                 this.canvas.style.cursor = 'pointer';
@@ -1693,6 +1805,7 @@ export const Input = {
                 this._playHoverSound();
             } else if (isOverMonster) {
                 this.state.selectedCard = null;
+                this.state.hoveredSlot = null;
                 this.state.hoveredMonster = true;
                 this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'help';
@@ -1700,19 +1813,15 @@ export const Input = {
                 this._playHoverSound();
             } else if (slotIdx !== null) {
                 this.state.selectedCard = null;
+                this.state.hoveredSlot = slotIdx;
                 this.state.hoveredMonster = false;
                 this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'pointer';
-                // 检测是否指向格子内的某张卡牌
-                const slotCard = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
-                if (slotCard) {
-                    this.updateSlotCardTooltip(slotCard.card, slotCard.slotIndex, pos.x, pos.y);
-                } else {
-                    this.updateSlotTooltip(slotIdx, pos.x, pos.y);
-                }
+                this.updateSlotTooltip(slotIdx, pos.x, pos.y);
                 this._playHoverSound();
             } else if (isOverPlayer) {
                 this.state.selectedCard = null;
+                this.state.hoveredSlot = null;
                 this.state.hoveredMonster = false;
                 this.state.hoveredEndTurn = false;
                 this.canvas.style.cursor = 'help';
@@ -1723,6 +1832,7 @@ export const Input = {
                 const relicHover = this._checkRelicHover(pos);
                 if (relicHover) {
                     this.state.selectedCard = null;
+                    this.state.hoveredSlot = null;
                     this.state.hoveredMonster = false;
                     this.state.hoveredEndTurn = false;
                     this.canvas.style.cursor = 'help';
@@ -1735,6 +1845,7 @@ export const Input = {
                             if (this.hitTest(pos, row)) {
                                 this.state.data.hoverStrategyRow = row.strat.id;
                                 this.state.selectedCard = null;
+                                this.state.hoveredSlot = null;
                                 this.state.hoveredMonster = false;
                                 this.state.hoveredEndTurn = false;
                                 this.canvas.style.cursor = 'help';
@@ -1746,6 +1857,7 @@ export const Input = {
                     }
 
                     this.state.selectedCard = null;
+                    this.state.hoveredSlot = null;
                     this.state.hoveredMonster = false;
                     this.state.hoveredEndTurn = false;
                     this.canvas.style.cursor = 'default';

@@ -33,6 +33,25 @@ export function logCombat(state, msg) {
 }
 
 /**
+ * 记录对战日志（战斗内可视化记录面板用）
+ * 只记录关键事件：出牌、伤害、扣血、遗物触发等
+ * 离开战斗后自动清空，不跨战斗保留
+ */
+export function addBattleLog(state, type, data = {}) {
+    if (!state.battleLog) state.battleLog = [];
+    state.battleLog.push({
+        turn: state.turn || 0,
+        type, // 'play_card' | 'damage' | 'heart_loss' | 'relic' | 'monster_skill' | 'strategy' | 'heal' | 'gold' | 'draw' | 'other'
+        ...data,
+        time: Date.now()
+    });
+    // 限制条目数量，防止内存膨胀
+    if (state.battleLog.length > 200) {
+        state.battleLog.shift();
+    }
+}
+
+/**
  * 从牌库抽牌到手中
  */
 export function drawCards(state, count) {

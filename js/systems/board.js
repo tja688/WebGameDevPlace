@@ -115,6 +115,82 @@ export function canPlaceCard(card, slot, state) {
     return { ok: true };
 }
 
+// ===== 判断卡牌是否可二次拖动（持久驻场卡） =====
+
+export function isCardDraggableFromSlot(card) {
+    // 扩散牌等一次性效果卡不可拖动
+    if (card.defId === 'diffusion') return false;
+    // 标记为不可拖动的衍生卡（如某些怪物生成的临时卡）
+    if (card.isDerived && card.defId === 'cheat_card') return false;
+    return true;
+}
+
+// ===== 移动已入场卡牌 =====
+
+export function moveSlotCard(card, fromSlotIndex, toSlotIndex, insertIndex, state) {
+    const fromSlot = state.slots[fromSlotIndex];
+    const toSlot = state.slots[toSlotIndex];
+
+    // 从原位置移除
+    const cardIdx = fromSlot.cards.findIndex(c => c.uuid === card.uuid);
+    if (cardIdx === -1) return false;
+    fromSlot.cards.splice(cardIdx, 1);
+
+    // 插入到新位置
+    const targetIdx = Math.max(0, Math.min(insertIndex, toSlot.cards.length));
+    toSlot.cards.splice(targetIdx, 0, card);
+
+    // 记录时间线
+    recordTimeline(state, 'move_slot_card', {
+        cardUuid: card.uuid,
+        cardDefId: card.defId,
+        cardName: card.name,
+        fromSlot: fromSlotIndex,
+        toSlot: toSlotIndex,
+        insertIndex: targetIdx
+    });
+
+    // 检测计策变化
+    state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
+
+    return true;
+}
+
+// ===== 获取拖动预览（用于入场卡牌拖动时的实时计算） =====
+
+export function getSlotDragPreview(card, fromSlotIndex, toSlotIndex, insertIndex, state) {
+    // 创建临时状态副本
+    const tempSlots = state.slots.map((s, i) => ({
+        ...s,
+        cards: [...s.cards]
+    }));
+
+    // 从原位置移除
+    const fromSlot = tempSlots[fromSlotIndex];
+    const cardIdx = fromSlot.cards.findIndex(c => c.uuid === card.uuid);
+    if (cardIdx === -1) return null;
+    fromSlot.cards.splice(cardIdx, 1);
+
+    // 插入到新位置
+    const toSlot = tempSlots[toSlotIndex];
+    const targetIdx = Math.max(0, Math.min(insertIndex, toSlot.cards.length));
+    toSlot.cards.splice(targetIdx, 0, card);
+
+    const tempState = {
+        ...state,
+        slots: tempSlots
+    };
+
+    const total = calculateTotalBoardDamage(tempState);
+
+    return {
+        totalDamage: total,
+        monsterRemaining: Math.max(0, state.monster.hp - total),
+        willKill: total >= state.monster.hp,
+        cardOutput: getCardFinalValue(card, tempState) * getSlotEffectiveMultiplier(toSlot, tempState)
+    };
+}
+
 // ===== 打出卡牌 =====
 
 export function playCardToSlot(card, slotIndex, state) {

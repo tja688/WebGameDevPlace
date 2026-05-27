@@ -12,7 +12,8 @@ import { KEYWORDS } from '../data/index.js';
 import {
     getCardBaseValue, getCardFinalValue, buildCardSlotMap,
     canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview,
-    calculateTotalBoardDamage, getStrategySlotBonuses
+    calculateTotalBoardDamage, getStrategySlotBonuses,
+    isCardDraggableFromSlot, getSlotDragPreview
 } from '../systems/board.js';
 import { getCardDamageBreakdown } from '../systems/damage-breakdown.js';
 import { detectStrategy, getAllStrategies } from '../systems/strategy.js';
@@ -32,9 +33,11 @@ export function drawBattle(renderer, ctx, state) {
     drawHandArea(renderer, ctx, state);
     drawUI(renderer, ctx, state);
     drawDragCard(renderer, ctx, state);
+    drawSlotDragCard(renderer, ctx, state);
     drawSlotFlashes(renderer, ctx, state);
     drawMonsterFlash(renderer, ctx, state);
     drawPreview(renderer, ctx, state);
+    drawSlotDragPreview(renderer, ctx, state);
 }
 
 // ============================================================
@@ -980,6 +983,13 @@ function drawBoardArea(renderer, ctx, state) {
     const gap = 20;
     const t = renderer.animTime;
 
+    // 获取入场卡牌拖动状态（从 input 模块）
+    const Input = window.GameInput || {};
+    const isDraggingSlotCard = Input.isDraggingSlotCard || false;
+    const draggedSlotCard = Input.draggedSlotCard || null;
+    const dragInsertSlotIndex = Input.dragInsertSlotIndex !== undefined ? Input.dragInsertSlotIndex : -1;
+    const dragInsertCardIndex = Input.dragInsertCardIndex !== undefined ? Input.dragInsertCardIndex : -1;
+
     for (let i = 0; i < state.slots.length; i++) {
         const slot = state.slots[i];
         const x = startX + i * (slotW + gap);
@@ -1005,16 +1015,20 @@ function drawBoardArea(renderer, ctx, state) {
         // 格子底座
         const isHovered = state.hoveredSlot === i;
         const canDrop = state.draggedCard && canPlaceCard(state.draggedCard, slot, state).ok;
+        // 入场卡牌拖动时，目标格高亮
+        const isSlotDragTarget = isDraggingSlotCard && dragInsertSlotIndex === i;
 
         const tileOptions = {
-            highlight: isHovered && canDrop,
-            glowColor: isHovered && canDrop ? '#4ecdc4' : (isHovered ? '#ff6b6b' : null)
+            highlight: (isHovered && canDrop) || isSlotDragTarget,
+            glowColor: isSlotDragTarget ? '#ffd700' : (isHovered && canDrop ? '#4ecdc4' : (isHovered ? '#ff6b6b' : null))
         };
 
         drawStoneTile(ctx, x, y, slotW, slotH, tileOptions);
 
         // 格子边框
-        if (isHovered && canDrop) {
+        if (isSlotDragTarget) {
+            drawMetalFrame(ctx, x, y, slotW, slotH, { color: '#ffd700', glowColor: '#ffd700', thickness: 2.5, radius: 2 });
+        } else if (isHovered && canDrop) {
             drawMetalFrame(ctx, x, y, slotW, slotH, { color: '#4ecdc4', glowColor: '#4ecdc4', thickness: 2, radius: 2 });
         } else if (isHovered) {
             drawMetalFrame(ctx, x, y, slotW, slotH, { color: '#ff6b6b', glowColor: '#ff6b6b', thickness: 2, radius: 2 });
@@ -1027,17 +1041,55 @@ function drawBoardArea(renderer, ctx, state) {
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 8, y + 8, slotW - 16, slotH - 16);
 
-        // 卡牌
+        // 卡牌渲染（带挤开位移效果）
+        const cardH = 34;
+        const cardGap = 4;
+        const startCardY = y + 10;
+
         for (let c = 0; c < slot.cards.length; c++) {
             const card = slot.cards[c];
-            const cx = x + 10;
-            const cy = y + 10 + c * 38;
+
+            // 如果正在拖动此卡牌，跳过（会在单独层绘制）
+            if (isDraggingSlotCard && draggedSlotCard && draggedSlotCard.uuid === card.uuid) {
+                continue;
+            }
+
+            let cx = x + 10;
+            let cy = startCardY + c * (cardH + cardGap);
             const cw = slotW - 20;
-            const ch = 34;
+            const ch = cardH;
+
+            // 挤开位移效果：当拖动卡牌到本格时，插入位置处的卡牌向两侧偏移
+            if (isSlotDragTarget && dragInsertCardIndex >= 0) {
+                const offset = 8; // 挤开距离
+                if (c >= dragInsertCardIndex) {
+                    cy += offset;
+                }
+            }
+
             drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state, c, i);
         }
 
+        // 绘制插入位置指示线
+        if (isSlotDragTarget && dragInsertCardIndex >= 0) {
+            const insertY = startCardY + dragInsertCardIndex * (cardH + cardGap);
+            ctx.strokeStyle = 'rgba(255,215,0,0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x + 12, insertY);
+            ctx.lineTo(x + slotW - 12, insertY);
+            ctx.stroke();
+            ctx.setLineDash([]);
 
+            // 插入位置小三角指示
+            ctx.fillStyle = 'rgba(255,215,0,0.8)';
+            ctx.beginPath();
+            ctx.moveTo(x + slotW / 2 - 6, insertY - 5);
+            ctx.lineTo(x + slotW / 2 + 6, insertY - 5);
+            ctx.lineTo(x + slotW / 2, insertY + 3);
+            ctx.fill();
+        }
     }
 }
 
@@ -1529,6 +1581,97 @@ function drawDragCard(renderer, ctx, state) {
     ctx.fillRect(-30, -30, 200, 260);
 
     ctx.restore();
+}
+
+// ===== 入场卡牌拖动渲染 =====
+
+function drawSlotDragCard(renderer, ctx, state) {
+    const Input = window.GameInput || {};
+    if (!Input.isDraggingSlotCard || !Input.draggedSlotCard) return;
+    const card = Input.draggedSlotCard;
+
+    ctx.save();
+    const tiltX = (state.dragX - renderer.width / 2) / renderer.width * 6;
+    ctx.translate(state.dragX, state.dragY);
+    ctx.rotate(tiltX * Math.PI / 180);
+    ctx.translate(-70, -17);
+
+    // 绘制为 mini card 样式但更大
+    const w = 200;
+    const h = 34;
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, card.color);
+    grad.addColorStop(1, darkenColor(card.color, -35));
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.95;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = card.accentColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, w, h);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText(card.name, 8, 22);
+
+    // 拖拽光效
+    const rgb = hexToRgb(card.color);
+    const glow = ctx.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, 80);
+    glow.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.25)`);
+    glow.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+    ctx.fillStyle = glow;
+    ctx.fillRect(-20, -20, w + 40, h + 40);
+
+    ctx.restore();
+}
+
+// ===== 入场卡牌拖动时的动态伤害预览面板 =====
+
+function drawSlotDragPreview(renderer, ctx, state) {
+    const Input = window.GameInput || {};
+    if (!Input.isDraggingSlotCard || !Input.draggedSlotCard) return;
+    if (Input.dragInsertSlotIndex < 0) return;
+
+    const preview = getSlotDragPreview(
+        Input.draggedSlotCard,
+        Input.draggedSlotCardFromIndex,
+        Input.dragInsertSlotIndex,
+        Input.dragInsertCardIndex,
+        state
+    );
+    if (!preview) return;
+
+    const mx = renderer.width / 2;
+    const my = 210;
+    const panelW = 340;
+    const panelH = 70;
+
+    // 半透明背景
+    ctx.fillStyle = 'rgba(20,15,10,0.75)';
+    roundRect(ctx, mx - panelW / 2, my - panelH / 2, panelW, panelH, 10);
+    ctx.fill();
+
+    ctx.strokeStyle = preview.willKill ? 'rgba(46,204,113,0.5)' : 'rgba(255,215,0,0.3)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, mx - panelW / 2, my - panelH / 2, panelW, panelH, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = preview.willKill ? '#2ecc71' : '#ffd700';
+    ctx.font = 'bold 15px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText(`预计总计: ${preview.totalDamage} | 怪物剩余: ${preview.monsterRemaining}`, mx, my - 6);
+
+    ctx.fillStyle = preview.willKill ? '#2ecc71' : '#ffaa44';
+    ctx.font = '13px Microsoft YaHei';
+    if (preview.willKill) {
+        ctx.fillText('💀 伤害足够击杀怪物！', mx, my + 18);
+    } else {
+        const diff = preview.totalDamage - state.turnDamage;
+        const sign = diff >= 0 ? '+' : '';
+        ctx.fillText(`本卡输出: ${preview.cardOutput} | 总伤害变化: ${sign}${diff}`, mx, my + 18);
+    }
 }
 
 function drawSlotFlashes(renderer, ctx, state) {

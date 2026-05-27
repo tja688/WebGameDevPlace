@@ -8,7 +8,7 @@
  */
 
 import { shuffleArray, pickRandom } from '../core/utils.js';
-import { logCombat, drawCards, shuffleDiscardToDeck, recordTimeline } from '../core/battle-core.js';
+import { logCombat, drawCards, shuffleDiscardToDeck, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { CLASS_DEFS, STAGE_CONFIG, MONSTER_DEFS, createCardInstance } from '../data/index.js';
 import { FX, EffectContext } from '../effects/core.js';
 import { Trigger, DRAW_COUNT, HAND_LIMIT } from '../core/constants.js';
@@ -16,7 +16,7 @@ import { calculateTotalBoardDamage, getCardFinalValue } from './board.js';
 import { createBattleSlots } from '../core/state.js';
 import { detectStrategy, getAllStrategies } from './strategy.js';
 
-export { logCombat, drawCards } from '../core/battle-core.js';
+export { logCombat, drawCards, addBattleLog } from '../core/battle-core.js';
 
 function getActiveRelics(state) {
     const disabledKey = state.monster?.disabledRelicKey;
@@ -118,6 +118,7 @@ export function initBattleFromRun(runData) {
         message: null,
         messageTimer: 0,
         combatLog: [],
+        battleLog: [],
         runDataRef: runData,
         stageKey: stageKey,
         heartsLost: 0,
@@ -135,10 +136,12 @@ export function initBattleFromRun(runData) {
     if (nextMonsterHpPenalty > 0) {
         delete runData.nextMonsterHpPenalty;
         logCombat(state, `场外援助生效：${state.monster.name} 血量减少 ${nextMonsterHpPenalty}`);
+        addBattleLog(state, 'other', { text: `场外援助：${state.monster.name} 血量-${nextMonsterHpPenalty}` });
     }
     if (nextBattleHeartBonus > 0) {
         delete runData.nextBattleHeartBonus;
         logCombat(state, `残破克隆镜生效：本场战斗人群 +${nextBattleHeartBonus}`);
+        addBattleLog(state, 'other', { text: `残破克隆镜：人群+${nextBattleHeartBonus}` });
     }
 
     // 解析怪物技能
@@ -178,6 +181,7 @@ export function initBattleFromRun(runData) {
             const card = pickRandom(candidates);
             card.keywords.push('dedicate');
             logCombat(state, `${yellowHeartRelic.name} 生效：${card.name} 获得奉献词条`);
+            addBattleLog(state, 'relic', { relicName: yellowHeartRelic.name, text: `${card.name} 获得奉献` });
         }
     }
 
@@ -191,7 +195,10 @@ export function initBattleFromRun(runData) {
                 count++;
             }
         }
-        if (count > 0) logCombat(state, `${yellowFleshRelic.name} 生效：${count} 张奉献牌获得连携`);
+        if (count > 0) {
+            logCombat(state, `${yellowFleshRelic.name} 生效：${count} 张奉献牌获得连携`);
+            addBattleLog(state, 'relic', { relicName: yellowFleshRelic.name, text: `${count}张奉献牌获得连携` });
+        }
     }
 
     const startGoldRelic = getActiveRelics(state).find(r => r.effect?.type === 'battle_start_gold');
@@ -199,6 +206,7 @@ export function initBattleFromRun(runData) {
         const gold = startGoldRelic.effect.gold || 1;
         runData.gold = (runData.gold || 0) + gold;
         logCombat(state, `${startGoldRelic.name} 生效：获得 ${gold} 金币`);
+        addBattleLog(state, 'relic', { relicName: startGoldRelic.name, text: `获得${gold}金币` });
     }
 
     shuffleDiscardToDeck(state);
@@ -230,6 +238,7 @@ export function initBattleFromRun(runData) {
             cheatCard.isDerived = true;
             state.hand.push(cheatCard);
             logCombat(state, `${printCardRelic.name} 生效：获得一张作弊卡`);
+            addBattleLog(state, 'relic', { relicName: printCardRelic.name, text: `获得作弊卡` });
         }
     }
 
@@ -402,6 +411,16 @@ export function endTurn(state) {
     }
 
     logCombat(state, `第${state.turn}回合造成 ${totalDmg} 伤害，怪物剩余 ${state.monster.hp} HP`);
+
+    // 对战记录：伤害事件
+    if (totalDmg > 0) {
+        addBattleLog(state, 'damage', {
+            amount: totalDmg,
+            hpBefore: monsterHpBefore,
+            hpAfter: state.monster.hp,
+            text: `造成 ${totalDmg} 点伤害`
+        });
+    }
 
     // 检查击杀
     if (state.monster.hp <= 0) {
