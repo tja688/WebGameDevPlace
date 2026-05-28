@@ -140,8 +140,8 @@ export function initBattleFromRun(runData) {
     }
     if (nextBattleHeartBonus > 0) {
         delete runData.nextBattleHeartBonus;
-        logCombat(state, `残破克隆镜生效：本场战斗人群 +${nextBattleHeartBonus}`);
-        addBattleLog(state, 'other', { text: `残破克隆镜：人群+${nextBattleHeartBonus}` });
+        logCombat(state, `残破克隆镜生效：本场战斗生命值 +${nextBattleHeartBonus}`);
+        addBattleLog(state, 'other', { text: `残破克隆镜：生命值+${nextBattleHeartBonus}` });
     }
 
     // 解析怪物技能
@@ -382,7 +382,7 @@ export function endTurn(state) {
         return;
     }
 
-    // 扣人群
+    // 扣生命值
     state.player.hearts -= 1;
     state.heartsLost += 1;
     recordTimeline(state, 'player_heart_loss', {
@@ -393,14 +393,15 @@ export function endTurn(state) {
     if (typeof window !== 'undefined' && window.RenderFX) {
         const heartX = 50 + (state.player.hearts) * 36 + 15;
         window.RenderFX.spawnHeartBreak(heartX, 155);
+        window.RenderFX.flash.triggerScreen('#ff0000', 6);
     }
-    logCombat(state, `失去 1 人群！剩余 ${state.player.hearts} 人群`);
+    logCombat(state, `失去 1 生命值！剩余 ${state.player.hearts} 生命值`);
 
     // 对战记录：扣血事件（作为回合分隔符，显眼）
     addBattleLog(state, 'heart_loss', {
         amount: 1,
         heartsAfter: state.player.hearts,
-        text: `失去 1 人群（剩余${state.player.hearts}）`
+        text: `失去 1 生命值（剩余${state.player.hearts}）`
     });
 
     if (state.player.hearts <= 0) {

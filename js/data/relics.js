@@ -71,7 +71,7 @@ export const RELIC_DEFS = [
 
     // ===== BOSS遗物 =====
     // 第一层BOSS遗物（黄之王）
-    { id: 'relic_boss_yellow_bone', name: '黄之骨', desc: '奉献词条现在提供1.5倍自身点数给下一张牌', rarity: 'boss', effect: { type: 'dedicate_1_5x' } },
+    { id: 'relic_boss_yellow_bone', name: '黄之骨', desc: '奉献词条现在提供1.5倍自身点数给上方卡牌', rarity: 'boss', effect: { type: 'dedicate_1_5x' } },
     { id: 'relic_boss_yellow_heart', name: '黄之心', desc: '每场战斗开始赋予牌组内随机一张卡牌奉献词条，奉献提供的点数变为永久', rarity: 'boss', effect: { type: 'dedicate_permanent' } },
     { id: 'relic_boss_yellow_flesh', name: '黄之肉', desc: '牌组内所有带有奉献词条的卡牌获得连携词条', rarity: 'boss', effect: { type: 'dedicate_chain' } },
 

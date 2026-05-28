@@ -1421,7 +1421,7 @@ export const Input = {
                 return;
             case 'next_battle_hearts_plus':
                 runData.nextBattleHeartBonus = (runData.nextBattleHeartBonus || 0) + (param || 1);
-                showPlaceholderToast(`下一场战斗人群+${param || 1}`);
+                showPlaceholderToast(`下一场战斗生命值+${param || 1}`);
                 this._finishEvent(runData);
                 return;
             case 'next_shop_system':
@@ -1448,7 +1448,7 @@ export const Input = {
                 return;
             case 'max_hearts_plus':
                 runData.maxHearts = (runData.maxHearts || 3) + 1;
-                showPlaceholderToast('最大人群+1！');
+                showPlaceholderToast('最大生命值+1！');
                 this._finishEvent(runData);
                 return;
             case 'enchant_mighty':
@@ -2251,7 +2251,7 @@ export const Input = {
         } else {
             html += `<p>本回合伤害: <b>${totalDmg}</b></p>`;
             html += `<p>怪物剩余: <b style="color:#ff6666">${remaining}</b> HP</p>`;
-            html += `<p style="color:#ff6666;margin-top:4px">⚠️ 未击杀将失去 1 人群</p>`;
+            html += `<p style="color:#ff6666;margin-top:4px">⚠️ 未击杀将失去 1 生命值</p>`;
         }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');

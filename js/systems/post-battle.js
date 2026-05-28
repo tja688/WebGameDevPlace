@@ -30,13 +30,13 @@ const EVENT_POOLS = {
     rare: [
         { name: '抵御怪物', desc: '玩家立刻与X-7的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
         { name: '出土遗物', desc: '获得一次三选一中级遗物的机会', effect: 'pick_rare_relic' },
-        { name: '残破克隆镜', desc: '下一场战斗，人群数+1', effect: 'next_battle_hearts_plus', param: 1 },
+        { name: '残破克隆镜', desc: '下一场战斗，生命值+1', effect: 'next_battle_hearts_plus', param: 1 },
         { name: '预言家', desc: '下一次商店刷新卡牌均为随机指定体系牌', effect: 'next_shop_system' },
         { name: '赝品画家', desc: '选择牌组内任意一张卡牌，将它的复制品加入卡组', effect: 'duplicate_card' },
         { name: '金钱壶', desc: '玩家获得8金币', effect: 'gain_gold', param: 8 }
     ],
     legendary: [
-        { name: '魔镜', desc: '玩家在本局中人群数+1', effect: 'max_hearts_plus' },
+        { name: '魔镜', desc: '玩家在本局中生命值+1', effect: 'max_hearts_plus' },
         { name: '轻语岩壁', desc: '选择任意一张卡牌获得伟力词条', effect: 'enchant_mighty' },
         { name: '挑战强敌', desc: '玩家立刻与该层任意精英进行战斗', effect: 'fight_elite' }
     ]

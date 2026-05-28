@@ -256,7 +256,7 @@ export const CARD_DEFS = {
         size: 1,
         keywords: ['twin', 'dedicate'],
         rarity: 'blue',
-        description: '双生：打出时，将一张本牌的无双生词条复制加入手牌；奉献：在场上时，下一张打出在本格的卡牌获得本牌一半点数',
+        description: '双生：打出时，将一张本牌的无双生词条复制加入手牌；奉献：在场上时，堆叠在它上方的第一张卡牌获得本牌一半点数',
         color: '#1ABC9C',
         accentColor: '#16A085',
         iconType: 'shield'

@@ -11,7 +11,7 @@ import { createCardInstance } from '../data/index.js';
 
 import { getCardFinalValue } from '../systems/board.js';
 
-// ===== 1. 格子加成（奉献等） =====
+// ===== 1. 格子加成（学徒铸造/大师铸造/辅助训练等一次性加成） =====
 registerEffect({
     id: 'slot_bonus',
     triggers: Trigger.ON_PLAY,
@@ -19,59 +19,6 @@ registerEffect({
     condition: (ctx) => ctx.slotIndex >= 0,
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 奉献：格子中已有奉献牌，给新牌加点（只对下一张生效）
-        if (!ctx.state.monster.disableDedicate) {
-            for (const c of slot.cards) {
-                if (c.uuid !== ctx.card.uuid && c.keywords.includes('dedicate') && !c.dedicateTriggered) {
-                    const val = getCardFinalValue(c, ctx.state);
-                    const disabledKey = ctx.state.monster?.disabledRelicKey;
-                    const hasYellowBone = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_1_5x' && (!disabledKey || (r.id || r.name) !== disabledKey));
-                    const bonus = hasYellowBone ? Math.floor(val * 1.5) : Math.floor(val / 2);
-                    if (bonus > 0) {
-                        const isPermanentDedicate = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_permanent' && (!disabledKey || (r.id || r.name) !== disabledKey));
-                        if (isPermanentDedicate) {
-                            ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + bonus;
-                        } else {
-                            ctx.card.tempBonus = (ctx.card.tempBonus || 0) + bonus;
-                        }
-                        c.dedicateTriggered = true;
-                        recordTimeline(ctx.state, 'card_temp_bonus', {
-                            sourceUuid: c.uuid,
-                            sourceDefId: c.defId,
-                            targetUuid: ctx.card.uuid,
-                            targetDefId: ctx.card.defId,
-                            amount: bonus,
-                            reason: isPermanentDedicate ? 'dedicate_permanent' : 'dedicate',
-                            slotIndex: ctx.slotIndex
-                        });
-                        ctx.log(`${c.name} 奉献了 ${bonus} 点给 ${ctx.card.name}！`);
-                    }
-                }
-            }
-        }
-        // 黄色领域：格子中已有无奉献卡牌的反向奉献，给新牌减点
-        if (ctx.state.monster.yellowDomain) {
-            for (const c of slot.cards) {
-                if (c.uuid !== ctx.card.uuid && c.yellowDomainActive && !c.yellowDomainTriggered) {
-                    const val = ctx.getCardBaseValue(c);
-                    const penalty = Math.floor(val / 2);
-                    if (penalty > 0) {
-                        ctx.card.tempBonus = (ctx.card.tempBonus || 0) - penalty;
-                        c.yellowDomainTriggered = true;
-                        recordTimeline(ctx.state, 'card_temp_bonus', {
-                            sourceUuid: c.uuid,
-                            sourceDefId: c.defId,
-                            targetUuid: ctx.card.uuid,
-                            targetDefId: ctx.card.defId,
-                            amount: -penalty,
-                            reason: 'yellow_domain',
-                            slotIndex: ctx.slotIndex
-                        });
-                        ctx.log(`黄色领域生效：${c.name} 使 ${ctx.card.name} 点数-${penalty}`);
-                    }
-                }
-            }
-        }
         // 学徒铸造/大师铸造：给下一张同格卡牌永久加点
         if (slot.apprenticeForgeBonus && slot.apprenticeForgeBonus > 0) {
             ctx.card.battleBonus = (ctx.card.battleBonus || 0) + slot.apprenticeForgeBonus;
@@ -182,17 +129,7 @@ registerEffect({
     }
 });
 
-// ===== 6. 黄色领域标记 =====
-registerEffect({
-    id: 'yellow_domain_mark',
-    triggers: Trigger.ON_PLAY,
-    priority: Priority.SLOT_MODIFIER - 5,
-    condition: (ctx) => ctx.state.monster.yellowDomain && !ctx.card.keywords.includes('dedicate'),
-    execute: (ctx) => {
-        ctx.card.yellowDomainActive = true;
-        ctx.card.yellowDomainTriggered = false;
-    }
-});
+
 
 // ===== 7. 成长（grow）：永久加点 =====
 registerEffect({

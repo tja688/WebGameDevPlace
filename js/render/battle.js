@@ -628,7 +628,7 @@ function drawPlayerArea(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.fillText('⚔️', x + 60, badgeY + 6);
 
-    // 人群图标
+    // 生命值图标
     const heartX = x + 15;
     const heartY = y + 85;
     const heartPulse = state.player.hearts <= 1 ? renderer.animTime : 0;

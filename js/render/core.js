@@ -433,7 +433,7 @@ function hexToRgb(hex) {
     } : { r: 255, g: 255, b: 255 };
 }
 
-// 绘制人群计数图标
+// 绘制生命值计数图标
 export function drawHeartIcon(ctx, x, y, size, filled, pulseTime = 0) {
     const scale = size / 30;
     const pulse = pulseTime > 0 ? 1 + Math.sin(pulseTime * 6) * 0.08 : 1;

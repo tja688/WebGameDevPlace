@@ -199,7 +199,7 @@ export const MONSTER_DEFS = {
         hp: 2000,
         description: '地下城深处的黄色君王，掌控着奉献与诅咒',
         keywords: ['disable_dedicate', 'yellow_domain', 'yellow_heart'],
-        keywordDesc: '黄之王：所有奉献词条不生效；黄色领域：所有无奉献词条卡牌获得反向奉献；黄之心：回合开始给一张手牌赋予奉献词条',
+        keywordDesc: '黄之王：所有奉献词条不生效；黄色领域：所有无奉献词条卡牌获得反向奉献（上方卡牌获得-1/2点数）；黄之心：回合开始给一张手牌赋予奉献词条',
         theme: 'boss',
         type: 'boss',
         shape: 'rat'
