@@ -175,10 +175,10 @@ const scenarios = [
             { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '集体训练覆盖为成长2，永久+2' }
         ]
     },
-    // ===== 问题7：回响+奉献不重复触发 =====
+    // ===== 问题7：回响+奉献不重复触发（光环效果不受回响影响） =====
     {
         id: 'echo_dedicate_no_double',
-        name: '回响+奉献：不应重复触发奉献',
+        name: '回响+奉献：光环效果不受回响影响',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -199,7 +199,7 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'slots[1].cards[1].finalValue', expected: 10, desc: '测试牌应只获得一次奉献+5=10' }
+            { path: 'slots[1].cards[1].finalValue', expected: 10, desc: '测试牌获得奉献光环+5=10，回响不影响光环' }
         ]
     },
     // ===== 问题8：战后保留permanentBonus =====

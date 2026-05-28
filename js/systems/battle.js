@@ -430,7 +430,6 @@ export function endTurn(state) {
                 card.removeRemainOnNextTurnStart = true;
                 remaining.push(card);
             } else {
-                card.dedicateTriggered = false;
                 delete card.remainExhausted;
                 state.discard.push(card);
             }
@@ -450,7 +449,6 @@ export function endTurn(state) {
         if (card.keywords.includes('retain')) {
             retainedHand.push(card);
         } else {
-            card.dedicateTriggered = false;
             state.discard.push(card);
         }
     }
@@ -469,7 +467,6 @@ export function endTurn(state) {
     ];
     for (const c of allCards) {
         if (c.tempBonus) c.tempBonus = 0;
-        if (!boardCardIds[c.uuid]) c.dedicateTriggered = false;
     }
     recordTimeline(state, 'turn_cleanup_done', { nextTurn: state.turn + 1 });
 

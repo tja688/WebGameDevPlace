@@ -295,7 +295,6 @@ export function playCardToSlot(card, slotIndex, state) {
         const idx = slot.cards.findIndex(c => c.uuid === card.uuid);
         if (idx !== -1) {
             const discarded = slot.cards.splice(idx, 1)[0];
-            discarded.dedicateTriggered = false;
             state.discard.push(discarded);
             recordTimeline(state, 'card_discarded_by_monster', {
                 cardUuid: discarded.uuid,

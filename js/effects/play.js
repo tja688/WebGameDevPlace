@@ -9,8 +9,6 @@ import { Trigger, Priority } from '../core/constants.js';
 import { drawCards, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
 
-import { getCardFinalValue } from '../systems/board.js';
-
 // ===== 1. 格子加成（学徒铸造/大师铸造/辅助训练等一次性加成） =====
 registerEffect({
     id: 'slot_bonus',
@@ -128,8 +126,6 @@ registerEffect({
         addBattleLog(ctx.state, 'monster_skill', { text: `香甜诱饵：${ctx.card.name} 永久+1` });
     }
 });
-
-
 
 // ===== 7. 成长（grow）：永久加点 =====
 registerEffect({

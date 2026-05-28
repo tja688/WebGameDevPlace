@@ -307,7 +307,7 @@ export const EFFECT_SCENARIOS = [
         id: 'dedicate_half',
         name: '奉献向下取整',
         category: 'keyword',
-        description: '8点奉献牌在场，下一张同格牌获得8/2=4点加成',
+        description: '8点奉献牌在场，堆叠在它上方的卡牌获得8/2=4点加成',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -336,7 +336,7 @@ export const EFFECT_SCENARIOS = [
         id: 'devotion_stacking',
         name: '多张奉献堆叠顺序',
         category: 'keyword',
-        description: '同格有多张奉献牌时，按打出顺序依次触发。【注意】奉献B已被奉献A加成，其提供的bonus基于当前值(13/2=6)，故测试牌获得11而非10',
+        description: '同格有多张奉献牌时，每张奉献牌只影响正上方紧邻的一张牌。奉献A上方是奉献B，奉献B获得+3；奉献B上方是测试牌，测试牌获得奉献B基础值10/2=5点（光环不计入光环）',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -360,8 +360,8 @@ export const EFFECT_SCENARIOS = [
         ],
         assertions: [
             { path: 'slots[1].cards[0].finalValue', expected: 6, desc: '奉献A自身6点' },
-            { path: 'slots[1].cards[1].finalValue', expected: 13, desc: '奉献B获得奉献A的+3=10+3' },
-            { path: 'slots[1].cards[2].finalValue', expected: 11, desc: '测试牌获得奉献B的+6=5+6（奉献B当前值13/2向下取整=6）' }
+            { path: 'slots[1].cards[1].finalValue', expected: 13, desc: '奉献B获得奉献A光环+3=10+3' },
+            { path: 'slots[1].cards[2].finalValue', expected: 10, desc: '测试牌获得奉献B光环+5=5+5（奉献B基础值10/2向下取整=5，光环不计入光环）' }
         ]
     },
 
@@ -427,7 +427,7 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[3].finalValue', expected: 13, desc: '齐心：同格3张其他牌=10+3' }
+            { path: 'slots[0].cards[3].finalValue', expected: 14, desc: '齐心：同格3张其他牌=10+3，叠牌加成4张=卡牌+1，共14' }
         ]
     },
 

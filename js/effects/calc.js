@@ -11,6 +11,81 @@ import { Trigger, Priority } from '../core/constants.js';
 
 // ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
+// 奉献（dedicate）光环：所在格中，位于本牌正上方（数组中紧邻下一张）的卡牌获得本牌一半点数
+registerEffect({
+    id: 'dedicate_aura',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 1,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        if (ctx.state.monster.disableDedicate) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return true;
+    },
+    execute: (ctx) => {
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        const slot = ctx.state.slots[targetSlot];
+        const cards = slot.cards;
+        const myIdx = cards.findIndex(c => c.uuid === ctx.card.uuid);
+        if (myIdx < 0) return;
+        // 检查本牌正下方（数组中紧邻前一张）是否有奉献牌
+        if (myIdx === 0) return;
+        const belowCard = cards[myIdx - 1];
+        if (!belowCard.keywords.includes('dedicate')) return;
+        const val = (belowCard.baseValue || 0) + (belowCard.permanentBonus || 0) + (belowCard.battleBonus || 0);
+        const disabledKey = ctx.state.monster?.disabledRelicKey;
+        const hasYellowBone = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_1_5x' && (!disabledKey || (r.id || r.name) !== disabledKey));
+        const bonus = hasYellowBone ? Math.floor(val * 1.5) : Math.floor(val / 2);
+        if (bonus > 0) {
+            const isPermanentDedicate = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_permanent' && (!disabledKey || (r.id || r.name) !== disabledKey));
+            if (isPermanentDedicate) {
+                // 永久奉献：通过永久加成实现（光环阶段只加一次，避免重复）
+                // 为了避免每次计算都累加，使用一个标记记录已应用
+                if (!ctx.card._dedicatePermanentApplied) {
+                    ctx.card._dedicatePermanentApplied = [];
+                }
+                const alreadyApplied = ctx.card._dedicatePermanentApplied.some(x => x.sourceUuid === belowCard.uuid);
+                if (!alreadyApplied) {
+                    ctx.card.permanentBonus = (ctx.card.permanentBonus || 0) + bonus;
+                    ctx.card._dedicatePermanentApplied.push({ sourceUuid: belowCard.uuid, amount: bonus });
+                }
+            } else {
+                ctx.value += bonus;
+            }
+        }
+    }
+});
+
+// 黄色领域（yellow_domain）光环：无奉献词条的卡牌，其上方卡牌获得-1/2点数
+registerEffect({
+    id: 'yellow_domain_aura',
+    triggers: Trigger.ON_CALC_VALUE,
+    priority: Priority.VALUE_AURA + 1,
+    condition: (ctx) => {
+        if (!ctx.card) return false;
+        if (!ctx.state.monster.yellowDomain) return false;
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        if (targetSlot < 0) return false;
+        return true;
+    },
+    execute: (ctx) => {
+        const targetSlot = ctx.getCardSlotIndex(ctx.card);
+        const slot = ctx.state.slots[targetSlot];
+        const cards = slot.cards;
+        const myIdx = cards.findIndex(c => c.uuid === ctx.card.uuid);
+        if (myIdx < 0) return;
+        if (myIdx === 0) return;
+        const belowCard = cards[myIdx - 1];
+        if (belowCard.keywords.includes('dedicate')) return;
+        const val = (belowCard.baseValue || 0) + (belowCard.permanentBonus || 0) + (belowCard.battleBonus || 0);
+        const penalty = Math.floor(val / 2);
+        if (penalty > 0) {
+            ctx.value -= penalty;
+        }
+    }
+});
+
 // 合群（social）：相邻格每有一张其他卡牌+1
 registerEffect({
     id: 'social_aura',

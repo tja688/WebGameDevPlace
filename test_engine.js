@@ -106,13 +106,13 @@ endTurn(s8);
 assert(s8.phase === 'ended', '击杀后战斗结束');
 assert(s8.result === 'win', '战斗胜利');
 
-// Test 9: 辅助打击奉献（8点奉献=下一张同格+4）
+// Test 9: 辅助打击奉献（8点奉献=上方卡牌+4），叠牌加成2张=倍率+1
 const s9 = makeTestState(['support_strike', 'brute_force']);
 const s9c1 = s9.hand[0]; const s9c2 = s9.hand[1];
 playCardToSlot(s9c1, 1, s9); // 辅助打击放中格
 playCardToSlot(s9c2, 1, s9); // 蛮力放中格，应获得+4
 const dmg9 = calculateTotalBoardDamage(s9);
-assert(dmg9 === (8 + 19) * 1, `辅助打击(8)+蛮力(15+4=19)在1X格应为27，实际${dmg9}`);
+assert(dmg9 === (8 + 19) * 2, `辅助打击(8)+蛮力(15+4=19)在2X格应为54，实际${dmg9}`);
 
 // Test 10: 回合开始弃牌堆洗回牌库
 const s10 = createInitialState();
@@ -141,14 +141,14 @@ const s12 = makeTestState(['vine_climb']);
 playCardToSlot(s12.hand[0], 0, s12);
 assert(s12.hand.some(c => c.defId === 'diffusion'), '爬藤蔓延加入扩散牌');
 
-// Test 13: 计策必须精确匹配，条件不满足时清空
+// Test 13: 叠牌加成系统（计策已废弃）
 const s13 = makeTestState(['brute_force', 'brute_force', 'brute_force', 'brute_force']);
 playCardToSlot(s13.hand[0], 0, s13);
 playCardToSlot(s13.hand[0], 1, s13);
 playCardToSlot(s13.hand[0], 2, s13);
-assert(detectStrategy(s13.slots)?.id === 'attempt_push', '1/1/1 精确触发尝试推进');
+assert(detectStrategy(s13.slots) === null, '计策系统已废弃，不应触发任何计策');
 playCardToSlot(s13.hand[0], 0, s13);
-assert(detectStrategy(s13.slots) === null, '2/1/1 不满足任何计策');
+assert(detectStrategy(s13.slots) === null, '计策系统已废弃，不应触发任何计策');
 calculateTotalBoardDamage(s13);
 assert(s13.currentStrategy === null, '条件不满足时 currentStrategy 清空');
 
@@ -204,20 +204,20 @@ s17.data = {};
 assert(!s17._eventBattle, '正式主线战斗不应残留事件战斗标记');
 assert(s17._originalStageIndex === undefined, '正式主线战斗不应残留事件原始关卡索引');
 
-// Test 18: 留场奉献已触发后不应在下一回合重复奉献
+// Test 18: 留场奉献光环持续生效
 const s18 = makeTestState(['support_strike', 'brute_force']);
 s18.monster.hp = 9999;
 const s18Support = s18.hand[0];
 s18Support.keywords.push('remain');
 playCardToSlot(s18Support, 1, s18);
 playCardToSlot(s18.hand[0], 1, s18);
-assert(s18.slots[1].cards[1].tempBonus === 4, '首张同格后续牌获得奉献+4');
+assert(getCardFinalValue(s18.slots[1].cards[1], s18) === 19, '首张同格后续牌获得奉献+4');
 endTurn(s18);
 const s18SecondBrute = createCardInstance('brute_force');
 s18.hand = [s18SecondBrute];
 s18.deck = [];
 playCardToSlot(s18SecondBrute, 1, s18);
-assert((s18.slots[1].cards[1].tempBonus || 0) === 0, '留场奉献触发过后，下一回合不重复触发');
+assert(getCardFinalValue(s18.slots[1].cards[1], s18) === 19, '留场奉献光环持续生效，第二回合仍+4');
 
 // Test 19: 词条添加统一遵守3词条上限与去重
 const s19Card = createCardInstance('brute_force');
@@ -252,8 +252,8 @@ const s22 = makeMonsterTestState(['support_strike', 'brute_force'], {
 });
 playCardToSlot(s22.hand[0], 1, s22);
 playCardToSlot(s22.hand[0], 1, s22);
-assert(s22.slots[1].cards[1].tempBonus === 0, '黄之王激活时，同格后续牌不会获得奉献加成');
-assert(calculateTotalBoardDamage(s22) === 23, '黄之王激活时，辅助打击与蛮力同格总伤害应为23');
+assert(getCardFinalValue(s22.slots[1].cards[1], s22) === 15, '黄之王激活时，同格后续牌不会获得奉献加成');
+assert(calculateTotalBoardDamage(s22) === (8 + 15) * 2, '黄之王激活时，辅助打击与蛮力同格总伤害应为46');
 
 // Test 23: 黄色君王 - 黄色领域会让无奉献牌触发反向奉献
 const s23 = makeMonsterTestState(['brute_force', 'brute_force'], {
@@ -262,8 +262,8 @@ const s23 = makeMonsterTestState(['brute_force', 'brute_force'], {
 });
 playCardToSlot(s23.hand[0], 1, s23);
 playCardToSlot(s23.hand[0], 1, s23);
-assert(s23.slots[1].cards[1].tempBonus === -7, '黄色领域会让后一张同格无奉献牌获得-7临时点数');
-assert(calculateTotalBoardDamage(s23) === 23, '黄色领域激活时，两张蛮力同格总伤害应为23');
+assert(getCardFinalValue(s23.slots[1].cards[1], s23) === 8, '黄色领域会让后一张同格无奉献牌获得-7点数');
+assert(calculateTotalBoardDamage(s23) === (15 + 8) * 2, '黄色领域激活时，两张蛮力同格总伤害应为46');
 
 // Test 24: 黄色君王 - 黄之心会在回合开始给随机手牌赋予奉献
 const s24 = makeMonsterTestState(['brute_force', 'unity_strike'], {
@@ -324,15 +324,15 @@ const s28 = makeMonsterTestState(['brute_force'], {
 playCardToSlot(s28.hand[0], 0, s28);
 assert(getCardFinalValue(s28.slots[0].cards[0], s28) === 13, '骷髅骑士的亡者会让卡牌最终点数-2');
 
-// Test 29: 骷髅骑士 - 惊人伟力在无计策时让倍率格-10
+// Test 29: 骷髅骑士 - 惊人伟力（计策系统已废弃，此效果不再触发）
 const s29 = makeMonsterTestState(['brute_force'], {
     name: '骷髅骑士',
     noStrategySlotPenalty: 10
 });
 playCardToSlot(s29.hand[0], 0, s29);
-assert(getSlotEffectiveMultiplier(s29.slots[0], s29) === -9, '骷髅骑士无计策时，所在倍率格应额外-10');
+assert(getSlotEffectiveMultiplier(s29.slots[0], s29) === 1, '计策系统已废弃，骷髅骑士惊人伟力不再生效');
 
-// Test 30: 骷髅骑士 - 武技应记录上回合计策并在复现时生效
+// Test 30: 骷髅骑士 - 武技（计策系统已废弃，此效果不再触发）
 const s30 = makeMonsterTestState(['brute_force', 'brute_force', 'brute_force'], {
     name: '骷髅骑士',
     prevStrategyPenalty: 5
@@ -341,7 +341,7 @@ playCardToSlot(s30.hand[0], 0, s30);
 playCardToSlot(s30.hand[0], 1, s30);
 playCardToSlot(s30.hand[0], 2, s30);
 endTurn(s30);
-assert(s30.monster.prevStrategyId === 'attempt_push', '骷髅骑士会记录玩家上回合生效的计策');
+assert(s30.monster.prevStrategyId === null, '计策系统已废弃，骷髅骑士不再记录计策');
 s30.hand = [
     createCardInstance('brute_force'),
     createCardInstance('brute_force'),
@@ -352,7 +352,7 @@ s30.discard = [];
 playCardToSlot(s30.hand[0], 0, s30);
 playCardToSlot(s30.hand[0], 1, s30);
 playCardToSlot(s30.hand[0], 2, s30);
-assert(getSlotEffectiveMultiplier(s30.slots[0], s30) === -4, '骷髅骑士复现上回合计策时，倍率格应额外-5');
+assert(getSlotEffectiveMultiplier(s30.slots[0], s30) === 1, '计策系统已废弃，骷髅骑士武技不再生效');
 
 // Test 31: 留场牌下回合开始移除留场词条，但牌仍保留在场上到本回合结束
 const s31 = makeTestState(['hold_position']);
