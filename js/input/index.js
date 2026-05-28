@@ -2134,15 +2134,10 @@ export const Input = {
         const tooltip = document.getElementById('tooltip');
         const slot = this.state.slots[slotIdx];
         const totalCards = slot.cards.length;
+        const effMul = getSlotEffectiveMultiplier(slot, this.state);
         let html = `<h4>倍率格 ${slotIdx + 1}</h4>`;
-        html += `<p>当前倍率: <b style="color:#ffd700">${slot.multiplier}X</b></p>`;
+        html += `<p>当前倍率: <b style="color:#ffd700">${effMul}X</b></p>`;
         html += `<p>当前驻场: <b style="color:#ffcc88">${totalCards}</b> 张</p>`;
-        html += `<p style="color:#4ecdc4">✋ 手牌可拖到这个倍率格</p>`;
-        html += `<p style="color:#998866;font-size:12px">格内已有卡牌时，优先悬停/拖动卡牌本身</p>`;
-        if (totalCards > 0) {
-            const top = slot.cards[slot.cards.length - 1];
-            html += `<p style="margin-top:6px">顶部卡牌: <b>${top.name}</b> (${top.baseValue + top.permanentBonus + (top.battleBonus || 0)}点)</p>`;
-        }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 300);

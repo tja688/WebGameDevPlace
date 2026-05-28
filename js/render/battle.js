@@ -712,20 +712,19 @@ function drawStrategyPanel(renderer, ctx, state) {
 
     ctx.fillStyle = '#9f8b72';
     ctx.font = '12px Microsoft YaHei';
-    ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}`, x + 14, y + 48);
+    ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}张`, x + 14, y + 48);
 
-    // 规则说明
-    ctx.fillStyle = '#8f8170';
-    ctx.font = '11px Microsoft YaHei';
-    ctx.fillText('每2张触发一次加成', x + 14, y + 68);
+    // 规则说明（已移除"每2张触发一次加成"，规则在速查表中说明）
 
     // 各格当前加成状态
-    let rowY = y + 88;
+    let rowY = y + 78;
     const rowH = 20;
     ctx.font = '12px Microsoft YaHei';
 
     state.data = state.data || {};
     state.data.strategyRowRects = [];
+
+    const slotNames = ['左侧倍率格', '中间倍率格', '右侧倍率格'];
 
     for (let i = 0; i < state.slots.length; i++) {
         const slot = state.slots[i];
@@ -740,13 +739,13 @@ function drawStrategyPanel(renderer, ctx, state) {
 
         ctx.fillStyle = hasBonus ? '#ffe08a' : '#bca98b';
         ctx.textAlign = 'left';
-        const slotLabel = `格${i + 1} (${slot.cards.length}张)`;
+        const slotLabel = `${slotNames[i]} (${slot.cards.length}张)`;
         ctx.fillText(slotLabel, x + 14, rowY);
 
         ctx.textAlign = 'right';
         const parts = [];
-        if (bonus.slotBonus > 0) parts.push(`倍率格倍率+${bonus.slotBonus}`);
-        if (bonus.cardBonus > 0) parts.push(`本格卡牌点数+${bonus.cardBonus}`);
+        if (bonus.slotBonus > 0) parts.push(`倍率+${bonus.slotBonus}`);
+        if (bonus.cardBonus > 0) parts.push(`本格卡牌基础数值+${bonus.cardBonus}`);
         const bonusText = parts.length > 0 ? parts.join(', ') : '-';
         ctx.fillText(bonusText, x + w - 14, rowY);
 
@@ -762,17 +761,17 @@ function drawStrategyPanel(renderer, ctx, state) {
     ctx.fillStyle = '#9f8b72';
     ctx.font = 'bold 11px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('叠牌规则速查:', x + 14, rowY + 10);
+    ctx.fillText('当某倍率格堆叠一定数量卡牌后：', x + 14, rowY + 10);
 
     ctx.fillStyle = '#bca98b';
     ctx.font = '10px Microsoft YaHei';
     const rules = [
-        '2张: 倍率格倍率+1',
-        '4张: 本格卡牌点数+1',
-        '6张: 倍率格倍率+1',
-        '8张: 本格卡牌点数+1',
-        '10张: 倍率格倍率+1',
-        '12张: 本格卡牌点数+1...'
+        '2张: 本倍率格倍率+1',
+        '4张: 本格所有卡牌基础数值+1',
+        '6张: 本倍率格倍率+1',
+        '8张: 本格所有卡牌基础数值+1',
+        '10张: 本倍率格倍率+1',
+        '12张: 本格所有卡牌基础数值+1...'
     ];
     let ruleY = rowY + 26;
     for (const rule of rules) {
@@ -1110,6 +1109,31 @@ function drawBoardArea(renderer, ctx, state) {
             ctx.lineTo(x + slotW / 2 + 6, insertY - 5);
             ctx.lineTo(x + slotW / 2, insertY + 3);
             ctx.fill();
+        }
+
+        // 动态加成提示：显示在对应倍率格的中下位置
+        const bonus = getStackingBonus(slot.cards.length);
+        if (bonus.slotBonus > 0 || bonus.cardBonus > 0) {
+            const parts = [];
+            if (bonus.slotBonus > 0) parts.push(`倍率+${bonus.slotBonus}`);
+            if (bonus.cardBonus > 0) parts.push(`本格卡牌基础数值+${bonus.cardBonus}`);
+            const bonusText = parts.join(', ');
+
+            ctx.font = '11px Microsoft YaHei';
+            const textMetrics = ctx.measureText(bonusText);
+            const textW = textMetrics.width + 12;
+            const textH = 18;
+            const textX = x + (slotW - textW) / 2;
+            const textY = y + slotH - textH - 6;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            roundRect(ctx, textX, textY, textW, textH, 4);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffe08a';
+            ctx.textAlign = 'center';
+            ctx.fillText(bonusText, x + slotW / 2, textY + 13);
+            ctx.textAlign = 'left';
         }
     }
 }

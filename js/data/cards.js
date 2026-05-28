@@ -31,7 +31,7 @@ export const CARD_DEFS = {
         size: 1,
         keywords: ['dedicate'],
         rarity: 'white',
-        description: '奉献：在场上时，下一张打出在本牌所在倍率格的卡牌获得本牌一半的点数（向下取整）',
+        description: '奉献：在场上时，堆叠在它上方的第一张卡牌获得本牌一半的点数（向下取整）',
         color: '#E67E22',
         accentColor: '#D35400',
         iconType: 'shield'

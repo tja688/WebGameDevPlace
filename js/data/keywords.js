@@ -16,7 +16,7 @@ export const KEYWORDS = {
     echo: { name: '回响', desc: '本牌的其他词条效果再触发一次（回响不触发自身）', color: '#9B59B6', tier: 'advanced' },
 
     // 中级词条（35%出现概率）
-    dedicate: { name: '奉献', desc: '在场上时：下一张打出在本牌所在倍率格的卡牌获得本牌一半的点数（向下取整）', color: '#E67E22', tier: 'medium' },
+    dedicate: { name: '奉献', desc: '在场上时：堆叠在它上方的第一张卡牌获得本牌一半的点数（向下取整）', color: '#E67E22', tier: 'medium' },
     chain: { name: '连携', desc: '打出时，抽一张牌', color: '#3498DB', tier: 'medium' },
     twin: { name: '双生', desc: '打出时，将一张本牌的无双生词条复制加入手牌', color: '#1ABC9C', tier: 'medium' },
 
