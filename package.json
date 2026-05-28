@@ -1,6 +1,6 @@
 {
   "name": "card-dungeon",
-  "version": "0.6.13",
+  "version": "0.6.14",
   "description": "生死烛局 - 重构版 v0.6.6",
   "type": "module",
   "scripts": {

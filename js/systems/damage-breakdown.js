@@ -73,9 +73,11 @@ function breakdownCardEffectiveValue(card, state) {
     for (const h of handlers) {
         const before = ctx.value;
         h.execute(ctx);
-        const delta = ctx.value - before;
-        if (delta !== 0) {
-            steps.push({ source: effectIdToName(h.id), amount: delta, detail: h.id });
+        const after = ctx.value;
+        const delta = after - before;
+        if (delta !== 0 || h.id === 'mighty') {
+            const op = h.id === 'mighty' ? 'multiply' : 'add';
+            steps.push({ source: effectIdToName(h.id), amount: delta, operation: op, detail: h.id, before, after });
         }
     }
 
@@ -100,9 +102,11 @@ function breakdownCardFinalValue(card, state, effectiveValue) {
     for (const h of handlers) {
         const before = ctx.value;
         h.execute(ctx);
-        const delta = ctx.value - before;
-        if (delta !== 0) {
-            steps.push({ source: effectIdToName(h.id), amount: delta, detail: h.id });
+        const after = ctx.value;
+        const delta = after - before;
+        if (delta !== 0 || h.id === 'mighty') {
+            const op = h.id === 'mighty' ? 'multiply' : 'add';
+            steps.push({ source: effectIdToName(h.id), amount: delta, operation: op, detail: h.id, before, after });
         }
     }
 
@@ -147,9 +151,10 @@ function breakdownSlotMultiplier(slot, state) {
     for (const h of handlers) {
         const before = ctx.value;
         h.execute(ctx);
-        const delta = ctx.value - before;
+        const after = ctx.value;
+        const delta = after - before;
         if (delta !== 0) {
-            steps.push({ source: effectIdToName(h.id), amount: delta, detail: h.id });
+            steps.push({ source: effectIdToName(h.id), amount: delta, operation: 'add', detail: h.id, before, after });
         }
     }
 
@@ -246,6 +251,7 @@ export function getCardDamageBreakdown(card, slotIndex, state) {
             phase: 'extra',
             source: '全局伤害倍率',
             amount: extraMul,
+            operation: 'multiply',
             detail: `最终伤害 ×${extraMul}`
         });
     }

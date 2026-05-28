@@ -2149,93 +2149,175 @@ export const Input = {
     updateSlotCardTooltip(card, slotIdx, clientX, clientY) {
         const tooltip = document.getElementById('tooltip');
         const bd = getCardDamageBreakdown(card, slotIdx, this.state);
+        const state = this.state;
 
-        let html = `<h4>${card.name} <span style="color:#ffd700;font-size:13px">[格${slotIdx + 1}]</span></h4>`;
+        // ===== 上半侧：卡牌效果 =====
+        const rarityLabels = { white: '普通', blue: '稀有', gold: '传说' };
+        const rarityColors = { white: '#ccc', blue: '#4488ff', gold: '#ffd700' };
+        const rLabel = rarityLabels[card.rarity] || '';
+        const rColor = rarityColors[card.rarity] || '#ccc';
 
-        // 计算链
-        html += `<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">`;
-        html += `<p style="font-size:12px;color:#998866;margin-bottom:6px">📊 伤害计算链</p>`;
+        let html = `<h4>${card.name} <span style="color:${rColor};font-size:13px;font-weight:normal">[${rLabel}]</span></h4>`;
+        html += `<p>基础点数: <b>${bd.baseValue}</b> | 尺寸: ${card.size}格 | 格${slotIdx + 1}</p>`;
+        html += `<p style="color:#ddd">${card.description}</p>`;
+
+        if (card.keywords && card.keywords.length > 0) {
+            html += '<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">';
+            html += '<p style="font-size:12px;color:#998866;margin-bottom:6px">词条说明</p>';
+            for (const kw of card.keywords) {
+                const data = KEYWORDS[kw];
+                if (data) {
+                    html += `<div style="margin-bottom:4px">`;
+                    html += `<span class="keyword-tag" style="border-color:${data.color};color:${data.color};background:${data.color}22">${data.name}</span>`;
+                    html += `<span style="color:#aaa;font-size:12px;margin-left:6px">${data.desc}</span>`;
+                    html += `</div>`;
+                }
+            }
+            html += '</div>';
+        }
+
+        // ===== 分隔线 =====
+        html += `<div style="border-top:2px solid #665544;margin:12px 0;"></div>`;
+
+        // ===== 下半侧：伤害计算 =====
+        html += `<p style="font-size:13px;color:#ffd700;font-weight:bold;margin-bottom:8px">伤害计算</p>`;
+
+        // --- 阶段1：有效点数 ---
+        const effectiveSteps = bd.steps.filter(s => s.phase === 'effective');
+        const otherEffSteps = effectiveSteps.filter(s => s.source !== '基础点数');
 
         // 基础点数
-        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-        html += `<span style="color:#aaa">基础点数</span>`;
-        html += `<span style="color:#fff">${bd.baseValue}</span>`;
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+        html += `<span style="color:#ccc">基础点数</span>`;
+        html += `<span style="color:#fff;font-weight:bold">${bd.baseValue}</span>`;
         html += `</div>`;
 
-        // 有效点数阶段
-        for (const step of bd.steps.filter(s => s.phase === 'effective')) {
-            const color = step.amount >= 0 ? '#2ecc71' : '#ff6666';
-            const sign = step.amount >= 0 ? '+' : '';
-            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-            html += `<span style="color:#aaa">${step.source}</span>`;
+        // 有效点数阶段的各个加成
+        for (const step of otherEffSteps) {
+            const isPositive = step.amount >= 0;
+            const color = isPositive ? '#2ecc71' : '#ff6666';
+            const sign = isPositive ? '+' : '';
+
+            let sourceName = step.source;
+
+            // 特殊处理奉献效果，显示来源卡牌名
+            if (step.detail === 'dedicate_aura') {
+                const slot = state.slots[slotIdx];
+                const cards = slot.cards;
+                const myIdx = cards.findIndex(c => c.uuid === card.uuid);
+                if (myIdx > 0) {
+                    const belowCard = cards[myIdx - 1];
+                    if (belowCard.keywords.includes('dedicate')) {
+                        sourceName = `奉献（${belowCard.name}）`;
+                    }
+                }
+            } else if (step.detail === 'yellow_domain_aura') {
+                const slot = state.slots[slotIdx];
+                const cards = slot.cards;
+                const myIdx = cards.findIndex(c => c.uuid === card.uuid);
+                if (myIdx > 0) {
+                    const belowCard = cards[myIdx - 1];
+                    if (!belowCard.keywords.includes('dedicate')) {
+                        sourceName = `黄色领域（${belowCard.name}）`;
+                    }
+                }
+            }
+
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+            html += `<span style="color:#aaa">+ ${sourceName}</span>`;
             html += `<span style="color:${color}">${sign}${step.amount}</span>`;
             html += `</div>`;
         }
-        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;border-top:1px dashed #554433;padding-top:4px">`;
-        html += `<span style="color:#ccc">有效点数</span>`;
-        html += `<span style="color:#ffd700">${bd.effectiveValue}</span>`;
-        html += `</div>`;
 
-        // 最终点数阶段
-        for (const step of bd.steps.filter(s => s.phase === 'final')) {
-            const color = step.amount >= 0 ? '#2ecc71' : '#ff6666';
-            const sign = step.amount >= 0 ? '+' : '';
-            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-            html += `<span style="color:#aaa">${step.source}</span>`;
-            html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+        // 有效点数小计
+        if (otherEffSteps.length > 0) {
+            html += `<div style="border-top:1px dashed #554433;margin:4px 0;padding-top:4px;display:flex;justify-content:space-between">`;
+            html += `<span style="color:#ccc;font-size:12px">有效点数</span>`;
+            html += `<span style="color:#ffd700;font-weight:bold">${bd.effectiveValue}</span>`;
             html += `</div>`;
         }
-        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;border-top:1px dashed #554433;padding-top:4px">`;
-        html += `<span style="color:#ccc">最终点数</span>`;
-        html += `<span style="color:#ffd700">${bd.finalValue}</span>`;
-        html += `</div>`;
 
-        // 倍率阶段
-        html += `<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">`;
-        html += `<p style="font-size:12px;color:#998866;margin-bottom:6px">🎯 倍率计算</p>`;
-        for (const step of bd.steps.filter(s => s.phase === 'slot')) {
-            const color = step.amount >= 0 ? '#2ecc71' : '#ff6666';
-            const sign = step.amount >= 0 ? '+' : '';
-            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-            html += `<span style="color:#aaa">${step.source}</span>`;
-            html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+        // --- 阶段2：最终点数 ---
+        const finalSteps = bd.steps.filter(s => s.phase === 'final');
+
+        if (finalSteps.length > 0) {
+            html += `<div style="margin-top:8px">`;
+
+            for (const step of finalSteps) {
+                if (step.operation === 'multiply') {
+                    // 乘法效果（如伟力翻倍）
+                    html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+                    html += `<span style="color:#aaa">× ${step.source}</span>`;
+                    html += `<span style="color:#ffaa44">×2</span>`;
+                    html += `</div>`;
+                } else {
+                    const isPositive = step.amount >= 0;
+                    const color = isPositive ? '#2ecc71' : '#ff6666';
+                    const sign = isPositive ? '+' : '';
+                    html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+                    html += `<span style="color:#aaa">+ ${step.source}</span>`;
+                    html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+                    html += `</div>`;
+                }
+            }
+
+            html += `<div style="border-top:1px dashed #554433;margin:4px 0;padding-top:4px;display:flex;justify-content:space-between">`;
+            html += `<span style="color:#ccc;font-size:12px">最终点数</span>`;
+            html += `<span style="color:#ffd700;font-weight:bold">${bd.finalValue}</span>`;
+            html += `</div>`;
             html += `</div>`;
         }
-        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px;border-top:1px dashed #554433;padding-top:4px">`;
-        html += `<span style="color:#ccc">最终倍率</span>`;
-        html += `<span style="color:#ffd700">${bd.slotMultiplier}X</span>`;
-        html += `</div>`;
-        html += `</div>`;
 
-        // 伤害汇总
-        html += `<div style="margin-top:8px;border-top:1px solid #443322;padding-top:8px">`;
-        html += `<p style="font-size:12px;color:#998866;margin-bottom:6px">💥 伤害汇总</p>`;
-        html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-        html += `<span style="color:#aaa">卡牌输出</span>`;
+        // --- 阶段3：倍率计算 ---
+        const slotSteps = bd.steps.filter(s => s.phase === 'slot');
+
+        if (slotSteps.length > 0 || bd.slotMultiplier !== 1) {
+            html += `<div style="margin-top:8px">`;
+
+            for (const step of slotSteps) {
+                const isPositive = step.amount >= 0;
+                const color = isPositive ? '#2ecc71' : '#ff6666';
+                const sign = isPositive ? '+' : '';
+                html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+                html += `<span style="color:#aaa">+ ${step.source}</span>`;
+                html += `<span style="color:${color}">${sign}${step.amount}</span>`;
+                html += `</div>`;
+            }
+
+            html += `<div style="border-top:1px dashed #554433;margin:4px 0;padding-top:4px;display:flex;justify-content:space-between">`;
+            html += `<span style="color:#ccc;font-size:12px">最终倍率</span>`;
+            html += `<span style="color:#ffd700;font-weight:bold">${bd.slotMultiplier}X</span>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // --- 阶段4：伤害汇总 ---
+        html += `<div style="margin-top:8px;border-top:1px solid #554433;padding-top:8px">`;
+
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+        html += `<span style="color:#ccc">最终点数 × 最终倍率</span>`;
         html += `<span style="color:#fff">${bd.finalValue} × ${bd.slotMultiplier} = <b style="color:#ffd700">${bd.cardOutput}</b></span>`;
         html += `</div>`;
-        if (bd.strategyExtra > 0) {
-            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-            html += `<span style="color:#aaa">计策额外</span>`;
-            html += `<span style="color:#2ecc71">+${bd.strategyExtra}</span>`;
+
+        // 预留：特殊额外加成（全局倍率等）
+        const extraSteps = bd.steps.filter(s => s.phase === 'extra');
+        for (const step of extraSteps) {
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
+            html += `<span style="color:#aaa">× ${step.source}</span>`;
+            html += `<span style="color:#ffaa44">×${step.amount}</span>`;
             html += `</div>`;
         }
-        if (bd.extraMultiplier !== 1) {
-            html += `<div style="display:flex;justify-content:space-between;margin-bottom:4px">`;
-            html += `<span style="color:#aaa">全局倍率</span>`;
-            html += `<span style="color:#ffaa44">×${bd.extraMultiplier}</span>`;
-            html += `</div>`;
-        }
-        html += `<div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px solid #665544;padding-top:4px">`;
-        html += `<span style="color:#fff;font-weight:bold">本卡总伤害</span>`;
+
+        html += `<div style="border-top:2px solid #ffd700;margin:6px 0;padding-top:6px;display:flex;justify-content:space-between">`;
+        html += `<span style="color:#fff;font-weight:bold">总伤害</span>`;
         html += `<span style="color:#ff4444;font-weight:bold;font-size:16px">${bd.totalOutput}</span>`;
         html += `</div>`;
         html += `</div>`;
 
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
-        const x = Math.min(clientX + 20, window.innerWidth - 340);
-        const y = Math.min(clientY + 20, window.innerHeight - 400);
+        const x = Math.min(clientX + 20, window.innerWidth - 360);
+        const y = Math.min(clientY + 20, window.innerHeight - 450);
         tooltip.style.left = x + 'px';
         tooltip.style.top = y + 'px';
     },

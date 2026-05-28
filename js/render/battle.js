@@ -1008,8 +1008,6 @@ function drawBoardArea(renderer, ctx, state) {
         const x = startX + i * (slotW + gap);
         const y = startY;
 
-        const effMul = getSlotEffectiveMultiplier(slot, state);
-        const mulLabel = `${effMul}X`;
         const isHeaderHovered = data.hoverSlotHeader === i;
 
         // 倍率标签 - 金属铭牌
@@ -1022,12 +1020,12 @@ function drawBoardArea(renderer, ctx, state) {
         });
         data.slotHeaderRects.push({ x, y: y - 40, w: slotW, h: 36, slotIndex: i });
 
-        // 倍率文字
-        const isHighMul = effMul >= 3;
-        drawGlowText(ctx, `倍率 ${mulLabel}`, x + slotW / 2, y - 16, {
-            color: isHeaderHovered ? '#ffe3a6' : (isHighMul ? '#ffaa44' : '#ffd700'),
-            glowColor: isHighMul ? '#ff6600' : '#b8860b',
-            glowBlur: isHighMul ? 8 : 4,
+        // 倍率文字 —— 改为显示当前格有几张牌
+        const cardCount = slot.cards.length;
+        drawGlowText(ctx, `(${cardCount})`, x + slotW / 2, y - 16, {
+            color: isHeaderHovered ? '#ffe3a6' : '#ffd700',
+            glowColor: '#b8860b',
+            glowBlur: 4,
             font: 'bold 17px Microsoft YaHei',
             align: 'center'
         });
@@ -1159,29 +1157,10 @@ function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex, slot
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
 
-    // 计算该卡在当前状态下的最终总伤害（含叠牌加成、全局倍率）
-    let totalOutput = 0;
-    try {
-        const bd = getCardDamageBreakdown(card, slotIndex, state);
-        totalOutput = bd.totalOutput;
-    } catch (e) {
-        // fallback: 旧算法
-        const finalVal = getCardFinalValue(card, state);
-        totalOutput = finalVal * multiplier;
-        const extraMul = state.runDataRef?.extraMultiplier || 1;
-        totalOutput = Math.floor(totalOutput * extraMul);
-    }
-
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Microsoft YaHei';
     ctx.textAlign = 'left';
     ctx.fillText(card.name, x + 6, y + 16);
-
-    // 右上角显示该卡在当前状态下的最终总伤害
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 14px Microsoft YaHei';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${totalOutput}`, x + w - 6, y + 16);
 
     ctx.textAlign = 'left';
     let tagX = x + 6;
