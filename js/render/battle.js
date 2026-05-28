@@ -985,10 +985,10 @@ function drawBoardArea(renderer, ctx, state) {
         // 倍率文字 —— 显示当前倍率格加成信息
         const effMul = getSlotEffectiveMultiplier(slot, state);
         const bonus = getStackingBonus(slot.cards.length);
-        const headerParts = [];
+        const headerParts = [`×${effMul}`];
         if (bonus.slotBonus > 0) headerParts.push(`倍率+${bonus.slotBonus}`);
         if (bonus.cardBonus > 0) headerParts.push(`基础+${bonus.cardBonus}`);
-        const headerText = headerParts.length > 0 ? headerParts.join(' | ') : `×${effMul}`;
+        const headerText = headerParts.join('，');
         drawGlowText(ctx, headerText, x + slotW / 2, y - 16, {
             color: isHeaderHovered ? '#ffe3a6' : '#ffd700',
             glowColor: '#b8860b',
