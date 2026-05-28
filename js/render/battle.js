@@ -13,7 +13,7 @@ import {
     getCardBaseValue, getCardFinalValue, buildCardSlotMap,
     canPlaceCard, getSlotEffectiveMultiplier, getPlacementPreview,
     calculateTotalBoardDamage, getStrategySlotBonuses,
-    isCardDraggableFromSlot, getSlotDragPreview
+    isCardDraggableFromSlot, getSlotDragPreview, calculateCardOutput
 } from '../systems/board.js';
 import { getCardDamageBreakdown } from '../systems/damage-breakdown.js';
 import { detectStrategy, getAllStrategies, getStackingBonus } from '../systems/strategy.js';
@@ -694,8 +694,8 @@ function drawStrategyPanel(renderer, ctx, state) {
 
     const x = 10;
     const y = 260;
-    const w = 230;
-    const h = 355;
+    const w = 180;
+    const h = 240;
     const counts = state.slots.map(s => s.cards.length);
     const totalCards = counts.reduce((sum, n) => sum + n, 0);
 
@@ -714,48 +714,10 @@ function drawStrategyPanel(renderer, ctx, state) {
     ctx.font = '12px Microsoft YaHei';
     ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}张`, x + 14, y + 48);
 
-    // 规则说明（已移除"每2张触发一次加成"，规则在速查表中说明）
-
-    // 各格当前加成状态
-    let rowY = y + 78;
-    const rowH = 20;
-    ctx.font = '12px Microsoft YaHei';
-
-    state.data = state.data || {};
-    state.data.strategyRowRects = [];
-
-    const slotNames = ['左侧倍率格', '中间倍率格', '右侧倍率格'];
-
-    for (let i = 0; i < state.slots.length; i++) {
-        const slot = state.slots[i];
-        const bonus = getStackingBonus(slot.cards.length);
-        const hasBonus = bonus.slotBonus > 0 || bonus.cardBonus > 0;
-
-        if (hasBonus) {
-            ctx.fillStyle = 'rgba(255,215,0,0.12)';
-            roundRect(ctx, x + 8, rowY - 11, w - 16, rowH, 3);
-            ctx.fill();
-        }
-
-        ctx.fillStyle = hasBonus ? '#ffe08a' : '#bca98b';
-        ctx.textAlign = 'left';
-        const slotLabel = `${slotNames[i]} (${slot.cards.length}张)`;
-        ctx.fillText(slotLabel, x + 14, rowY);
-
-        ctx.textAlign = 'right';
-        const parts = [];
-        if (bonus.slotBonus > 0) parts.push(`倍率+${bonus.slotBonus}`);
-        if (bonus.cardBonus > 0) parts.push(`本格卡牌基础数值+${bonus.cardBonus}`);
-        const bonusText = parts.length > 0 ? parts.join(', ') : '-';
-        ctx.fillText(bonusText, x + w - 14, rowY);
-
-        rowY += rowH;
-    }
-
     // 规则速查表
-    rowY += 6;
+    let rowY = y + 72;
     ctx.fillStyle = 'rgba(80,60,25,0.35)';
-    roundRect(ctx, x + 8, rowY - 4, w - 16, 120, 4);
+    roundRect(ctx, x + 8, rowY - 4, w - 16, 158, 4);
     ctx.fill();
 
     ctx.fillStyle = '#9f8b72';
@@ -1020,13 +982,18 @@ function drawBoardArea(renderer, ctx, state) {
         });
         data.slotHeaderRects.push({ x, y: y - 40, w: slotW, h: 36, slotIndex: i });
 
-        // 倍率文字 —— 改为显示当前格有几张牌
-        const cardCount = slot.cards.length;
-        drawGlowText(ctx, `(${cardCount})`, x + slotW / 2, y - 16, {
+        // 倍率文字 —— 显示当前倍率格加成信息
+        const effMul = getSlotEffectiveMultiplier(slot, state);
+        const bonus = getStackingBonus(slot.cards.length);
+        const headerParts = [];
+        if (bonus.slotBonus > 0) headerParts.push(`倍率+${bonus.slotBonus}`);
+        if (bonus.cardBonus > 0) headerParts.push(`基础+${bonus.cardBonus}`);
+        const headerText = headerParts.length > 0 ? headerParts.join(' | ') : `×${effMul}`;
+        drawGlowText(ctx, headerText, x + slotW / 2, y - 16, {
             color: isHeaderHovered ? '#ffe3a6' : '#ffd700',
             glowColor: '#b8860b',
             glowBlur: 4,
-            font: 'bold 17px Microsoft YaHei',
+            font: 'bold 14px Microsoft YaHei',
             align: 'center'
         });
 
@@ -1109,30 +1076,24 @@ function drawBoardArea(renderer, ctx, state) {
             ctx.fill();
         }
 
-        // 动态加成提示：显示在对应倍率格的中下位置
-        const bonus = getStackingBonus(slot.cards.length);
-        if (bonus.slotBonus > 0 || bonus.cardBonus > 0) {
-            const parts = [];
-            if (bonus.slotBonus > 0) parts.push(`倍率+${bonus.slotBonus}`);
-            if (bonus.cardBonus > 0) parts.push(`本格卡牌基础数值+${bonus.cardBonus}`);
-            const bonusText = parts.join(', ');
+        // 倍率格中间描述标签（可遮盖）
+        const slotNames = ['左侧倍率格', '中间倍率格', '右侧倍率格'];
+        const slotLabel = slotNames[i];
+        ctx.font = 'bold 14px Microsoft YaHei';
+        const labelMetrics = ctx.measureText(slotLabel);
+        const labelW = labelMetrics.width + 16;
+        const labelH = 22;
+        const labelX = x + (slotW - labelW) / 2;
+        const labelY = y + (slotH - labelH) / 2;
 
-            ctx.font = '11px Microsoft YaHei';
-            const textMetrics = ctx.measureText(bonusText);
-            const textW = textMetrics.width + 12;
-            const textH = 18;
-            const textX = x + (slotW - textW) / 2;
-            const textY = y + slotH - textH - 6;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        roundRect(ctx, labelX, labelY, labelW, labelH, 4);
+        ctx.fill();
 
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            roundRect(ctx, textX, textY, textW, textH, 4);
-            ctx.fill();
-
-            ctx.fillStyle = '#ffe08a';
-            ctx.textAlign = 'center';
-            ctx.fillText(bonusText, x + slotW / 2, textY + 13);
-            ctx.textAlign = 'left';
-        }
+        ctx.fillStyle = 'rgba(184,134,11,0.6)';
+        ctx.textAlign = 'center';
+        ctx.fillText(slotLabel, x + slotW / 2, labelY + 16);
+        ctx.textAlign = 'left';
     }
 }
 
@@ -1174,6 +1135,20 @@ function drawMiniCard(ctx, card, x, y, w, h, state, stackIndex, slotIndex) {
         ctx.font = '9px Microsoft YaHei';
         ctx.fillText(kwData.name, tagX + 2, y + 29);
         tagX += 36;
+    }
+
+    // 卡牌条末尾显示当前卡牌总伤害
+    const slot = state.slots[slotIndex];
+    if (slot) {
+        const cardDmg = calculateCardOutput(card, slot, state);
+        const dmgText = `${cardDmg}`;
+        ctx.font = 'bold 11px Microsoft YaHei';
+        const dmgW = ctx.measureText(dmgText).width;
+        const dmgX = x + w - dmgW - 6;
+        const dmgY = y + 16;
+        ctx.fillStyle = '#ff4444';
+        ctx.textAlign = 'left';
+        ctx.fillText(dmgText, dmgX, dmgY);
     }
 }
 
