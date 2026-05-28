@@ -489,33 +489,47 @@ export function drawHeartIcon(ctx, x, y, size, filled, pulseTime = 0) {
     ctx.restore();
 }
 
-// 绘制金币/货币图标
+// 绘制金币图标
 export function drawSoulIcon(ctx, x, y, size) {
     ctx.save();
     ctx.translate(x, y);
     const s = size / 20;
     ctx.scale(s, s);
 
-    // 金币火光
+    // 金币外发光
     const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
-    grad.addColorStop(0, 'rgba(100,200,255,0.8)');
-    grad.addColorStop(0.5, 'rgba(80,150,255,0.4)');
-    grad.addColorStop(1, 'rgba(60,100,255,0)');
+    grad.addColorStop(0, 'rgba(255,215,0,0.6)');
+    grad.addColorStop(0.5, 'rgba(255,180,0,0.3)');
+    grad.addColorStop(1, 'rgba(255,140,0,0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fill();
 
-    // 内核
-    ctx.fillStyle = '#aaddff';
+    // 金币主体
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 金币内圈
+    ctx.fillStyle = '#ffec8b';
     ctx.beginPath();
     ctx.arc(0, 0, 5, 0, Math.PI * 2);
     ctx.fill();
 
+    // 金币符号 ¤
+    ctx.fillStyle = '#b8860b';
+    ctx.font = 'bold 8px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('¤', 0, 0.5);
+    ctx.textBaseline = 'alphabetic';
+
     // 高光
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.beginPath();
-    ctx.arc(-2, -2, 2, 0, Math.PI * 2);
+    ctx.arc(-3, -3, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();

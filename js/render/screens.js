@@ -200,7 +200,7 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`💀 ${runData.gold} 金币`, renderer.width - 30, 45);
+    ctx.fillText(`💰 ${runData.gold} 金币`, renderer.width - 30, 45);
 
     const nodeW = 100;
     const nodeH = 130;
@@ -893,7 +893,7 @@ export function drawShop(renderer, ctx, state) {
             const priceColor = runData.gold >= price ? '#2ecc71' : '#e74c3c';
             ctx.fillStyle = priceColor;
             ctx.font = 'bold 18px Microsoft YaHei';
-            ctx.fillText(`💀 ${price}`, x + cardW / 2, y + cardH - 40);
+            ctx.fillText(`💰 ${price}`, x + cardW / 2, y + cardH - 40);
         } else {
             ctx.fillStyle = '#555';
             ctx.font = 'bold 16px Microsoft YaHei';
