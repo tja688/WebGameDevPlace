@@ -1085,7 +1085,7 @@ function drawBoardArea(renderer, ctx, state) {
                 }
             }
 
-            drawMiniCard(ctx, card, cx, cy, cw, ch, effMul, state, c, i);
+            drawMiniCard(ctx, card, cx, cy, cw, ch, state, c, i);
         }
 
         // 绘制插入位置指示线
@@ -1136,7 +1136,7 @@ function drawBoardArea(renderer, ctx, state) {
     }
 }
 
-function drawMiniCard(ctx, card, x, y, w, h, multiplier, state, stackIndex, slotIndex) {
+function drawMiniCard(ctx, card, x, y, w, h, state, stackIndex, slotIndex) {
     // 堆叠偏移阴影
     if (stackIndex > 0) {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';

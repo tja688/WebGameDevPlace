@@ -2020,7 +2020,7 @@ export const Input = {
                         for (const c of allCards) {
                             c.tempBonus = 0;
                             c.battleBonus = 0;
-                            c.dedicateTriggered = false;
+                            delete c.dedicateTriggered;
                             delete c.removeRemainOnNextTurnStart;
                             if (c._monsterAddedKeywords) {
                                 const def = CARD_DEFS[c.defId];

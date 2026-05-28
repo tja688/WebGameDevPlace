@@ -248,7 +248,7 @@ export function initBattleFromRun(runData) {
     }
 
     // 触发第一回合开始效果（怪物恢复等）
-    FX.fire(Trigger.ON_TURN_START, new EffectContext({
+    FX.fire(Trigger.ON_TURN_START, EffectContext({
         state, trigger: Trigger.ON_TURN_START
     }));
 
@@ -504,7 +504,7 @@ export function endTurn(state) {
     }
 
     // 触发回合开始效果
-    FX.fire(Trigger.ON_TURN_START, new EffectContext({
+    FX.fire(Trigger.ON_TURN_START, EffectContext({
         state, trigger: Trigger.ON_TURN_START
     }));
 }

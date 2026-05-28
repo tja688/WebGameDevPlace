@@ -39,7 +39,7 @@ export function getCardBaseValue(card) {
 
 export function getCardEffectiveValue(card, state) {
     let val = getCardBaseValue(card);
-    const ctx = new EffectContext({
+    const ctx = EffectContext({
         state, trigger: Trigger.ON_CALC_VALUE,
         card, value: val
     });
@@ -49,7 +49,7 @@ export function getCardEffectiveValue(card, state) {
 
 export function getCardFinalValue(card, state) {
     let val = getCardEffectiveValue(card, state);
-    const ctx = new EffectContext({
+    const ctx = EffectContext({
         state, trigger: Trigger.ON_CALC_FINAL,
         card, value: val
     });
@@ -73,7 +73,7 @@ export function getSlotEffectiveMultiplier(slot, state) {
     const stacking = getStackingBonus(slot.cards.length);
     mul += stacking.slotBonus;
 
-    const ctx = new EffectContext({
+    const ctx = EffectContext({
         state, trigger: Trigger.ON_SLOT_CALC,
         slotIndex: slot.index, value: mul
     });
@@ -312,7 +312,7 @@ export function playCardToSlot(card, slotIndex, state) {
     }
 
     // 触发 ON_PLAY 效果链
-    const ctx = new EffectContext({
+    const ctx = EffectContext({
         state, trigger: Trigger.ON_PLAY,
         card, slotIndex
     });

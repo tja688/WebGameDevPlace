@@ -272,7 +272,7 @@ const s24 = makeMonsterTestState(['brute_force', 'unity_strike'], {
 });
 const originalRandom24 = Math.random;
 Math.random = () => 0;
-FX.fire(Trigger.ON_TURN_START, new EffectContext({
+FX.fire(Trigger.ON_TURN_START, EffectContext({
     state: s24,
     trigger: Trigger.ON_TURN_START
 }));
@@ -286,7 +286,7 @@ const s25 = makeMonsterTestState(['support_strike', 'brute_force'], {
 });
 const originalRandom25 = Math.random;
 Math.random = () => 0;
-FX.fire(Trigger.ON_TURN_START, new EffectContext({
+FX.fire(Trigger.ON_TURN_START, EffectContext({
     state: s25,
     trigger: Trigger.ON_TURN_START
 }));
