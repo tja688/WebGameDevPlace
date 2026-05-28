@@ -50,23 +50,12 @@ export const TUTORIAL_GROUPS = {
                 ],
                 targets: ['hand'],
                 panel: 'top'
-            }
-        ]
-    },
-    battle_turn_2: {
-        steps: [
-            {
-                title: '没击败时会被反击',
-                body: [
-                    '可以看到我们上回合的伤害没有超过怪物的血量，但也对它造成了相应的伤害，而它也反击了我们。屏幕左上方摆放着我们收集的遗物与我们剩余的生命（出牌次数）。正常来说，怪物每回合会造成1格生命值伤害。所以请好好利用你的三次机会吧。'
-                ],
-                targets: ['player_panel', 'relics'],
-                panel: 'bottom'
             },
             {
-                title: '基础教程结束',
+                title: '战斗教程结束',
                 body: [
-                    '教程到此为止，就不多废话了，欢迎通过右上方的：点我反馈 赐予我们珍贵的建议啊啊啊啊QAQ'
+                    '欢迎通过右上方的：点我反馈',
+                    '赐予我们珍贵的建议啊啊啊啊QAQ'
                 ],
                 targets: ['end_turn'],
                 panel: 'center'
@@ -290,7 +279,6 @@ function getPendingTutorialGroup(state, seen) {
 
     if (state.screen === 'battle' && state.stageKey === '1-1' && state.phase === 'playing') {
         if (state.turn === 1 && !seen.battle_turn_1) return 'battle_turn_1';
-        if (state.turn === 2 && !seen.battle_turn_2) return 'battle_turn_2';
     }
 
     if (state.screen === 'shop' && !seen.shop_first) return 'shop_first';
