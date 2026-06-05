@@ -1,4 +1,4 @@
-import { Scene } from 'phaser';
+import Phaser, { Scene } from 'phaser';
 import { COLORS, FONT, GAME_CONFIG, getGridX, getGridY, indexToRowCol, getAdjacentIndices, hexToString } from '../config.js';
 import { audio } from '../audio/AudioManager.js';
 import { generateRoomCards, generateLayerRooms, generateRouteOptions } from '../core/dungeon.js';
@@ -21,6 +21,8 @@ export class GameScene extends Scene {
     this.uiTexts = {};
     this.dragGhost = null;
     this.dragSourceTxt = null;     // 原卡牌对象
+    this.dragTargetIndex = -1;
+    this.isResolvingDrop = false;
     this.hoveredCard = null;
     this.itemMode = false; // 道具使用模式
     this.selectedItem = null;
@@ -134,7 +136,7 @@ export class GameScene extends Scene {
 
     // 只有顶部的卡可以交互
     if (isTop && card.type !== 'empty') {
-      txt.setInteractive({ useHandCursor: true });
+      this.setCardInteractiveArea(txt);
       txt.cardData = card;
       txt.gridIndex = gridIndex;
       txt.stackIndex = stackIndex;
@@ -197,12 +199,29 @@ export class GameScene extends Scene {
 
   // ========== Phaser 原生拖拽 ==========
 
+  setCardInteractiveArea(txt) {
+    const width = Math.max(GAME_CONFIG.cardWidth, txt.width || GAME_CONFIG.cardWidth);
+    const height = Math.max(GAME_CONFIG.cardHeight, txt.height || GAME_CONFIG.cardHeight);
+    txt.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(
+        (txt.width || width) / 2 - width / 2,
+        (txt.height || height) / 2 - height / 2,
+        width,
+        height
+      ),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
+  }
+
   onDragStart(pointer, gameObject) {
+    if (this.isResolvingDrop) return;
+
     const card = gameObject.cardData;
     if (!card) return;
 
     this.draggedCard = card;
-    this.dragOriginalIndex = gameObject.gridIndex;
+    this.dragOriginalIndex = Number.isInteger(gameObject.gridIndex) ? gameObject.gridIndex : -1;
     this.dragSourceTxt = gameObject;
 
     audio.playDrag();
@@ -216,6 +235,7 @@ export class GameScene extends Scene {
     }).setOrigin(0.5).setAlpha(0.9).setDepth(100);
 
     gameObject.setAlpha(0.3);
+    this.updateDragTarget(pointer.x, pointer.y);
   }
 
   onDrag(pointer, gameObject, dragX, dragY) {
@@ -223,33 +243,51 @@ export class GameScene extends Scene {
       this.dragGhost.x = pointer.x;
       this.dragGhost.y = pointer.y;
     }
+    this.updateDragTarget(pointer.x, pointer.y);
   }
 
-  async onDragEnd(pointer, gameObject) {
+  onDragEnd(pointer, gameObject) {
     if (this.awaitingDirection) {
       this.cleanupDrag();
       return;
     }
 
     if (this.dragGhost && this.draggedCard) {
-      audio.playDrop();
+      const card = this.draggedCard;
+      const fromIndex = this.dragOriginalIndex;
+      const targetIndex = this.getGridIndexAt(pointer.x, pointer.y);
+      const dropState = this.getDropState(card, fromIndex, targetIndex);
 
-      let targetIndex = -1;
-      for (let i = 0; i < 9; i++) {
-        const cell = this.cellTexts[i];
-        const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, cell.x, cell.y);
-        if (dist < GAME_CONFIG.cellSize / 2) {
-          targetIndex = i;
-          break;
-        }
+      this.cleanupDrag();
+
+      if (dropState.valid) {
+        audio.playDrop();
+        this.queueDropResolution(card, fromIndex, targetIndex);
+      } else if (targetIndex >= 0 && dropState.message) {
+        this.showToast(dropState.message);
       }
 
-      if (targetIndex >= 0) {
-        await this.handleDrop(this.draggedCard, this.dragOriginalIndex, targetIndex);
-      }
+      return;
     }
 
     this.cleanupDrag();
+  }
+
+  queueDropResolution(card, fromIndex, targetIndex) {
+    this.time.delayedCall(0, () => {
+      this.resolveDrop(card, fromIndex, targetIndex);
+    });
+  }
+
+  async resolveDrop(card, fromIndex, targetIndex) {
+    if (this.isResolvingDrop) return;
+
+    this.isResolvingDrop = true;
+    try {
+      await this.handleDrop(card, fromIndex, targetIndex);
+    } finally {
+      this.isResolvingDrop = false;
+    }
   }
 
   cleanupDrag() {
@@ -260,9 +298,101 @@ export class GameScene extends Scene {
     if (this.dragSourceTxt && this.dragSourceTxt.active) {
       this.dragSourceTxt.setAlpha(1);
     }
+    this.clearDragTarget();
     this.draggedCard = null;
     this.dragOriginalIndex = -1;
     this.dragSourceTxt = null;
+  }
+
+  getGridIndexAt(x, y) {
+    for (let i = 0; i < 9; i++) {
+      const cell = this.cellTexts[i];
+      if (
+        Math.abs(x - cell.x) <= GAME_CONFIG.cellSize / 2 &&
+        Math.abs(y - cell.y) <= GAME_CONFIG.cellSize / 2
+      ) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  updateDragTarget(x, y) {
+    if (!this.draggedCard) return;
+
+    const targetIndex = this.getGridIndexAt(x, y);
+    if (targetIndex !== this.dragTargetIndex) {
+      this.clearDragTarget();
+      this.dragTargetIndex = targetIndex;
+    }
+
+    if (targetIndex < 0) return;
+
+    const dropState = this.getDropState(this.draggedCard, this.dragOriginalIndex, targetIndex);
+    const label = this.cellTexts[targetIndex]?.label;
+    if (label) {
+      label.setColor(dropState.valid ? '#f5c86a' : '#e76457');
+      label.setScale(1.2);
+    }
+    if (this.dragGhost) {
+      this.dragGhost.setAlpha(dropState.valid ? 0.95 : 0.55);
+    }
+  }
+
+  clearDragTarget() {
+    if (this.dragTargetIndex >= 0) {
+      const label = this.cellTexts[this.dragTargetIndex]?.label;
+      if (label) {
+        label.setColor('#3a4045');
+        label.setScale(1);
+      }
+    }
+    this.dragTargetIndex = -1;
+    if (this.dragGhost) this.dragGhost.setAlpha(0.9);
+  }
+
+  getDropState(card, fromIndex, toIndex) {
+    if (!card || toIndex < 0 || this.gameState.gameOver) {
+      return { valid: false, message: '' };
+    }
+
+    const targetCard = getTopCard(this.gameState, toIndex);
+
+    if (card.type === 'player') {
+      if (toIndex === fromIndex) return { valid: false, message: '' };
+      if (isCellEmpty(this.gameState, toIndex)) return { valid: true, message: '' };
+      if (targetCard?.revealed) return { valid: true, message: '' };
+      return { valid: false, message: '目标尚未揭示' };
+    }
+
+    if (card.type === 'item') {
+      const collectsFieldItem = fromIndex >= 0 && (toIndex === fromIndex || isCellEmpty(this.gameState, toIndex));
+      if (collectsFieldItem) {
+        return this.gameState.player.items.length < 4
+          ? { valid: true, message: '' }
+          : { valid: false, message: '道具栏已满' };
+      }
+      if (!targetCard) return { valid: false, message: '道具需要拖到目标卡' };
+      if (!targetCard.revealed) return { valid: false, message: '目标尚未揭示' };
+      if (this.canUseItemOnTarget(card, targetCard)) return { valid: true, message: '' };
+      return { valid: false, message: '这个目标无法使用' };
+    }
+
+    return { valid: false, message: '' };
+  }
+
+  canUseItemOnTarget(item, target) {
+    if (!item || !target) return false;
+    switch (item.effect) {
+      case 'heal':
+      case 'shield':
+      case 'doubleAtk':
+        return target.type === 'player';
+      case 'damage':
+        return target.type === 'monster';
+      default:
+        return false;
+    }
   }
 
   // ========== 拖拽释放处理 ==========
@@ -285,8 +415,8 @@ export class GameScene extends Scene {
       }
     } else if (card.type === 'item') {
       // 道具使用
-      if (toIndex === fromIndex) {
-        // 收入道具栏（如果当前在场上）
+      if (fromIndex >= 0 && (toIndex === fromIndex || isCellEmpty(this.gameState, toIndex))) {
+        // 场上道具拖到自己或空格：收入道具栏
         if (fromIndex >= 0 && fromIndex < 9) {
           this.collectItem(card, fromIndex);
         }
@@ -353,23 +483,23 @@ export class GameScene extends Scene {
     // 动画
     const txt = this.findCardText(gridIndex, monsterCard);
     if (txt) {
-      await tweenShake(this, txt, 6, 200);
-      await tweenPop(this, txt, 150);
+      await tweenShake(this, txt, 5, 120);
+      await tweenPop(this, txt, 80);
     }
 
     for (const res of results) {
       if (res.type === 'playerAttack') {
         audio.playAttack();
-        await delay(this, 150);
+        await delay(this, 60);
       } else if (res.type === 'monsterAttack') {
         audio.playHit();
         const playerTxt = this.findPlayerText();
-        if (playerTxt) await tweenShake(this, playerTxt, 8, 200);
-        await delay(this, 150);
+        if (playerTxt) await tweenShake(this, playerTxt, 6, 120);
+        await delay(this, 60);
       } else if (res.type === 'monsterDie') {
         audio.playVictory();
         if (txt) {
-          await tweenFadeOut(this, txt, 300);
+          await tweenFadeOut(this, txt, 160);
         }
         // 从堆叠移除
         const idx = stack.findIndex(c => (c.data || c) === monster);
@@ -394,16 +524,16 @@ export class GameScene extends Scene {
     const results = resolvePlayerTrapBattle(this.gameState, trapCard);
 
     const txt = this.findCardText(gridIndex, trapCard);
-    if (txt) await tweenShake(this, txt, 6, 200);
+    if (txt) await tweenShake(this, txt, 5, 120);
 
     for (const res of results) {
       if (res.type === 'trapAttack') {
         audio.playHit();
         const playerTxt = this.findPlayerText();
-        if (playerTxt) await tweenShake(this, playerTxt, 8, 200);
+        if (playerTxt) await tweenShake(this, playerTxt, 6, 120);
       } else if (res.type === 'trapDestroy') {
         audio.playTrapTrigger();
-        if (txt) await tweenFadeOut(this, txt, 300);
+        if (txt) await tweenFadeOut(this, txt, 160);
         const idx = stack.findIndex(c => c === trapCard);
         if (idx >= 0) {
           const rem = removeCardFromGrid(this.gameState, gridIndex, idx);
@@ -574,7 +704,13 @@ export class GameScene extends Scene {
   }
 
   async useItem(item, target, toIndex, fromIndex) {
-    const results = useItemOnTarget(this.gameState, item, target);
+    const resolvedTarget = target?.type === 'player' ? 'player' : target;
+    const results = useItemOnTarget(this.gameState, item, resolvedTarget);
+
+    if (results.length === 0) {
+      this.showToast('这个目标无法使用');
+      return;
+    }
 
     // 移除使用的道具
     if (fromIndex >= 0 && fromIndex < 9) {
@@ -940,7 +1076,15 @@ export class GameScene extends Scene {
       const iy = y + 56 + i * 32;
       const txt = this.add.text(ix, iy, item.name, {
         fontFamily: FONT.family, fontSize: '14px', color: '#74a8ff',
-      }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      }).setOrigin(0, 0).setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(0, 0, 190, 28),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true,
+      });
+      txt.cardData = item;
+      txt.gridIndex = -1;
+      txt.itemIndex = i;
+      this.input.setDraggable(txt);
       txt.on('pointerover', () => {
         this.hoveredCard = item;
         this.updateDescription();
@@ -948,10 +1092,6 @@ export class GameScene extends Scene {
       txt.on('pointerout', () => {
         this.hoveredCard = null;
         this.updateDescription();
-      });
-      txt.on('pointerdown', () => {
-        // 点击道具从道具栏使用
-        this.showToast(`拖动「${item.name}」到目标上使用`);
       });
       this.uiContainer.add(txt);
     });
