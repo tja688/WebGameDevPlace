@@ -1,34 +1,23 @@
 import Phaser from "phaser";
 import "./styles.css";
-
-class BootScene extends Phaser.Scene {
-  constructor() {
-    super("BootScene");
-  }
-
-  create() {
-    const { width, height } = this.scale;
-
-    this.add.text(width / 2, height / 2, "Phaser 4 Ready", {
-      color: "#ffffff",
-      fontFamily: "sans-serif",
-      fontSize: "32px"
-    }).setOrigin(0.5);
-  }
-}
+import { GAME_WIDTH, GAME_HEIGHT } from "./constants.js";
+import { BootScene } from "./scenes/BootScene.js";
+import { TitleScene } from "./scenes/TitleScene.js";
+import { MapScene } from "./scenes/MapScene.js";
+import { GameScene } from "./scenes/GameScene.js";
 
 const config = {
   type: Phaser.AUTO,
   parent: "game-root",
-  width: 960,
-  height: 540,
-  backgroundColor: "#000000",
+  width: GAME_WIDTH,
+  height: GAME_HEIGHT,
+  backgroundColor: "#12101e",
   roundPixels: true,
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene]
+  scene: [BootScene, TitleScene, MapScene, GameScene],
 };
 
 new Phaser.Game(config);
