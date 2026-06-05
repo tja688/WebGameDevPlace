@@ -20,7 +20,6 @@ export class GameScene extends Scene {
     this.cardTexts = []; // 2D array [gridIndex][stackIndex]
     this.uiTexts = {};
     this.dragGhost = null;
-    this.dragStartPos = null;      // { x, y, pointerId }
     this.dragSourceTxt = null;     // 原卡牌对象
     this.hoveredCard = null;
     this.itemMode = false; // 道具使用模式
@@ -53,10 +52,11 @@ export class GameScene extends Scene {
     // 初始揭示
     this.revealAdjacent(this.gameState.playerGridIndex);
 
-    // 全局输入 —— 自定义拖拽系统（不用 Phaser draggable，移动端更可控）
-    this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
-    this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
+    // Phaser 原生拖拽
+    this.input.dragDistanceThreshold = 8;
+    this.input.on('dragstart', (pointer, gameObject) => this.onDragStart(pointer, gameObject));
+    this.input.on('drag', (pointer, gameObject, dragX, dragY) => this.onDrag(pointer, gameObject, dragX, dragY));
+    this.input.on('dragend', (pointer, gameObject) => this.onDragEnd(pointer, gameObject));
   }
 
   // ========== 背景 ==========
@@ -139,6 +139,13 @@ export class GameScene extends Scene {
       txt.gridIndex = gridIndex;
       txt.stackIndex = stackIndex;
 
+      // 玩家卡和道具卡可拖拽
+      const canDrag = (card.type === 'player' || card.type === 'item') &&
+                      (!this.itemMode || card.type === 'item');
+      if (canDrag) {
+        this.input.setDraggable(txt);
+      }
+
       txt.on('pointerover', () => {
         this.hoveredCard = card;
         this.updateDescription();
@@ -149,7 +156,6 @@ export class GameScene extends Scene {
         this.updateDescription();
         txt.setScale(1);
       });
-      txt.on('pointerdown', (pointer) => this.onCardPointerDown(txt, pointer));
     }
 
     return txt;
@@ -189,67 +195,45 @@ export class GameScene extends Scene {
     }
   }
 
-  // ========== 自定义拖拽系统（移动端优化） ==========
+  // ========== Phaser 原生拖拽 ==========
 
-  onCardPointerDown(txt, pointer) {
-    const card = txt.cardData;
+  onDragStart(pointer, gameObject) {
+    const card = gameObject.cardData;
     if (!card) return;
 
-    // 只有玩家卡和道具卡可拖动
-    if (card.type !== 'player' && card.type !== 'item') return;
-
-    // 道具使用模式下只允许道具拖动
-    if (this.itemMode && card.type !== 'item') return;
-
-    // 记录拖拽起点（尚未真正开始拖拽）
-    this.dragStartPos = { x: pointer.x, y: pointer.y, pointerId: pointer.id };
-    this.dragSourceTxt = txt;
     this.draggedCard = card;
-    this.dragOriginalIndex = txt.gridIndex;
-  }
-
-  startDragGhost() {
-    if (!this.draggedCard) return;
+    this.dragOriginalIndex = gameObject.gridIndex;
+    this.dragSourceTxt = gameObject;
 
     audio.playDrag();
 
-    const card = this.draggedCard;
     if (this.dragGhost) this.dragGhost.destroy();
-    this.dragGhost = this.add.text(this.dragStartPos.x, this.dragStartPos.y, this.getCardDisplayText(card), {
+    this.dragGhost = this.add.text(pointer.x, pointer.y, this.getCardDisplayText(card), {
       fontFamily: FONT.family,
       fontSize: '28px',
       color: this.getCardColor(card),
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.9).setDepth(100);
+
+    gameObject.setAlpha(0.3);
   }
 
-  onPointerMove(pointer) {
-    if (!this.dragStartPos || this.dragStartPos.pointerId !== pointer.id) return;
-
-    const dx = pointer.x - this.dragStartPos.x;
-    const dy = pointer.y - this.dragStartPos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    // 超过阈值才开始显示 ghost（防止点击误触发）
-    if (!this.dragGhost && dist > 8) {
-      this.startDragGhost();
-    }
-
+  onDrag(pointer, gameObject, dragX, dragY) {
     if (this.dragGhost) {
       this.dragGhost.x = pointer.x;
       this.dragGhost.y = pointer.y;
     }
   }
 
-  async onPointerUp(pointer) {
-    if (this.awaitingDirection) return;
-
-    if (!this.dragStartPos || this.dragStartPos.pointerId !== pointer.id) return;
+  async onDragEnd(pointer, gameObject) {
+    if (this.awaitingDirection) {
+      this.cleanupDrag();
+      return;
+    }
 
     if (this.dragGhost && this.draggedCard) {
       audio.playDrop();
 
-      // 找到释放的格子
       let targetIndex = -1;
       for (let i = 0; i < 9; i++) {
         const cell = this.cellTexts[i];
@@ -273,9 +257,11 @@ export class GameScene extends Scene {
       this.dragGhost.destroy();
       this.dragGhost = null;
     }
+    if (this.dragSourceTxt && this.dragSourceTxt.active) {
+      this.dragSourceTxt.setAlpha(1);
+    }
     this.draggedCard = null;
     this.dragOriginalIndex = -1;
-    this.dragStartPos = null;
     this.dragSourceTxt = null;
   }
 

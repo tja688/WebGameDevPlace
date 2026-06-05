@@ -27,6 +27,7 @@
 - 场景类继承 `Phaser.Scene`，构造函数中调用 `super('SceneName')`
 - 纯文字渲染，禁止引入图片资源
 - 颜色统一使用 `src/config.js` 中定义的色卡
+- 尽量使用phaser4原生功能，能不造轮子就绝对不引入额外复杂度
 
 ### 文件组织
 
@@ -39,11 +40,7 @@
 
 ### Phaser 4 注意事项
 
-- `import Phaser from 'phaser'` 获取默认导出
-- `import { Scene } from 'phaser'` 获取命名导出（Scene、Game 等）
-- 拖拽使用 `setInteractive({ draggable: true })`
-- 缓动动画使用 `this.tweens.add({...})`
-- 输入事件使用 `this.input.on('pointerdown', ...)`
+- C:\Users\jinji\Documents\GitHub\WebGameDevPlace\node_modules\phaser\skills 开始前需阅读skills目录，根据自己的开发任务挑选合适的skill
 
 ### 状态管理
 
