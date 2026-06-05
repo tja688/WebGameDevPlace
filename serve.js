@@ -2,14 +2,14 @@
  * 简易静态文件服务器
  * 
  * 用法: node serve.js [端口]
- * 默认端口: 8080
+ * 默认端口: 9000
  */
 
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
-const PORT = process.argv[2] || 8080;
+const PORT = process.argv[2] || 9000;
 const HOST = '127.0.0.1';
 
 const MIME_TYPES = {
