@@ -20,6 +20,8 @@ export class GameScene extends Scene {
     this.cardTexts = []; // 2D array [gridIndex][stackIndex]
     this.uiTexts = {};
     this.dragGhost = null;
+    this.dragStartPos = null;      // { x, y, pointerId }
+    this.dragSourceTxt = null;     // 原卡牌对象
     this.hoveredCard = null;
     this.itemMode = false; // 道具使用模式
     this.selectedItem = null;
@@ -51,9 +53,10 @@ export class GameScene extends Scene {
     // 初始揭示
     this.revealAdjacent(this.gameState.playerGridIndex);
 
-    // 全局输入
+    // 全局输入 —— 自定义拖拽系统（不用 Phaser draggable，移动端更可控）
     this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
     this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
+    this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
   }
 
   // ========== 背景 ==========
@@ -86,6 +89,7 @@ export class GameScene extends Scene {
 
   // ========== 卡牌渲染 ==========
   renderCards() {
+    this.cleanupDrag(); // 重建卡牌前务必清理拖拽状态
     if (this.cardContainer) this.cardContainer.destroy();
     this.cardContainer = this.add.container(0, 0);
     this.cardTexts = Array.from({ length: 9 }, () => []);
@@ -130,7 +134,7 @@ export class GameScene extends Scene {
 
     // 只有顶部的卡可以交互
     if (isTop && card.type !== 'empty') {
-      txt.setInteractive({ draggable: true, useHandCursor: true });
+      txt.setInteractive({ useHandCursor: true });
       txt.cardData = card;
       txt.gridIndex = gridIndex;
       txt.stackIndex = stackIndex;
@@ -145,9 +149,7 @@ export class GameScene extends Scene {
         this.updateDescription();
         txt.setScale(1);
       });
-      txt.on('dragstart', (pointer, dragX, dragY) => this.onDragStart(txt, pointer, dragX, dragY));
-      txt.on('drag', (pointer, dragX, dragY) => this.onDrag(txt, pointer, dragX, dragY));
-      txt.on('dragend', (pointer) => this.onDragEnd(txt, pointer));
+      txt.on('pointerdown', (pointer) => this.onCardPointerDown(txt, pointer));
     }
 
     return txt;
@@ -187,8 +189,9 @@ export class GameScene extends Scene {
     }
   }
 
-  // ========== 拖拽系统 ==========
-  onDragStart(txt, pointer, dragX, dragY) {
+  // ========== 自定义拖拽系统（移动端优化） ==========
+
+  onCardPointerDown(txt, pointer) {
     const card = txt.cardData;
     if (!card) return;
 
@@ -198,14 +201,21 @@ export class GameScene extends Scene {
     // 道具使用模式下只允许道具拖动
     if (this.itemMode && card.type !== 'item') return;
 
+    // 记录拖拽起点（尚未真正开始拖拽）
+    this.dragStartPos = { x: pointer.x, y: pointer.y, pointerId: pointer.id };
+    this.dragSourceTxt = txt;
     this.draggedCard = card;
     this.dragOriginalIndex = txt.gridIndex;
+  }
+
+  startDragGhost() {
+    if (!this.draggedCard) return;
 
     audio.playDrag();
 
-    // 创建拖拽幽灵
+    const card = this.draggedCard;
     if (this.dragGhost) this.dragGhost.destroy();
-    this.dragGhost = this.add.text(pointer.x, pointer.y, this.getCardDisplayText(card), {
+    this.dragGhost = this.add.text(this.dragStartPos.x, this.dragStartPos.y, this.getCardDisplayText(card), {
       fontFamily: FONT.family,
       fontSize: '28px',
       color: this.getCardColor(card),
@@ -213,33 +223,46 @@ export class GameScene extends Scene {
     }).setOrigin(0.5).setAlpha(0.9).setDepth(100);
   }
 
-  onDrag(txt, pointer, dragX, dragY) {
-    if (!this.dragGhost) return;
-    this.dragGhost.x = pointer.x;
-    this.dragGhost.y = pointer.y;
+  onPointerMove(pointer) {
+    if (!this.dragStartPos || this.dragStartPos.pointerId !== pointer.id) return;
+
+    const dx = pointer.x - this.dragStartPos.x;
+    const dy = pointer.y - this.dragStartPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // 超过阈值才开始显示 ghost（防止点击误触发）
+    if (!this.dragGhost && dist > 8) {
+      this.startDragGhost();
+    }
+
+    if (this.dragGhost) {
+      this.dragGhost.x = pointer.x;
+      this.dragGhost.y = pointer.y;
+    }
   }
 
-  onDragEnd(txt, pointer) {
-    if (!this.draggedCard || !this.dragGhost) {
-      this.cleanupDrag();
-      return;
-    }
+  async onPointerUp(pointer) {
+    if (this.awaitingDirection) return;
 
-    audio.playDrop();
+    if (!this.dragStartPos || this.dragStartPos.pointerId !== pointer.id) return;
 
-    // 找到释放的格子
-    let targetIndex = -1;
-    for (let i = 0; i < 9; i++) {
-      const cell = this.cellTexts[i];
-      const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, cell.x, cell.y);
-      if (dist < GAME_CONFIG.cellSize / 2) {
-        targetIndex = i;
-        break;
+    if (this.dragGhost && this.draggedCard) {
+      audio.playDrop();
+
+      // 找到释放的格子
+      let targetIndex = -1;
+      for (let i = 0; i < 9; i++) {
+        const cell = this.cellTexts[i];
+        const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, cell.x, cell.y);
+        if (dist < GAME_CONFIG.cellSize / 2) {
+          targetIndex = i;
+          break;
+        }
       }
-    }
 
-    if (targetIndex >= 0) {
-      this.handleDrop(this.draggedCard, this.dragOriginalIndex, targetIndex);
+      if (targetIndex >= 0) {
+        await this.handleDrop(this.draggedCard, this.dragOriginalIndex, targetIndex);
+      }
     }
 
     this.cleanupDrag();
@@ -252,17 +275,8 @@ export class GameScene extends Scene {
     }
     this.draggedCard = null;
     this.dragOriginalIndex = -1;
-  }
-
-  onPointerMove(pointer) {
-    if (this.dragGhost) {
-      this.dragGhost.x = pointer.x;
-      this.dragGhost.y = pointer.y;
-    }
-  }
-
-  onPointerUp(pointer) {
-    if (this.awaitingDirection) return;
+    this.dragStartPos = null;
+    this.dragSourceTxt = null;
   }
 
   // ========== 拖拽释放处理 ==========
