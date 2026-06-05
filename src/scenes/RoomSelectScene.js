@@ -1,9 +1,8 @@
 import { Scene } from 'phaser';
-import { FONT } from '../config.js';
+import { FONT, COLORS } from '../config.js';
 import { audio } from '../audio/AudioManager.js';
-import { generateRoomCards, generateLayerRooms } from '../core/dungeon.js';
-import { saveGame } from '../core/gameState.js';
-import { delay, tweenFadeIn, tweenPop } from '../utils/tweens.js';
+import { saveGame, getTotalStats } from '../core/gameState.js';
+import { tweenFadeIn, tweenPop } from '../utils/tweens.js';
 
 export class RoomSelectScene extends Scene {
   constructor() {
@@ -21,99 +20,98 @@ export class RoomSelectScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    // 背景由 Phaser Game 配置统一处理
-
-    this.add.text(cx, 120, '选择下一个房间', {
-      fontFamily: FONT.family,
-      fontSize: FONT.sizeLarge,
-      color: '#f2eee7',
-      fontStyle: 'bold',
+    this.add.text(cx, 100, '选择下一个房间', {
+      fontFamily: FONT.family, fontSize: FONT.sizeLarge,
+      color: '#f2eee7', fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const roomNames = {
-      normal: '普通战斗',
-      elite: '精英战斗',
-      shop: '商店',
-      gold: '金币房',
-      chest: '宝箱房',
-      attr: '属性房',
+    // 当前状态提示
+    const p = this.gameState.player;
+    const s = getTotalStats(this.gameState);
+    this.add.text(cx, 145, `第${this.gameState.layer}层 · 节点${this.gameState.nodeIndex + 1}/9 · ♥${p.hp} ⚔${s.atk} 🛡${s.def} · ${p.gold}金币`, {
+      fontFamily: FONT.family, fontSize: '14px', color: '#aeb5b6',
+    }).setOrigin(0.5);
+
+    const roomInfo = {
+      normal: { name: '普通战斗', desc: '面对普通怪物。', color: '#f2eee7', icon: '⚔' },
+      elite: { name: '精英战斗', desc: '更强的怪物，更好的奖励。', color: '#e76457', icon: '💀' },
+      shop: { name: '商店', desc: '购买强化和道具。', color: '#f5c86a', icon: '🏪' },
+      gold: { name: '金币房', desc: '额外获得金币。', color: '#f5c86a', icon: '💰' },
+      chest: { name: '宝箱房', desc: '额外发现宝箱。', color: '#f5c86a', icon: '📦' },
+      attr: { name: '属性房', desc: '提升一项属性。', color: '#7ec86a', icon: '⬆' },
     };
 
-    const roomDescs = {
-      normal: '面对普通怪物。',
-      elite: '更强的怪物，更好的奖励。',
-      shop: '购买强化和道具。',
-      gold: '额外获得金币。',
-      chest: '额外发现宝箱。',
-      attr: '提升一项属性。',
-    };
-
-    const roomColors = {
-      normal: '#f2eee7',
-      elite: '#e76457',
-      shop: '#f5c86a',
-      gold: '#f5c86a',
-      chest: '#f5c86a',
-      attr: '#7ec86a',
-    };
-
-    const startX = cx - (this.options.length - 1) * 160 / 2;
+    const gap = 170;
+    const startX = cx - (this.options.length - 1) * gap / 2;
 
     this.options.forEach((roomType, i) => {
-      const x = startX + i * 160;
-      const y = cy;
+      const info = roomInfo[roomType] || { name: roomType, desc: '', color: '#f2eee7', icon: '?' };
+      const x = startX + i * gap;
+      const y = cy + 20;
 
       const container = this.add.container(x, y);
 
-      const hitZone = this.add.zone(0, 0, 140, 180).setInteractive({ useHandCursor: true });
+      // 背景
+      const bg = this.add.graphics();
+      bg.fillStyle(COLORS.panel, 0.8);
+      bg.fillRoundedRect(-70, -80, 140, 160, 8);
+      bg.lineStyle(1, COLORS.line, 0.6);
+      bg.strokeRoundedRect(-70, -80, 140, 160, 8);
 
-      const name = this.add.text(0, -40, roomNames[roomType] || roomType, {
-        fontFamily: FONT.family,
-        fontSize: '20px',
-        color: roomColors[roomType] || '#f2eee7',
-        fontStyle: 'bold',
+      const hitZone = this.add.zone(0, 0, 140, 160).setInteractive({ useHandCursor: true });
+
+      const icon = this.add.text(0, -45, info.icon, {
+        fontFamily: FONT.family, fontSize: '28px',
       }).setOrigin(0.5);
 
-      const desc = this.add.text(0, 20, roomDescs[roomType] || '', {
-        fontFamily: FONT.family,
-        fontSize: '14px',
-        color: '#aeb5b6',
-        align: 'center',
+      const name = this.add.text(0, -10, info.name, {
+        fontFamily: FONT.family, fontSize: '18px',
+        color: info.color, fontStyle: 'bold',
+      }).setOrigin(0.5);
+
+      const desc = this.add.text(0, 25, info.desc, {
+        fontFamily: FONT.family, fontSize: '13px',
+        color: '#aeb5b6', align: 'center',
         wordWrap: { width: 120 },
       }).setOrigin(0.5);
 
-      const arrow = this.add.text(0, 70, '→', {
-        fontFamily: FONT.family,
-        fontSize: '28px',
-        color: '#f5c86a',
+      const arrow = this.add.text(0, 60, '→ 进入', {
+        fontFamily: FONT.family, fontSize: '14px', color: '#f5c86a',
       }).setOrigin(0.5).setAlpha(0);
 
-      container.add([hitZone, name, desc, arrow]);
-
+      container.add([bg, hitZone, icon, name, desc, arrow]);
       tweenFadeIn(this, container, 400);
 
       hitZone.on('pointerover', () => {
         name.setColor('#f5c86a');
         arrow.setAlpha(1);
-        this.tweens.add({ targets: container, scaleX: 1.08, scaleY: 1.08, duration: 150 });
+        this.tweens.add({ targets: container, scaleX: 1.06, scaleY: 1.06, duration: 150 });
       });
 
       hitZone.on('pointerout', () => {
-        name.setColor(roomColors[roomType] || '#f2eee7');
+        name.setColor(info.color);
         arrow.setAlpha(0);
         this.tweens.add({ targets: container, scaleX: 1, scaleY: 1, duration: 150 });
       });
 
-      hitZone.on('pointerdown', async () => {
+      hitZone.on('pointerdown', () => {
         audio.playPickUp();
-        await tweenPop(this, container, 200);
-        this.enterRoom(roomType);
+        // 禁用所有选项
+        this.children.list.forEach(child => {
+          if (child.type === 'Zone') child.removeInteractive();
+        });
+        tweenPop(this, container, 200).then(() => {
+          this.enterRoom(roomType);
+        }).catch(err => {
+          console.error('[RoomSelect] enter error:', err);
+          this.enterRoom(roomType);
+        });
       });
     });
 
     // 保存按钮
     const saveBtn = this.add.text(cx, this.scale.height - 60, '保存进度并退出', {
-      fontFamily: FONT.family, fontSize: '16px', color: '#74a8ff',
+      fontFamily: FONT.family, fontSize: '15px', color: '#74a8ff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     saveBtn.on('pointerover', () => saveBtn.setColor('#f5c86a'));
@@ -123,8 +121,7 @@ export class RoomSelectScene extends Scene {
       this.showToast('已保存进度');
     });
 
-    // 设置按钮
-    this.createSettingsButton();
+    this.buildSettingsBtn();
   }
 
   enterRoom(roomType) {
@@ -143,19 +140,17 @@ export class RoomSelectScene extends Scene {
     const cy = this.scale.height / 2 + 120;
     const toast = this.add.text(cx, cy, message, {
       fontFamily: FONT.family, fontSize: '18px', color: '#f5c86a', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(200);
 
     this.tweens.add({
-      targets: toast,
-      y: cy - 30,
-      alpha: 0,
-      duration: 1500,
-      ease: 'Quad.easeOut',
+      targets: toast, y: cy - 30, alpha: 0,
+      duration: 1500, ease: 'Quad.easeOut',
       onComplete: () => toast.destroy(),
     });
   }
 
-  createSettingsButton() {
+  buildSettingsBtn() {
     const btn = this.add.text(this.scale.width - 40, 40, '⚙', {
       fontFamily: FONT.family, fontSize: '28px', color: '#aeb5b6',
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
@@ -166,42 +161,38 @@ export class RoomSelectScene extends Scene {
   }
 
   showSettings() {
-    const cx = this.scale.width / 2;
-    const cy = this.scale.height / 2;
+    const cx = this.scale.width / 2, cy = this.scale.height / 2;
+    const els = [];
 
-    const overlay = this.add.zone(cx, cy, this.scale.width, this.scale.height).setInteractive().setDepth(400);
+    const overlay = this.add.zone(cx, cy, this.scale.width, this.scale.height)
+      .setInteractive().setDepth(400);
     overlay.on('pointerdown', () => {});
-    const title = this.add.text(cx, cy - 100, '◆ 设置', {
-      fontFamily: FONT.family, fontSize: FONT.sizeLarge, color: '#f2eee7', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(402);
+    els.push(overlay);
 
-    const muteText = this.add.text(cx, cy - 30, audio.muted ? '音量: 静音' : '音量: 开', {
-      fontFamily: FONT.family, fontSize: FONT.sizeNormal, color: '#f2eee7',
+    els.push(this.add.text(cx, cy - 80, '◆ 设置', {
+      fontFamily: FONT.family, fontSize: '22px', color: '#f2eee7', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(402));
+
+    const muteText = this.add.text(cx, cy - 20, audio.muted ? '音量: 静音' : '音量: 开', {
+      fontFamily: FONT.family, fontSize: '18px', color: '#f2eee7',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(402);
 
     muteText.on('pointerdown', () => {
       audio.toggleMute();
       muteText.setText(audio.muted ? '音量: 静音' : '音量: 开');
     });
+    els.push(muteText);
 
     const menuBtn = this.add.text(cx, cy + 30, '回到主菜单', {
-      fontFamily: FONT.family, fontSize: FONT.sizeNormal, color: '#e76457',
+      fontFamily: FONT.family, fontSize: '18px', color: '#e76457',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(402);
+    menuBtn.on('pointerdown', () => this.scene.start('MenuScene'));
+    els.push(menuBtn);
 
-    menuBtn.on('pointerdown', () => {
-      this.scene.start('MenuScene');
-    });
-
-    const close = this.add.text(cx, cy + 90, '关闭', {
-      fontFamily: FONT.family, fontSize: FONT.sizeNormal, color: '#f2eee7',
+    const close = this.add.text(cx, cy + 80, '关闭', {
+      fontFamily: FONT.family, fontSize: '18px', color: '#f2eee7',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(402);
-
-    close.on('pointerdown', () => {
-      overlay.destroy();
-      title.destroy();
-      muteText.destroy();
-      menuBtn.destroy();
-      close.destroy();
-    });
+    close.on('pointerdown', () => els.forEach(e => e.destroy()));
+    els.push(close);
   }
 }

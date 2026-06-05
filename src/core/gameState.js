@@ -9,27 +9,30 @@ export function createInitialGameState(classId = 'soldier') {
     player,
     layer: 1,
     nodeIndex: 0,
-    layerNodes: [], // 当前层9个节点的房间类型
+    layerNodes: [],
     currentRoom: null,
-    grid: [], // 9个格子，每个是 Card[] 堆叠
-    playerGridIndex: 7, // 格8 (0-based)
+    grid: [],
+    playerGridIndex: 7,
     turnCount: 0,
     actionCount: 0,
     gameOver: false,
     victory: false,
     paused: false,
-    // 统计数据
     totalRooms: 0,
     totalKills: 0,
     totalGold: 0,
   };
 }
 
+/**
+ * 计算含遗物和临时加成的最终属性
+ */
 export function getTotalStats(state) {
-  let atk = state.player.atk + state.player.tempAtkBonus;
-  let def = state.player.def + state.player.tempDefBonus;
+  let atk = state.player.atk + (state.player.tempAtkBonus || 0);
+  let def = state.player.def + (state.player.tempDefBonus || 0);
   let maxHp = state.player.maxHp;
 
+  // 遗物加成
   for (const relicId of state.player.relics) {
     const relic = RELICS[relicId];
     if (relic) {
@@ -39,7 +42,27 @@ export function getTotalStats(state) {
     }
   }
 
-  return { atk, def, maxHp };
+  // 活着的肉：每进3个房间额外+1攻击（最多+6）
+  const livingFleshCount = state.player.relics.filter(id => id === 'livingFlesh').length;
+  if (livingFleshCount > 0) {
+    const bonus = Math.min(6, Math.floor(state.totalRooms / 3));
+    atk += bonus;
+  }
+
+  // 鼓舞：计算场上旗兵骷髅数量
+  if (state.grid) {
+    for (let i = 0; i < 9; i++) {
+      const stack = state.grid[i];
+      if (!stack) continue;
+      for (const card of stack) {
+        if (card.type === 'monster' && card.revealed && card.keywords?.includes('inspire')) {
+          // 鼓舞给其他怪物加攻击，不影响玩家属性
+        }
+      }
+    }
+  }
+
+  return { atk: Math.max(0, atk), def: Math.max(0, def), maxHp };
 }
 
 export function healPlayer(state, amount) {
@@ -47,8 +70,14 @@ export function healPlayer(state, amount) {
   state.player.hp = Math.min(state.player.hp + amount, stats.maxHp);
 }
 
+/**
+ * 对玩家造成伤害
+ * @param {boolean} ignoreShield - 机关固定伤害是否忽略护盾（设计文档中机关伤害是固定的但没说忽略护盾）
+ */
 export function damagePlayer(state, amount) {
-  // 庇佑魔法：免疫单次伤害
+  if (amount <= 0) return { damage: 0, shielded: false };
+
+  // 护盾免疫单次伤害
   if (state.player.shield > 0) {
     state.player.shield--;
     return { damage: 0, shielded: true };
@@ -92,21 +121,29 @@ export function addSkill(state, skillId) {
   }
 }
 
+/**
+ * 从格子堆叠中移除一张卡牌
+ * 返回 { removed, revealed } — revealed 是新露出的顶部卡牌（如有）
+ */
 export function removeCardFromGrid(state, gridIndex, cardIndex) {
   const stack = state.grid[gridIndex];
-  if (stack && cardIndex >= 0 && cardIndex < stack.length) {
-    const removed = stack.splice(cardIndex, 1)[0];
-    // 翻开下方的卡
-    if (stack.length > 0) {
-      const top = stack[stack.length - 1];
-      if (!top.revealed) {
-        top.revealed = true;
-        return { removed, revealed: top };
-      }
-    }
-    return { removed, revealed: null };
+  if (!stack || cardIndex < 0 || cardIndex >= stack.length) {
+    return { removed: null, revealed: null };
   }
-  return { removed: null, revealed: null };
+
+  const removed = stack.splice(cardIndex, 1)[0];
+
+  // 如果移除后还有卡牌，翻开新的顶部
+  let revealed = null;
+  if (stack.length > 0) {
+    const top = stack[stack.length - 1];
+    if (!top.revealed) {
+      top.revealed = true;
+      revealed = top;
+    }
+  }
+
+  return { removed, revealed };
 }
 
 export function getTopCard(state, gridIndex) {
@@ -123,14 +160,32 @@ export function isCellEmpty(state, gridIndex) {
 export function getMonsterCount(state) {
   let count = 0;
   for (let i = 0; i < 9; i++) {
-    const card = getTopCard(state, i);
-    if (card && card.type === 'monster') count++;
+    const stack = state.grid[i];
+    if (!stack) continue;
+    for (const card of stack) {
+      if (card.type === 'monster') count++;
+    }
   }
   return count;
 }
 
 export function hasMonsters(state) {
   return getMonsterCount(state) > 0;
+}
+
+/**
+ * 进入新房间时重置临时加成
+ */
+export function resetTempBonuses(state) {
+  state.player.tempAtkBonus = 0;
+  state.player.tempDefBonus = 0;
+}
+
+/**
+ * 重置遗物的房间冷却
+ */
+export function resetRelicCooldowns(state) {
+  // 遗物是以ID存储的，主动遗物使用标记在别处管理
 }
 
 export function saveGame(state) {
@@ -153,5 +208,7 @@ export function loadGame() {
 }
 
 export function clearSave() {
-  localStorage.removeItem('deepDungeon_save');
+  try {
+    localStorage.removeItem('deepDungeon_save');
+  } catch { /* ignore */ }
 }
