@@ -20,12 +20,9 @@ if %errorlevel% == 0 (
     timeout /t 1 >nul
 )
 
-:: 清理已有的 node 进程（避免重复启动）
-taskkill /f /im node.exe 2>nul
-
 :: 在后台启动 Vite 开发服务器，日志写入 server.log
 if exist server.log del /q server.log
-start /b npm run dev > server.log 2>&1
+start /b cmd /c "npm run dev ^> server.log 2^>^&1"
 
 :: 等待服务器就绪
 timeout /t 2 >nul
@@ -39,7 +36,9 @@ pause >nul
 
 echo.
 echo 正在停止服务器...
-taskkill /f /im node.exe 2>nul
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173"') do (
+    taskkill /f /pid %%a 2>nul
+)
 echo 已清理完成。
 timeout /t 1 >nul
 endlocal

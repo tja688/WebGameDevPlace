@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { COLORS, FONT } from '../config.js';
+import { FONT } from '../config.js';
 import { audio } from '../audio/AudioManager.js';
 import { generateRoomCards, generateLayerRooms } from '../core/dungeon.js';
 import { saveGame } from '../core/gameState.js';
@@ -21,7 +21,7 @@ export class RoomSelectScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    this.add.rectangle(cx, cy, this.scale.width, this.scale.height, COLORS.bg);
+    // 背景由 Phaser Game 配置统一处理
 
     this.add.text(cx, 120, '选择下一个房间', {
       fontFamily: FONT.family,
@@ -65,9 +65,7 @@ export class RoomSelectScene extends Scene {
 
       const container = this.add.container(x, y);
 
-      const bg = this.add.rectangle(0, 0, 140, 180, COLORS.panel)
-        .setStrokeStyle(2, COLORS.line)
-        .setInteractive({ useHandCursor: true });
+      const hitZone = this.add.zone(0, 0, 140, 180).setInteractive({ useHandCursor: true });
 
       const name = this.add.text(0, -40, roomNames[roomType] || roomType, {
         fontFamily: FONT.family,
@@ -90,23 +88,23 @@ export class RoomSelectScene extends Scene {
         color: '#f5c86a',
       }).setOrigin(0.5).setAlpha(0);
 
-      container.add([bg, name, desc, arrow]);
+      container.add([hitZone, name, desc, arrow]);
 
       tweenFadeIn(this, container, 400);
 
-      bg.on('pointerover', () => {
-        bg.setStrokeStyle(2, COLORS.gold);
+      hitZone.on('pointerover', () => {
+        name.setColor('#f5c86a');
         arrow.setAlpha(1);
         this.tweens.add({ targets: container, scaleX: 1.08, scaleY: 1.08, duration: 150 });
       });
 
-      bg.on('pointerout', () => {
-        bg.setStrokeStyle(2, COLORS.line);
+      hitZone.on('pointerout', () => {
+        name.setColor(roomColors[roomType] || '#f2eee7');
         arrow.setAlpha(0);
         this.tweens.add({ targets: container, scaleX: 1, scaleY: 1, duration: 150 });
       });
 
-      bg.on('pointerdown', async () => {
+      hitZone.on('pointerdown', async () => {
         audio.playPickUp();
         await tweenPop(this, container, 200);
         this.enterRoom(roomType);
@@ -171,9 +169,9 @@ export class RoomSelectScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    const overlay = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x000000, 0.7).setDepth(400);
-    const panel = this.add.rectangle(cx, cy, 400, 280, COLORS.panel).setStrokeStyle(2, COLORS.line).setDepth(401);
-    const title = this.add.text(cx, cy - 100, '设置', {
+    const overlay = this.add.zone(cx, cy, this.scale.width, this.scale.height).setInteractive().setDepth(400);
+    overlay.on('pointerdown', () => {});
+    const title = this.add.text(cx, cy - 100, '◆ 设置', {
       fontFamily: FONT.family, fontSize: FONT.sizeLarge, color: '#f2eee7', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(402);
 
@@ -200,7 +198,6 @@ export class RoomSelectScene extends Scene {
 
     close.on('pointerdown', () => {
       overlay.destroy();
-      panel.destroy();
       title.destroy();
       muteText.destroy();
       menuBtn.destroy();

@@ -57,7 +57,7 @@ export class GameScene extends Scene {
 
   // ========== 背景 ==========
   renderBackground() {
-    this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, COLORS.bg);
+    // 背景由 Phaser Game 配置统一处理，无需额外几何绘制
   }
 
   // ========== 九宫格文字渲染 ==========
@@ -71,12 +71,7 @@ export class GameScene extends Scene {
       const x = getGridX(col, cx);
       const y = getGridY(row, cy);
 
-      // 格子背景
-      const bg = this.add.rectangle(x, y, GAME_CONFIG.cellSize, GAME_CONFIG.cellSize, COLORS.ink)
-        .setStrokeStyle(1, COLORS.line);
-      this.cellContainer.add(bg);
-
-      // 格子名称文字
+      // 格子名称文字（空格子时可见）
       const label = this.add.text(x, y, `格${i + 1}`, {
         fontFamily: FONT.family,
         fontSize: '16px',
@@ -84,7 +79,7 @@ export class GameScene extends Scene {
       }).setOrigin(0.5);
       this.cellContainer.add(label);
 
-      this.cellTexts[i] = { bg, label, x, y };
+      this.cellTexts[i] = { x, y, label };
     }
   }
 
@@ -829,10 +824,15 @@ export class GameScene extends Scene {
     const y = 20;
     const stats = getTotalStats(this.gameState);
 
-    const panel = this.add.rectangle(x + 110, y + 100, 220, 200, COLORS.panel)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, COLORS.line);
-    this.uiContainer.add(panel);
+    const title = this.add.text(x + 20, y + 10, '◆ 玩家', {
+      fontFamily: FONT.family, fontSize: '20px', color: '#52c6b8', fontStyle: 'bold',
+    }).setOrigin(0, 0);
+    this.uiContainer.add(title);
+
+    const divider = this.add.text(x + 20, y + 38, '━━━━━━━━━━━━━━', {
+      fontFamily: FONT.family, fontSize: '14px', color: '#3a4045',
+    }).setOrigin(0, 0);
+    this.uiContainer.add(divider);
 
     const lines = [
       { text: this.gameState.player.name, color: '#52c6b8', size: '22px', bold: true },
@@ -847,7 +847,7 @@ export class GameScene extends Scene {
     if (this.gameState.player.skills.veteran) lines.push({ text: '[历战]', color: '#9b72cf', size: '14px' });
 
     lines.forEach((line, i) => {
-      const txt = this.add.text(x + 20, y + 20 + i * 28, line.text, {
+      const txt = this.add.text(x + 20, y + 56 + i * 28, line.text, {
         fontFamily: FONT.family,
         fontSize: line.size || '16px',
         color: line.color,
@@ -861,17 +861,22 @@ export class GameScene extends Scene {
     const x = 20;
     const y = 340;
 
-    const panel = this.add.rectangle(x + 110, y + 80, 220, 160, COLORS.panel)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, COLORS.line);
-    this.uiContainer.add(panel);
-
-    this.descTitle = this.add.text(x + 20, y + 20, '描述', {
+    const title = this.add.text(x + 20, y + 10, '◆ 描述', {
       fontFamily: FONT.family, fontSize: '18px', color: '#f2eee7', fontStyle: 'bold',
+    }).setOrigin(0, 0);
+    this.uiContainer.add(title);
+
+    const divider = this.add.text(x + 20, y + 38, '━━━━━━━━━━━━━━', {
+      fontFamily: FONT.family, fontSize: '14px', color: '#3a4045',
+    }).setOrigin(0, 0);
+    this.uiContainer.add(divider);
+
+    this.descTitle = this.add.text(x + 20, y + 60, '描述', {
+      fontFamily: FONT.family, fontSize: '16px', color: '#f2eee7', fontStyle: 'bold',
     }).setOrigin(0, 0);
     this.uiContainer.add(this.descTitle);
 
-    this.descText = this.add.text(x + 20, y + 50, '指向卡牌查看详情', {
+    this.descText = this.add.text(x + 20, y + 88, '指向卡牌查看详情', {
       fontFamily: FONT.family, fontSize: '14px', color: '#aeb5b6', wordWrap: { width: 190 },
     }).setOrigin(0, 0);
     this.uiContainer.add(this.descText);
@@ -881,14 +886,15 @@ export class GameScene extends Scene {
     const x = this.scale.width - 240;
     const y = 20;
 
-    const panel = this.add.rectangle(x + 110, y + 100, 220, 200, COLORS.panel)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, COLORS.line);
-    this.uiContainer.add(panel);
-
-    this.uiContainer.add(this.add.text(x + 20, y + 20, '遗物', {
+    const title = this.add.text(x + 20, y + 10, '◆ 遗物', {
       fontFamily: FONT.family, fontSize: '18px', color: '#9b72cf', fontStyle: 'bold',
-    }).setOrigin(0, 0));
+    }).setOrigin(0, 0);
+    this.uiContainer.add(title);
+
+    const divider = this.add.text(x + 20, y + 38, '━━━━━━━━━━━━━━', {
+      fontFamily: FONT.family, fontSize: '14px', color: '#3a4045',
+    }).setOrigin(0, 0);
+    this.uiContainer.add(divider);
 
     this.gameState.player.relics.forEach((relicId, i) => {
       const relic = RELICS[relicId];
@@ -896,7 +902,7 @@ export class GameScene extends Scene {
       const row = Math.floor(i / 3);
       const col = i % 3;
       const rx = x + 20 + col * 70;
-      const ry = y + 60 + row * 40;
+      const ry = y + 56 + row * 40;
       const txt = this.add.text(rx, ry, relic.name, {
         fontFamily: FONT.family, fontSize: '13px', color: '#9b72cf',
       }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -916,18 +922,19 @@ export class GameScene extends Scene {
     const x = this.scale.width - 240;
     const y = 340;
 
-    const panel = this.add.rectangle(x + 110, y + 80, 220, 160, COLORS.panel)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, COLORS.line);
-    this.uiContainer.add(panel);
-
-    this.uiContainer.add(this.add.text(x + 20, y + 20, '道具', {
+    const title = this.add.text(x + 20, y + 10, '◆ 道具', {
       fontFamily: FONT.family, fontSize: '18px', color: '#74a8ff', fontStyle: 'bold',
-    }).setOrigin(0, 0));
+    }).setOrigin(0, 0);
+    this.uiContainer.add(title);
+
+    const divider = this.add.text(x + 20, y + 38, '━━━━━━━━━━━━━━', {
+      fontFamily: FONT.family, fontSize: '14px', color: '#3a4045',
+    }).setOrigin(0, 0);
+    this.uiContainer.add(divider);
 
     this.gameState.player.items.forEach((item, i) => {
       const ix = x + 20;
-      const iy = y + 55 + i * 32;
+      const iy = y + 56 + i * 32;
       const txt = this.add.text(ix, iy, item.name, {
         fontFamily: FONT.family, fontSize: '14px', color: '#74a8ff',
       }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -1042,11 +1049,15 @@ export class GameScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    const overlay = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x000000, 0.7).setDepth(300);
-    const panel = this.add.rectangle(cx, cy, 360, 200 + options.length * 50, COLORS.panel)
-      .setStrokeStyle(2, COLORS.line).setDepth(301);
+    const overlay = this.add.zone(cx, cy, this.scale.width, this.scale.height).setInteractive().setDepth(300);
+    overlay.on('pointerdown', () => {});
+
     const titleText = this.add.text(cx, cy - 80, title, {
       fontFamily: FONT.family, fontSize: '24px', color: '#f2eee7', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(302);
+
+    const divider = this.add.text(cx, cy - 48, '━━━━━━━━━━━━━━━━━━━━', {
+      fontFamily: FONT.family, fontSize: '16px', color: '#3a4045',
     }).setOrigin(0.5).setDepth(302);
 
     const buttons = [];
@@ -1060,7 +1071,7 @@ export class GameScene extends Scene {
       btn.on('pointerout', () => btn.setColor('#74a8ff'));
       btn.on('pointerdown', () => {
         overlay.destroy();
-        panel.destroy();
+        divider.destroy();
         titleText.destroy();
         buttons.forEach(b => b.destroy());
         callback(i);
@@ -1083,10 +1094,14 @@ export class GameScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    const overlay = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x000000, 0.7).setDepth(400);
-    const panel = this.add.rectangle(cx, cy, 400, 320, COLORS.panel).setStrokeStyle(2, COLORS.line).setDepth(401);
-    const title = this.add.text(cx, cy - 120, '设置', {
+    const overlay = this.add.zone(cx, cy, this.scale.width, this.scale.height).setInteractive().setDepth(400);
+    overlay.on('pointerdown', () => {});
+    const title = this.add.text(cx, cy - 120, '◆ 设置', {
       fontFamily: FONT.family, fontSize: FONT.sizeLarge, color: '#f2eee7', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(402);
+
+    const divider = this.add.text(cx, cy - 88, '━━━━━━━━━━━━━━━━━━━━', {
+      fontFamily: FONT.family, fontSize: '16px', color: '#3a4045',
     }).setOrigin(0.5).setDepth(402);
 
     const muteText = this.add.text(cx, cy - 40, audio.muted ? '音量: 静音' : '音量: 开', {
@@ -1121,7 +1136,7 @@ export class GameScene extends Scene {
 
     close.on('pointerdown', () => {
       overlay.destroy();
-      panel.destroy();
+      divider.destroy();
       title.destroy();
       muteText.destroy();
       menuBtn.destroy();

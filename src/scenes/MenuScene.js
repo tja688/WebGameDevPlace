@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { COLORS, FONT } from '../config.js';
+import { FONT } from '../config.js';
 import { audio } from '../audio/AudioManager.js';
 import { createInitialGameState } from '../core/gameState.js';
 import { generateLayerRooms } from '../core/dungeon.js';
@@ -48,11 +48,9 @@ export class MenuScene extends Scene {
 
       const btn = this.add.container(x, y);
 
-      const bg = this.add.rectangle(0, 0, 120, 140, COLORS.panel)
-        .setStrokeStyle(2, COLORS.line)
-        .setInteractive({ useHandCursor: true });
+      const hitZone = this.add.zone(0, 0, 120, 140).setInteractive({ useHandCursor: true });
 
-      const nameText = this.add.text(0, -30, cls.name, {
+      const nameText = this.add.text(0, -30, `◈ ${cls.name}`, {
         fontFamily: FONT.family,
         fontSize: FONT.sizeLarge,
         color: '#52c6b8',
@@ -73,19 +71,19 @@ export class MenuScene extends Scene {
         align: 'center',
       }).setOrigin(0.5);
 
-      btn.add([bg, nameText, statText, descText]);
+      btn.add([hitZone, nameText, statText, descText]);
 
-      bg.on('pointerover', () => {
-        bg.setStrokeStyle(2, COLORS.gold);
+      hitZone.on('pointerover', () => {
+        nameText.setColor('#f5c86a');
         this.tweens.add({ targets: btn, scaleX: 1.05, scaleY: 1.05, duration: 150 });
       });
 
-      bg.on('pointerout', () => {
-        bg.setStrokeStyle(2, COLORS.line);
+      hitZone.on('pointerout', () => {
+        nameText.setColor('#52c6b8');
         this.tweens.add({ targets: btn, scaleX: 1, scaleY: 1, duration: 150 });
       });
 
-      bg.on('pointerdown', () => {
+      hitZone.on('pointerdown', () => {
         audio.playPickUp();
         const state = createInitialGameState(key);
         state.layerNodes = generateLayerRooms(1);
@@ -134,9 +132,9 @@ export class MenuScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    const overlay = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x000000, 0.7);
-    const panel = this.add.rectangle(cx, cy, 400, 300, COLORS.panel).setStrokeStyle(2, COLORS.line);
-    const title = this.add.text(cx, cy - 100, '设置', {
+    const overlay = this.add.zone(cx, cy, this.scale.width, this.scale.height).setInteractive();
+    overlay.on('pointerdown', () => {});
+    const title = this.add.text(cx, cy - 100, '◆ 设置', {
       fontFamily: FONT.family, fontSize: FONT.sizeLarge, color: '#f2eee7', fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -155,7 +153,6 @@ export class MenuScene extends Scene {
 
     close.on('pointerdown', () => {
       overlay.destroy();
-      panel.destroy();
       title.destroy();
       muteText.destroy();
       close.destroy();

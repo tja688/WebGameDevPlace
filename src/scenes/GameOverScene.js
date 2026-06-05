@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { COLORS, FONT } from '../config.js';
+import { FONT } from '../config.js';
 import { audio } from '../audio/AudioManager.js';
 import { clearSave } from '../core/gameState.js';
 
@@ -16,7 +16,7 @@ export class GameOverScene extends Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
 
-    this.add.rectangle(cx, cy, this.scale.width, this.scale.height, COLORS.bg);
+    // 背景由 Phaser Game 配置统一处理
 
     const victory = this.gameState.victory;
     const title = victory ? '通关！' : '游戏结束';
