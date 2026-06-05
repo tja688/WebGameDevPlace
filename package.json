@@ -9,7 +9,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "phaser": "^4.1.0"
   },
   "devDependencies": {
     "vite": "^6.2.0"
