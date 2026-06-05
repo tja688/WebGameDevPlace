@@ -666,6 +666,8 @@ export class GameScene extends Phaser.Scene {
     // 翻开相邻卡
     this.revealAdjacentToPlayer();
     this.processSpikeTriggers();
+    // 尖刺可能杀死玩家
+    if (this.playerDead) return;
     this.updateAllUI();
     this.addLog(`移动到格${targetCell + 1}`);
     this.checkRoomClear();
@@ -797,7 +799,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.countAction();
+    // 好战怪物可能在countAction中杀死玩家
+    if (this.playerDead) return;
     this.processSpikeTriggers();
+    if (this.playerDead) return;
     this.checkRoomClear();
   }
 
@@ -855,6 +860,11 @@ export class GameScene extends Phaser.Scene {
       }
       // 怪物反击
       this.applyMonsterDamageToPlayer(dmgToPlayer, card);
+      // 怪物反击可能杀死玩家
+      if (p.hp <= 0) {
+        this.onPlayerDeath();
+        return;
+      }
     } else if (monsterHasFirstStrike && !playerHasFirstStrike) {
       // 怪物先手
       this.applyMonsterDamageToPlayer(dmgToPlayer, card);
@@ -871,17 +881,22 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     } else {
-      // 同时出手
+      // 同时出手（双方均无先攻 或 双方均有先攻 → 同时结算）
       card.hp -= dmgToMonster;
       this.addLog(`你造成 ${dmgToMonster} 伤害`);
       this.flashCell(cellIndex, COLORS.danger);
       this.applyMonsterDamageToPlayer(dmgToPlayer, card);
-      if (p.hp <= 0) {
+      const playerDied = p.hp <= 0;
+      const monsterDied = card.hp <= 0;
+      // 双方同时死亡：先移除怪物，再触发玩家死亡
+      if (monsterDied) {
+        this.onMonsterKilled(cellIndex, card);
+      }
+      if (playerDied) {
         this.onPlayerDeath();
         return;
       }
-      if (card.hp <= 0) {
-        this.onMonsterKilled(cellIndex, card);
+      if (monsterDied) {
         return;
       }
     }
@@ -908,6 +923,7 @@ export class GameScene extends Phaser.Scene {
     this.renderCell(cellIndex);
     this.updateAllUI();
     this.isProcessing = false;
+    this.checkRoomClear();
   }
 
   applyMonsterDamageToPlayer(dmg, card) {
@@ -1042,6 +1058,11 @@ export class GameScene extends Phaser.Scene {
       }
       // 机关反击
       this.applyTrapDamageToPlayer(dmgToPlayer, card);
+      // 机关反击可能杀死玩家
+      if (p.hp <= 0) {
+        this.onPlayerDeath();
+        return;
+      }
     } else if (trapHasFirstStrike && !playerHasFirstStrike) {
       // 机关先攻
       this.applyTrapDamageToPlayer(dmgToPlayer, card);
@@ -1063,22 +1084,26 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     } else {
-      // 同时出手（双方均无先攻 或 双方均有先攻 → 玩家先，但此处简化为同时）
+      // 同时出手（双方均无先攻 或 双方均有先攻 → 同时结算）
       card.hp -= dmgToTrap;
       this.addLog(`你造成 ${dmgToTrap} 伤害`);
       this.flashCell(cellIndex, COLORS.danger);
       this.applyTrapDamageToPlayer(dmgToPlayer, card);
-      if (p.hp <= 0) {
-        this.onPlayerDeath();
-        return;
-      }
-      if (card.hp <= 0) {
+      const playerDied = p.hp <= 0;
+      const trapDestroyed = card.hp <= 0;
+      if (trapDestroyed) {
         this.addLog(`${card.name} 被摧毁！`);
         this.onTrapDestroyed(cellIndex, card);
         this.consumeViolence();
         this.updateAllUI();
         this.isProcessing = false;
         this.checkRoomClear();
+      }
+      if (playerDied) {
+        this.onPlayerDeath();
+        return;
+      }
+      if (trapDestroyed) {
         return;
       }
     }
@@ -1103,6 +1128,7 @@ export class GameScene extends Phaser.Scene {
     this.renderCell(cellIndex);
     this.updateAllUI();
     this.isProcessing = false;
+    this.checkRoomClear();
   }
 
   applyTrapDamageToPlayer(dmg, card) {
@@ -1245,6 +1271,7 @@ export class GameScene extends Phaser.Scene {
       delete this.spikePending[cellStr];
       this.addLog('尖刺机关触发！');
       const adj = getAdjacentCells(cellIndex);
+      let anyMonsterKilled = false;
       for (const ai of adj) {
         const aStack = this.grid[ai];
         if (aStack.length > 0) {
@@ -1253,6 +1280,12 @@ export class GameScene extends Phaser.Scene {
             GameState.damagePlayer(6);
             this.addLog('你受到尖刺 6 伤害');
             this.flashPlayerCell(COLORS.danger);
+            // 尖刺杀死玩家 → 游戏结束
+            if (GameState.player.hp <= 0) {
+              this.updateAllUI();
+              this.onPlayerDeath();
+              return;
+            }
           } else if (topCard.faceUp && topCard.hp !== undefined) {
             topCard.hp -= 6;
             this.addLog(`${topCard.name} 受到尖刺 6 伤害`);
@@ -1260,6 +1293,7 @@ export class GameScene extends Phaser.Scene {
               if (topCard.type === CARD_TYPES.MONSTER) {
                 GameState.gold += 10;
                 this.applyRevengeOnKill(ai);
+                anyMonsterKilled = true;
               }
               this.removeCardFromCell(ai);
             } else {
@@ -1268,8 +1302,13 @@ export class GameScene extends Phaser.Scene {
           }
         }
       }
+      // 尖刺杀怪后重新计算鼓舞
+      if (anyMonsterKilled) {
+        this.recalcInspire();
+      }
     }
     this.updateAllUI();
+    this.checkRoomClear();
   }
 
   // ── 食物/商店/导师/属性 互动 ──────────────────────
@@ -1756,19 +1795,19 @@ export class GameScene extends Phaser.Scene {
 
   // ── 房间清理检查 ──────────────────────────────────
   checkRoomClear() {
-    if (this.roomCleared) return;
+    if (this.roomCleared || this.playerDead) return;
 
-    // 检查是否还有正面怪物
+    // 只检查正面（已翻开）的怪物卡，背面和被覆盖的怪物不算
     let hasMonsters = false;
     for (let i = 0; i < 9; i++) {
       const stack = this.grid[i];
-      for (const card of stack) {
-        if (card.type === CARD_TYPES.MONSTER && card.hp > 0) {
+      if (stack.length > 0) {
+        const topCard = stack[stack.length - 1];
+        if (topCard.faceUp && topCard.type === CARD_TYPES.MONSTER && topCard.hp > 0) {
           hasMonsters = true;
           break;
         }
       }
-      if (hasMonsters) break;
     }
 
     if (!hasMonsters) {
@@ -1975,18 +2014,29 @@ export class GameScene extends Phaser.Scene {
     if (stack.length === 0) return;
     const removed = stack.pop();
 
-    // 如果移除后还有卡，翻开新的顶卡
+    // 如果移除后还有卡，处理新的顶卡
     if (stack.length > 0) {
       const newTop = stack[stack.length - 1];
-      if (!newTop.faceUp && newTop.type !== CARD_TYPES.PLAYER) {
-        newTop.faceUp = true;
-        this.addLog(`翻开: ${newTop.name}`);
-        this.time.delayedCall(100, () => {
-          if (this.playerDead || this.scene.isPaused) return;
-          this.renderCell(cellIndex);
-          this.onCardRevealed(newTop, cellIndex);
-        });
-        return;
+      if (newTop.type !== CARD_TYPES.PLAYER) {
+        if (!newTop.faceUp) {
+          // 背面卡：翻开并触发效果
+          newTop.faceUp = true;
+          this.addLog(`翻开: ${newTop.name}`);
+          this.time.delayedCall(100, () => {
+            if (this.playerDead || this.scene.isPaused) return;
+            this.renderCell(cellIndex);
+            this.onCardRevealed(newTop, cellIndex);
+          });
+          return;
+        } else {
+          // 已经是正面卡：仍然需要触发翻开效果（如金币自动拾取）
+          this.time.delayedCall(100, () => {
+            if (this.playerDead || this.scene.isPaused) return;
+            this.renderCell(cellIndex);
+            this.onCardRevealed(newTop, cellIndex);
+          });
+          return;
+        }
       }
     }
     this.renderCell(cellIndex);

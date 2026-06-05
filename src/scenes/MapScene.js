@@ -118,9 +118,16 @@ export class MapScene extends Phaser.Scene {
     const nextNode = GameState.currentNode + 1;
 
     if (nextNode >= 9) {
-      // 已通关
-      this.showVictory();
-      return;
+      // 当前楼层的Boss已击败
+      if (GameState.floor >= 3) {
+        // 3层全部通关 → 胜利
+        this.showVictory();
+        return;
+      } else {
+        // 进入下一层
+        this.showFloorTransition();
+        return;
+      }
     }
 
     // 获取当前节点的房间选择
@@ -238,6 +245,37 @@ export class MapScene extends Phaser.Scene {
     return descs[roomType] || '';
   }
 
+  showFloorTransition() {
+    const { width, height } = this.scale;
+    const nextFloor = GameState.floor + 1;
+
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85).setDepth(200);
+
+    this.add.text(width / 2, height / 2 - 40, `第 ${GameState.floor} 层 已通关！`, {
+      fontFamily: 'sans-serif', fontSize: '32px', color: COLORS.textGold, fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(201);
+
+    this.add.text(width / 2, height / 2 + 10, `即将进入第 ${nextFloor} 层...`, {
+      fontFamily: 'sans-serif', fontSize: '18px', color: COLORS.textGray,
+    }).setOrigin(0.5).setDepth(201);
+
+    const continueBtn = this.add.text(width / 2, height / 2 + 70, '继续', {
+      fontFamily: 'sans-serif', fontSize: '20px', color: COLORS.textWhite,
+      backgroundColor: '#1a5fb4', padding: { x: 24, y: 10 },
+    }).setOrigin(0.5).setDepth(201).setInteractive({ useHandCursor: true });
+
+    continueBtn.on('pointerover', () => continueBtn.setScale(1.05));
+    continueBtn.on('pointerout', () => continueBtn.setScale(1));
+    continueBtn.on('pointerdown', () => {
+      GameState.floor = nextFloor;
+      GameState.currentNode = -1;
+      this.cameras.main.fadeOut(300, 0, 0, 0);
+      this.time.delayedCall(300, () => {
+        this.scene.restart();
+      });
+    });
+  }
+
   showVictory() {
     const { width, height } = this.scale;
     this.add.text(width / 2, height / 2 - 40, '恭喜通关！', {
@@ -247,7 +285,7 @@ export class MapScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, height / 2 + 10, `你成功征服了地牢！`, {
+    this.add.text(width / 2, height / 2 + 10, `你成功征服了全部 ${GameState.floor} 层地牢！`, {
       fontFamily: 'sans-serif',
       fontSize: '18px',
       color: COLORS.textWhite,
