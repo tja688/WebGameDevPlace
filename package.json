@@ -1,15 +1,14 @@
 {
-  "name": "paipai-luck-wave",
-  "version": "0.1.0",
+  "name": "phaser4-game",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "vite build",
-    "test": "node --test"
+    "build": "vite build"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "phaser": "^4.1.0"
   },
   "devDependencies": {
     "vite": "^6.2.0"
