@@ -34,6 +34,8 @@ export function createPlayer(classId) {
     tempAtkBonus: 0,
     tempDefBonus: 0,
     shield: 0,
+    tempAtkBonus: 0,
+    tempDefBonus: 0,
     // 技能词条
     skills: {
       thorns: false,  // 刺皮

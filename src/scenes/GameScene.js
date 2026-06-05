@@ -35,14 +35,15 @@ export class GameScene extends Scene {
 
     audio.startBgm();
 
+    this.renderBackground();
+    this.renderGrid();
+
     // 初始化网格
     this.gameState.grid = this.gameState.grid || [];
     if (this.gameState.grid.length === 0) {
-      this.enterRoom(this.gameState.currentRoom || 'reward');
+      this.enterRoom(this.gameState.currentRoom || 'reward', true);
     }
 
-    this.renderBackground();
-    this.renderGrid();
     this.renderCards();
     this.renderUI();
     this.createSettingsButton();
@@ -123,7 +124,7 @@ export class GameScene extends Scene {
       fontSize,
       color,
       fontStyle: 'bold',
-      stroke: COLORS.ink.toString(16),
+      stroke: hexToString(COLORS.ink),
       strokeThickness: 3,
     }).setOrigin(0.5);
 
@@ -770,7 +771,7 @@ export class GameScene extends Scene {
     }
   }
 
-  enterRoom(roomType) {
+  enterRoom(roomType, skipRender = false) {
     this.gameState.currentRoom = roomType;
     this.gameState.grid = generateRoomCards(
       roomType,
@@ -780,8 +781,10 @@ export class GameScene extends Scene {
     );
     this.gameState.playerGridIndex = 7;
     this.gameState.actionCount = 0;
-    this.renderCards();
-    this.revealAdjacent(7);
+    if (!skipRender) {
+      this.renderCards();
+      this.revealAdjacent(7);
+    }
   }
 
   enterNextNode(roomType) {
