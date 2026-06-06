@@ -46,12 +46,17 @@ export class GameScene extends Phaser.Scene {
     this.itemTargetMode = null;
     this.itemTargetSlot = -1;
     this.hookRopeTarget = -1;
-    // 血盾状态
-    this.bloodShieldActive = false;
+    // 血盾叠加计数（本房间内可多次叠加）
+    this.bloodShieldStacks = 0;
     // 卡牌移除递归守卫
     this._removingCard = false;
     // 清房UI元素引用
     this._roomClearElements = [];
+    // 道具拖拽状态
+    this._itemDragStart = null;
+    this._itemDragGhost = null;
+    this._itemDragSlot = -1;
+    this._itemDragId = null;
   }
 
   create() {
@@ -441,9 +446,20 @@ export class GameScene extends Phaser.Scene {
         fontFamily: 'sans-serif', fontSize: '12px', color: slotItemDef ? COLORS.textWhite : '#555',
       }).setOrigin(0.5).setDepth(22);
 
-      // 可点击使用/拖拽
-      slotBg.setInteractive({ useHandCursor: true });
-      slotBg.on('pointerdown', () => this.onItemSlotClick(i));
+      // 可点击使用/拖拽到场上
+      slotBg.setInteractive({ useHandCursor: true, draggable: true });
+      slotBg.on('pointerdown', (pointer) => {
+        this._itemDragStart = { x: pointer.x, y: pointer.y, slot: i };
+      });
+      slotBg.on('pointerup', (pointer) => {
+        if (this._itemDragGhost) {
+          // 正在拖拽道具卡，释放到目标位置
+          this.dropItemFromSlot(i, pointer);
+        } else {
+          // 短点击 → 使用道具
+          this.onItemSlotClick(i);
+        }
+      });
 
       this.uiElements.itemSlots.push({ bg: slotBg, text: slotText });
     }
@@ -551,6 +567,15 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 包装 recalcStats，自动保留血盾叠加的防御
+  recalcStatsWithBuffs() {
+    // 用下标语法绕过 replace_all 的文本替换
+    GameState['recalcStats']();
+    if (this.bloodShieldStacks > 0) {
+      GameState.player.def += this.bloodShieldStacks * 2;
+    }
+  }
+
   updateAllUI() {
     this.updatePlayerPanel();
     this.updateRelicPanel();
@@ -629,6 +654,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   onPointerMove(pointer) {
+    // 道具拖拽处理
+    if (this._itemDragStart && !this._itemDragGhost) {
+      const dx = pointer.x - this._itemDragStart.x;
+      const dy = pointer.y - this._itemDragStart.y;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        // 开始拖拽道具
+        this.startItemDragGhost(pointer);
+      }
+      return;
+    }
+    if (this._itemDragGhost) {
+      this._itemDragGhost.x = pointer.x;
+      this._itemDragGhost.y = pointer.y;
+      this.highlightRects.forEach(h => h.setVisible(false));
+      const targetCell = getCellFromPos(pointer.x, pointer.y);
+      if (targetCell >= 0) {
+        this.highlightRects[targetCell].setVisible(true);
+      }
+      return;
+    }
+
     if (!this.isDragging) return;
 
     // 更新幽灵卡位置
@@ -654,6 +700,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
+    // 道具拖拽由 slotBg 的 pointerup 处理，这里忽略
+    if (this._itemDragStart || this._itemDragGhost) return;
     if (!this.isDragging) return;
     this.isDragging = false;
     this.highlightRects.forEach(h => h.setVisible(false));
@@ -708,6 +756,177 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     ghost.add([bg, nameT]);
     this.dragCard = ghost;
+  }
+
+  // ── 道具卡拖拽 ─────────────────────────────────────
+  startItemDragGhost(pointer) {
+    const slotIndex = this._itemDragStart.slot;
+    const itemId = GameState.itemSlots[slotIndex];
+    if (!itemId) { this._itemDragStart = null; return; }
+    const itemDef = Object.values(ITEMS).find(it => it.id === itemId);
+    if (!itemDef) { this._itemDragStart = null; return; }
+
+    // 从道具栏移除（拖拽中）
+    GameState.itemSlots[slotIndex] = null;
+    this.updateItemPanel();
+
+    // 创建幽灵卡
+    const ghost = this.add.container(pointer.x, pointer.y).setDepth(100).setAlpha(0.85);
+    const bg = this.add.image(0, 0, 'card_item');
+    const nameT = this.add.text(0, -5, itemDef.name, {
+      fontFamily: 'sans-serif', fontSize: '12px', color: COLORS.textWhite, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    ghost.add([bg, nameT]);
+    this._itemDragGhost = ghost;
+    this._itemDragSlot = slotIndex;
+    this._itemDragId = itemId;
+  }
+
+  dropItemFromSlot(slotIndex, pointer) {
+    this.highlightRects.forEach(h => h.setVisible(false));
+    if (this._itemDragGhost) {
+      this._itemDragGhost.destroy();
+      this._itemDragGhost = null;
+    }
+    this._itemDragStart = null;
+
+    const targetCell = getCellFromPos(pointer.x, pointer.y);
+    const itemId = this._itemDragId;
+
+    if (targetCell >= 0 && itemId) {
+      const stack = this.grid[targetCell];
+      if (stack.length === 0) {
+        // 拖到空格：将道具卡放到场上
+        const itemCard = GameState.createItemCard(itemId);
+        if (itemCard) {
+          itemCard.faceUp = true;
+          this.grid[targetCell].push(itemCard);
+          this.renderCell(targetCell);
+          this.addLog(`道具卡放到格${targetCell + 1}`);
+        }
+      } else {
+        const topCard = stack[stack.length - 1];
+        if (topCard.faceUp) {
+          // 拖到正面卡上：使用道具效果
+          this.useItemOnTarget(itemId, targetCell, topCard);
+        } else {
+          // 目标背面朝下，放回道具栏
+          this.returnItemToSlot(itemId);
+          this.addLog('目标必须是正面朝上的卡牌');
+        }
+      }
+    } else {
+      // 释放到无效位置，退回道具栏
+      this.returnItemToSlot(itemId);
+    }
+    this._itemDragId = null;
+    this._itemDragSlot = -1;
+    this.updateItemPanel();
+  }
+
+  returnItemToSlot(itemId) {
+    if (!itemId) return;
+    const emptySlot = GameState.itemSlots.indexOf(null);
+    if (emptySlot >= 0) {
+      GameState.setItem(emptySlot, itemId);
+    }
+  }
+
+  useItemOnTarget(itemId, cellIndex, targetCard) {
+    switch (itemId) {
+      case 'throwing_knife':
+        if (targetCard.type === CARD_TYPES.MONSTER && targetCard.hp !== undefined) {
+          this.damageTopCard(cellIndex, 6, '飞刀');
+          this.addLog('飞刀命中！');
+          this.checkRoomClear();
+        } else {
+          this.returnItemToSlot(itemId);
+          this.addLog('飞刀只能对怪物使用');
+        }
+        break;
+      case 'healing_potion':
+        GameState.healPlayer(10);
+        this.addLog('使用恢复药水，HP+10');
+        this.flashPlayerCell(COLORS.success);
+        break;
+      case 'blessing':
+        GameState.player.blessActive = true;
+        this.addLog('使用庇佑魔法');
+        break;
+      case 'violence_card':
+        GameState.player.violenceActive = true;
+        this.recalcStatsWithBuffs();
+        this.addLog('使用暴力卡，攻击力翻倍！');
+        break;
+      case 'first_strike_card':
+        GameState.player.firstStrikeActive = true;
+        this.addLog('使用先攻卡');
+        break;
+      case 'hook_rope':
+        // 勾绳需要选择方向，暂简化为直接移动目标卡到随机相邻空格
+        if (targetCard.type !== CARD_TYPES.PLAYER) {
+          const adj = getAdjacentCells(cellIndex).filter(ai => this.grid[ai].length === 0);
+          if (adj.length > 0) {
+            const dest = adj[randomInt(0, adj.length - 1)];
+            const movingCard = this.grid[cellIndex].pop();
+            this.grid[dest].push(movingCard);
+            this.renderCell(cellIndex);
+            this.renderCell(dest);
+            this.addLog(`勾绳移动${movingCard.name}`);
+          } else {
+            this.returnItemToSlot(itemId);
+            this.addLog('没有相邻空格可移动');
+          }
+        } else {
+          this.returnItemToSlot(itemId);
+          this.addLog('勾绳不能移动玩家卡');
+        }
+        break;
+      case 'flip_card':
+        if (targetCard.faceUp && targetCard.type !== CARD_TYPES.PLAYER) {
+          let backCell = -1;
+          for (let i = 0; i < 9; i++) {
+            const s = this.grid[i];
+            if (s.length > 0 && !s[s.length - 1].faceUp) { backCell = i; break; }
+          }
+          if (backCell >= 0) {
+            const faceUpCard = this.grid[cellIndex].pop();
+            const faceDownCard = this.grid[backCell].pop();
+            faceUpCard.faceUp = false;
+            faceDownCard.faceUp = true;
+            this.grid[cellIndex].push(faceDownCard);
+            this.grid[backCell].push(faceUpCard);
+            this.renderCell(cellIndex);
+            this.renderCell(backCell);
+            this.addLog('翻转卡交换成功');
+            this.onCardRevealed(faceDownCard, backCell);
+          } else {
+            this.returnItemToSlot(itemId);
+            this.addLog('没有可交换的背面卡');
+          }
+        } else {
+          this.returnItemToSlot(itemId);
+        }
+        break;
+      case 'light_card':
+        const adj = getAdjacentCells(cellIndex);
+        let flipped = 0;
+        for (const ai of adj) {
+          const s = this.grid[ai];
+          if (s.length > 0 && !s[s.length - 1].faceUp) {
+            s[s.length - 1].faceUp = true;
+            this.renderCell(ai);
+            this.onCardRevealed(s[s.length - 1], ai);
+            flipped++;
+          }
+        }
+        if (flipped === 0) this.addLog('没有可翻开的卡');
+        else this.addLog(`照明翻开${flipped}张卡`);
+        break;
+      default:
+        this.returnItemToSlot(itemId);
+    }
+    this.updateAllUI();
   }
 
   // ── 移动 ──────────────────────────────────────────
@@ -769,11 +988,12 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // 尖刺机关翻开效果
+    // 尖刺机关翻开效果：记录激活时的行动数，下个行动才触发
     if (card.type === CARD_TYPES.TRAP && card.effectId === 'spike') {
-      card.spikeTriggered = false; // 将在玩家下一步行动后触发
+      card.spikeTriggered = false;
+      card.spikeActivatedAt = this.actionCount; // 记录激活时的行动计数
       this.spikePending[cellIndex] = true;
-      this.addLog(`尖刺机关已激活，下一步行动后触发！`);
+      this.addLog(`尖刺机关已激活，下次行动后触发！`);
     }
 
     // 传送机关翻开时无效果（改为摧毁后触发），仅提示
@@ -871,13 +1091,13 @@ export class GameScene extends Phaser.Scene {
         p.veteranBonus = 0;
       }
       p.veteranBonus++;
-      GameState.recalcStats();
+      this.recalcStatsWithBuffs();
     }
 
     // 破甲词条处理
     if (card.trait === TRAITS.ARMOR_BREAK) {
       p.armorBreakReduction = (p.armorBreakReduction || 0) + 1;
-      GameState.recalcStats();
+      this.recalcStatsWithBuffs();
       this.addLog(`${card.name} 破甲！你的防御-1`);
     }
 
@@ -927,22 +1147,19 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     } else {
-      // 同时出手（双方均无先攻 或 双方均有先攻 → 同时结算）
+      // 双方均无先攻 或 双方均有先攻 → 玩家先造成伤害（设计：玩家默认优先）
       card.hp -= dmgToMonster;
       this.addLog(`你造成 ${dmgToMonster} 伤害`);
       this.flashCell(cellIndex, COLORS.danger);
-      this.applyMonsterDamageToPlayer(dmgToPlayer, card);
-      const playerDied = p.hp <= 0;
-      const monsterDied = card.hp <= 0;
-      // 双方同时死亡：先移除怪物，再触发玩家死亡
-      if (monsterDied) {
+      if (card.hp <= 0) {
+        // 玩家先手击杀 → 怪物无法反击
         this.onMonsterKilled(cellIndex, card);
-      }
-      if (playerDied) {
-        this.onPlayerDeath();
         return;
       }
-      if (monsterDied) {
+      // 怪物未死亡 → 进行反击
+      this.applyMonsterDamageToPlayer(dmgToPlayer, card);
+      if (p.hp <= 0) {
+        this.onPlayerDeath();
         return;
       }
     }
@@ -1003,7 +1220,7 @@ export class GameScene extends Phaser.Scene {
     if (card.isBoss || card.isElite) {
       GameState.villageSwordBonus += 2;
       this.addLog('村好剑：永久攻击+2！');
-      GameState.recalcStats();
+      this.recalcStatsWithBuffs();
     }
 
     // 精英怪物击杀奖励：1张蓝色宝箱(遗物选择) + 50金币 + 属性提升
@@ -1072,19 +1289,20 @@ export class GameScene extends Phaser.Scene {
     // 破甲词条处理（机关也可带破甲）
     if (card.trait === TRAITS.ARMOR_BREAK) {
       p.armorBreakReduction = (p.armorBreakReduction || 0) + 1;
-      GameState.recalcStats();
+      this.recalcStatsWithBuffs();
       this.addLog(`${card.name} 破甲！你的防御-1`);
     }
 
     const playerAtk = GameState.getEffectiveAtk();
     const dmgToTrap = Math.max(0, playerAtk - card.def);
-    const dmgToPlayer = card.fixedDmg; // 机关固定伤害，不受防御减免
+    // 机关对玩家造成伤害 = 机关攻击力（弩箭ATK=0故无伤害，尖刺ATK=2），不受防御减免
+    const dmgToPlayer = card.atk || 0;
 
     // 先攻判定
     const playerHasFirstStrike = p.firstStrikeActive || p.traits.includes(TRAITS.FIRST_STRIKE);
     const trapHasFirstStrike = card.trait === TRAITS.FIRST_STRIKE;
 
-    this.addLog(`⚔ ${card.name} (HP:${card.hp} 固定伤害:${dmgToPlayer})`);
+    this.addLog(`⚔ ${card.name} (HP:${card.hp} 伤害:${dmgToPlayer})`);
 
     if (playerHasFirstStrike && !trapHasFirstStrike) {
       // 玩家先攻
@@ -1094,7 +1312,6 @@ export class GameScene extends Phaser.Scene {
       if (card.hp <= 0) {
         this.addLog(`${card.name} 被摧毁！`);
         this.onTrapDestroyed(cellIndex, card);
-        // 机关已摧毁，不再对玩家造成伤害
         this.consumeViolence();
         this.updateAllUI();
         this.isProcessing = false;
@@ -1103,7 +1320,6 @@ export class GameScene extends Phaser.Scene {
       }
       // 机关反击
       this.applyTrapDamageToPlayer(dmgToPlayer, card);
-      // 机关反击可能杀死玩家
       if (p.hp <= 0) {
         this.onPlayerDeath();
         return;
@@ -1129,26 +1345,23 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     } else {
-      // 同时出手（双方均无先攻 或 双方均有先攻 → 同时结算）
+      // 双方均无先攻 或 双方均有先攻 → 玩家先手（设计：玩家默认优先）
       card.hp -= dmgToTrap;
       this.addLog(`你造成 ${dmgToTrap} 伤害`);
       this.flashCell(cellIndex, COLORS.danger);
-      this.applyTrapDamageToPlayer(dmgToPlayer, card);
-      const playerDied = p.hp <= 0;
-      const trapDestroyed = card.hp <= 0;
-      if (trapDestroyed) {
+      if (card.hp <= 0) {
         this.addLog(`${card.name} 被摧毁！`);
         this.onTrapDestroyed(cellIndex, card);
         this.consumeViolence();
         this.updateAllUI();
         this.isProcessing = false;
         this.checkRoomClear();
-      }
-      if (playerDied) {
-        this.onPlayerDeath();
         return;
       }
-      if (trapDestroyed) {
+      // 机关未摧毁 → 进行反击
+      this.applyTrapDamageToPlayer(dmgToPlayer, card);
+      if (p.hp <= 0) {
+        this.onPlayerDeath();
         return;
       }
     }
@@ -1192,7 +1405,7 @@ export class GameScene extends Phaser.Scene {
   consumeViolence() {
     if (GameState.player.violenceActive) {
       GameState.player.violenceActive = false;
-      GameState.recalcStats();
+      this.recalcStatsWithBuffs();
       this.addLog('暴力效果已消耗');
     }
   }
@@ -1235,7 +1448,7 @@ export class GameScene extends Phaser.Scene {
     if (card.isBoss || card.isElite) {
       GameState.villageSwordBonus += 2;
       this.addLog('村好剑：永久攻击+2！');
-      GameState.recalcStats();
+      this.recalcStatsWithBuffs();
     }
     // 精英/Boss奖励（环境击杀也给奖励）
     if (card.isElite) {
@@ -1354,6 +1567,10 @@ export class GameScene extends Phaser.Scene {
         delete this.spikePending[cellStr];
         continue;
       }
+      // 如果尖刺是当前行动才激活的，等下次行动再触发
+      if (card.spikeActivatedAt === this.actionCount) {
+        continue;
+      }
       // 触发尖刺伤害
       card.spikeTriggered = true;
       delete this.spikePending[cellStr];
@@ -1412,15 +1629,15 @@ export class GameScene extends Phaser.Scene {
     switch (card.effect) {
       case 'atk+1':
         GameState.shopAtkBonus++;
-        GameState.recalcStats();
+        this.recalcStatsWithBuffs();
         break;
       case 'def+1':
         GameState.shopDefBonus++;
-        GameState.recalcStats();
+        this.recalcStatsWithBuffs();
         break;
       case 'hp+2':
         GameState.shopHpBonus += 2;
-        GameState.recalcStats();
+        this.recalcStatsWithBuffs();
         GameState.healPlayer(2);
         break;
       case 'random_item': {
@@ -1448,7 +1665,7 @@ export class GameScene extends Phaser.Scene {
       GameState.player.traits.push(trait);
       this.addLog(`习得词条: ${TRAIT_NAMES[trait]}`);
       if (trait === TRAITS.THICK_HIDE) {
-        GameState.recalcStats();
+        this.recalcStatsWithBuffs();
       }
     } else {
       this.addLog(`已拥有该词条`);
@@ -1470,7 +1687,7 @@ export class GameScene extends Phaser.Scene {
 
   // ── 道具使用 ──────────────────────────────────────
   onItemSlotClick(slotIndex) {
-    if (this.isProcessing || this.roomCleared || this.playerDead) return;
+    if (this.isProcessing || this.playerDead) return;
     const itemId = GameState.itemSlots[slotIndex];
     if (!itemId) return;
 
@@ -1494,7 +1711,7 @@ export class GameScene extends Phaser.Scene {
       case 'violence_card':
         GameState.useItem(slotIndex);
         GameState.player.violenceActive = true;
-        GameState.recalcStats();
+        this.recalcStatsWithBuffs();
         this.addLog('使用暴力卡，攻击力翻倍！');
         this.updateAllUI();
         break;
@@ -1870,17 +2087,17 @@ export class GameScene extends Phaser.Scene {
   checkRoomClear() {
     if (this.roomCleared || this.playerDead) return;
 
-    // 只检查正面（已翻开）的怪物卡，背面和被覆盖的怪物不算
+    // 检查所有怪物卡（正面朝上+正面朝下），必须全部消灭才能离开
+    // 正面朝下的怪物不计入互动但计入清房条件
     let hasMonsters = false;
     for (let i = 0; i < 9; i++) {
-      const stack = this.grid[i];
-      if (stack.length > 0) {
-        const topCard = stack[stack.length - 1];
-        if (topCard.faceUp && topCard.type === CARD_TYPES.MONSTER && topCard.hp > 0) {
+      for (const card of this.grid[i]) {
+        if (card.type === CARD_TYPES.MONSTER && card.hp > 0) {
           hasMonsters = true;
           break;
         }
       }
+      if (hasMonsters) break;
     }
 
     if (!hasMonsters) {
@@ -1950,10 +2167,10 @@ export class GameScene extends Phaser.Scene {
         this.flashPlayerCell(COLORS.success);
         break;
       case 'blood_shield':
-        // 血盾：本房间防御+2，离开房间后效果消失
-        this.bloodShieldActive = true;
+        // 血盾：本房间防御+2（可叠加），离开房间后效果消失
+        this.bloodShieldStacks++;
         GameState.player.def += 2;
-        this.addLog('血盾激活：本房间防御+2');
+        this.addLog(`血盾激活：防御+2（累计${this.bloodShieldStacks}层）`);
         this.flashPlayerCell(COLORS.success);
         break;
     }
@@ -2099,6 +2316,7 @@ export class GameScene extends Phaser.Scene {
 
       hitArea.on('pointerdown', () => {
         GameState.addRelic(relic.id);
+        this.recalcStatsWithBuffs(); // 恢复血盾等临时效果
         this.addLog(`获得遗物: ${relic.name}`);
         // 清除选择UI
         this.children.list.filter(c => c.depth >= 150).forEach(c => c.destroy());
@@ -2116,9 +2334,9 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(151);
 
     const options = [
-      { label: '攻击 +1', action: () => { GameState.shopAtkBonus++; GameState.recalcStats(); } },
-      { label: '防御 +1', action: () => { GameState.shopDefBonus++; GameState.recalcStats(); } },
-      { label: '生命 +2', action: () => { GameState.shopHpBonus += 2; GameState.recalcStats(); GameState.healPlayer(2); } },
+      { label: '攻击 +1', action: () => { GameState.shopAtkBonus++; this.recalcStatsWithBuffs(); } },
+      { label: '防御 +1', action: () => { GameState.shopDefBonus++; this.recalcStatsWithBuffs(); } },
+      { label: '生命 +2', action: () => { GameState.shopHpBonus += 2; this.recalcStatsWithBuffs(); GameState.healPlayer(2); } },
     ];
 
     const btnWidth = 150;
