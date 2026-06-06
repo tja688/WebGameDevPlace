@@ -2,7 +2,8 @@
 // 深入地牢 - 全局游戏状态管理
 // ============================================================
 import {
-  CLASSES, RELICS, TRAITS, ROOM_TYPES, ITEMS, ITEM_LIST,
+  CLASSES, RELICS, RELICS_BY_QUALITY, TREASURE_QUALITY_ROLL,
+  TRAITS, ROOM_TYPES, ITEMS, ITEM_LIST, SHOP_ITEMS,
   MONSTERS, MONSTERS_BY_LEVEL, NODE_MONSTER_CONFIG, NODE_FIXED,
   NODE_CHOICES_EARLY, NODE_CHOICES_LATE, CARD_TYPES,
   shuffle, randomInt, getAdjacentCells
@@ -314,9 +315,9 @@ class GameStateClass {
 
   createTrapCard(trapId) {
     const traps = {
-      crossbow: { id: 'crossbow', name: '弩箭机关', hp: 2, def: 0, fixedDmg: 4, effectId: 'crossbow' },
-      spike: { id: 'spike', name: '尖刺机关', hp: 4, def: 0, fixedDmg: 6, effectId: 'spike' },
-      teleport: { id: 'teleport', name: '传送机关', hp: 1, def: 0, fixedDmg: 3, effectId: 'teleport' },
+      crossbow: { id: 'crossbow', name: '弩箭机关', hp: 2, atk: 0, def: 0, fixedDmg: 6, effectId: 'crossbow' },
+      spike: { id: 'spike', name: '尖刺机关', hp: 4, atk: 2, def: 0, fixedDmg: 6, effectId: 'spike' },
+      teleport: { id: 'teleport', name: '传送机关', hp: 1, atk: 0, def: 0, fixedDmg: 0, effectId: 'teleport' },
     };
     const t = traps[trapId];
     return {
@@ -351,7 +352,7 @@ class GameStateClass {
       type: CARD_TYPES.GOLD,
       id: 'gold',
       name: '金币卡',
-      goldAmount: 20,
+      goldAmount: 50,
       faceUp: false,
     };
   }
@@ -438,7 +439,9 @@ class GameStateClass {
 
     // 道具卡 (4-6张)
     const itemCount = randomInt(4, 6);
-    for (let i = 0; i < itemCount; i++) {
+    // 道具储备遗物：进入非餐厅新房间时，额外添加2张道具卡
+    const extraItems = this.relics.some(r => r.id === 'item_reserve') ? 2 : 0;
+    for (let i = 0; i < itemCount + extraItems; i++) {
       const item = ITEM_LIST[randomInt(0, ITEM_LIST.length - 1)];
       cards.push(this.createItemCard(item.id));
     }
@@ -463,16 +466,12 @@ class GameStateClass {
         cards.push(this.createAttributeCard());
         break;
       case ROOM_TYPES.SHOP: {
-        // 设计：额外出现4~6张商品卡
-        const shopItems = [
-          { id: 'atk_up', name: '攻击+1', cost: 50, effect: 'atk+1' },
-          { id: 'def_up', name: '防御+1', cost: 50, effect: 'def+1' },
-          { id: 'hp_up', name: '生命+2', cost: 50, effect: 'hp+2' },
-          { id: 'buy_item', name: '随机道具', cost: 30, effect: 'random_item' },
-          { id: 'buy_treasure', name: '宝箱', cost: 100, effect: 'treasure' },
-        ];
+        // 设计：额外出现4~6张商品卡（从SHOP_ITEMS随机抽取，可重复）
         const shopCount = randomInt(4, 6);
-        const selected = shuffle(shopItems).slice(0, Math.min(shopCount, shopItems.length));
+        const selected = [];
+        for (let s = 0; s < shopCount; s++) {
+          selected.push(SHOP_ITEMS[randomInt(0, SHOP_ITEMS.length - 1)]);
+        }
         for (const si of selected) {
           cards.push(this.createShopCard(si));
         }

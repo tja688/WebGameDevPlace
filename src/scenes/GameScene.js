@@ -4,7 +4,8 @@
 import Phaser from 'phaser';
 import {
   GAME_WIDTH, GAME_HEIGHT, COLORS, CARD_TYPES, TRAITS, TRAIT_NAMES,
-  TRAIT_DESCRIPTIONS, ITEMS, ITEM_LIST, RELICS, MONSTERS,
+  TRAIT_DESCRIPTIONS, ITEMS, ITEM_LIST, RELICS, RELICS_BY_QUALITY, TREASURE_QUALITY_ROLL,
+  MONSTERS,
   CARD_W, CARD_H, CARD_GAP, GRID_X, GRID_Y, GRID_COLS, GRID_ROWS,
   PLAYER_START_CELL, ROOM_TYPES, ROOM_NAMES,
   getAdjacentCells, getCellPos, getCellFromPos, isOrthogonallyAdjacent,
@@ -45,6 +46,12 @@ export class GameScene extends Phaser.Scene {
     this.itemTargetMode = null;
     this.itemTargetSlot = -1;
     this.hookRopeTarget = -1;
+    // 血盾状态
+    this.bloodShieldActive = false;
+    // 卡牌移除递归守卫
+    this._removingCard = false;
+    // 清房UI元素引用
+    this._roomClearElements = [];
   }
 
   create() {
@@ -392,8 +399,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   createRelicPanel() {
-    const px = 20, py = 370, pw = 200, ph = 140;
-    this.add.rectangle(px + pw / 2, py + ph / 2, pw, ph, COLORS.panelBg, 0.9)
+    const px = 20, py = 370, pw = 200, ph = 170;
+    this.uiElements.relicPanelBg = this.add.rectangle(px + pw / 2, py + ph / 2, pw, ph, COLORS.panelBg, 0.9)
       .setStrokeStyle(1, COLORS.panelBorder, 0.5).setDepth(20);
 
     this.add.text(px + pw / 2, py + 16, '遗物', {
@@ -403,6 +410,12 @@ export class GameScene extends Phaser.Scene {
     this.uiElements.relicList = this.add.text(px + 14, py + 38, '', {
       fontFamily: 'sans-serif', fontSize: '11px', color: COLORS.textGray,
       wordWrap: { width: pw - 28 },
+    }).setDepth(21);
+
+    // 主动遗物按钮容器
+    this.uiElements.activeRelicBtns = [];
+    this.uiElements.activeRelicLabel = this.add.text(px + 14, py + 90, '', {
+      fontFamily: 'sans-serif', fontSize: '11px', color: COLORS.textOrange,
     }).setDepth(21);
 
     this.updateRelicPanel();
@@ -485,6 +498,42 @@ export class GameScene extends Phaser.Scene {
         }).join('\n')
       : '暂无遗物';
     this.uiElements.relicList.setText(relicStr);
+
+    // 清除旧主动遗物按钮
+    if (this.uiElements.activeRelicBtns) {
+      this.uiElements.activeRelicBtns.forEach(b => {
+        if (b && b.destroy) b.destroy();
+        if (b && b.length) b.forEach(x => x && x.destroy && x.destroy());
+      });
+      this.uiElements.activeRelicBtns = [];
+    }
+
+    // 渲染主动遗物按钮（房间内即可使用）
+    const activeRelics = GameState.relics.filter(r => r.active && !GameState.activeRelicCooldowns[r.id]);
+    if (activeRelics.length > 0 && this.uiElements.activeRelicLabel) {
+      this.uiElements.activeRelicLabel.setText('主动技能：');
+      const px = 20;
+      let btnY = 470; // 遗物面板内按钮起始Y
+      for (const relic of activeRelics) {
+        const btnText = this.add.text(px + 14, btnY, `▶ ${relic.name}`, {
+          fontFamily: 'sans-serif', fontSize: '11px', color: '#f5c211',
+          backgroundColor: '#2a2550', padding: { x: 8, y: 4 },
+        }).setDepth(21).setInteractive({ useHandCursor: true });
+
+        btnText.on('pointerover', () => btnText.setColor('#ffffff'));
+        btnText.on('pointerout', () => btnText.setColor('#f5c211'));
+        btnText.on('pointerdown', () => {
+          if (this.isProcessing || this.playerDead) return;
+          this.useRelicInRoom(relic);
+          this.updateRelicPanel();
+        });
+
+        this.uiElements.activeRelicBtns.push(btnText);
+        btnY += 24;
+      }
+    } else if (this.uiElements.activeRelicLabel) {
+      this.uiElements.activeRelicLabel.setText('');
+    }
   }
 
   updateItemPanel() {
@@ -527,7 +576,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   onPointerDown(pointer) {
-    if (this.isProcessing || this.roomCleared || this.playerDead) return;
+    if (this.isProcessing || this.playerDead) return;
 
     const cellIndex = getCellFromPos(pointer.x, pointer.y);
     if (cellIndex < 0) return;
@@ -545,7 +594,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     const stack = this.grid[cellIndex];
-    if (stack.length === 0) return;
+    if (stack.length === 0) {
+      // 点击空格：移动玩家（等效于拖动到空格，不限距离）
+      if (cellIndex !== this.playerCellIndex && !this.roomCleared) {
+        this.movePlayerTo(cellIndex);
+      }
+      return;
+    }
+
     const topCard = stack[stack.length - 1];
 
     // 点击玩家卡 - 开始拖拽
@@ -554,15 +610,18 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // 点击正面卡 (非玩家) - 如果相邻则互动
+    // 点击正面卡 (非玩家) - 相邻则互动（等效于拖动互动）
     if (topCard.faceUp && cellIndex !== this.playerCellIndex) {
       if (isOrthogonallyAdjacent(this.playerCellIndex, cellIndex)) {
         this.interactWithCard(cellIndex);
+      } else {
+        // 不在相邻格，无法互动（需先移动到相邻格）
+        this.addLog(`距离太远，先移动到相邻格`);
       }
       return;
     }
 
-    // 点击背面卡 - 如果相邻则翻开
+    // 点击背面卡 - 相邻则翻开（等效于拖动翻开）
     if (!topCard.faceUp && isOrthogonallyAdjacent(this.playerCellIndex, cellIndex)) {
       this.flipCard(cellIndex);
       this.countAction();
@@ -698,19 +757,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // 自动拾取道具 (如果道具栏有空)
-    if (card.type === CARD_TYPES.ITEM) {
-      const emptySlot = GameState.itemSlots.indexOf(null);
-      if (emptySlot >= 0) {
-        GameState.setItem(emptySlot, card.id);
-        this.addLog(`拾取: ${card.name}`);
-        this.removeCardFromCell(cellIndex);
-        this.updateItemPanel();
-        return;
-      }
-      // 道具栏满了，留在原地
-      this.addLog(`道具栏已满`);
-    }
+    // 道具卡翻开后不自动拾取，等待玩家点击后放入道具牌格
+    // （下方 interactWithCard 中的 ITEM 分支处理点击拾取逻辑）
 
     // 伏击词条检查
     if (card.trait === TRAITS.AMBUSH && card.type === CARD_TYPES.MONSTER) {
@@ -728,11 +776,9 @@ export class GameScene extends Phaser.Scene {
       this.addLog(`尖刺机关已激活，下一步行动后触发！`);
     }
 
-    // 传送机关翻开效果
+    // 传送机关翻开时无效果（改为摧毁后触发），仅提示
     if (card.type === CARD_TYPES.TRAP && card.effectId === 'teleport') {
-      this.addLog(`传送机关触发！`);
-      this.executeTeleportTrap(cellIndex);
-      return;
+      this.addLog(`传送机关：摧毁后触发传送`);
     }
 
     // 互动检查：如果相邻且有紧握词条的怪物，限制互动
@@ -950,6 +996,9 @@ export class GameScene extends Phaser.Scene {
     // 鼓舞重新计算
     this.recalcInspire();
 
+    // 血盾CD刷新：每移除一张怪物卡刷新
+    this.refreshBloodShield();
+
     // 村好剑效果：击败精英或层主时，攻击永久+2
     if (card.isBoss || card.isElite) {
       GameState.villageSwordBonus += 2;
@@ -957,23 +1006,19 @@ export class GameScene extends Phaser.Scene {
       GameState.recalcStats();
     }
 
-    // 精英怪物击杀奖励：1张蓝色宝箱 + 1张金币卡(20金) + 1张属性提升
+    // 精英怪物击杀奖励：1张蓝色宝箱(遗物选择) + 50金币 + 属性提升
     if (card.isElite) {
-      GameState.gold += 20;
-      this.addLog('精英奖励：+20金币');
-      // 蓝色宝箱 → 直接给遗物选择
+      GameState.gold += 50;
+      this.addLog('精英奖励：+50金币');
       this.showRelicSelection('blue');
-      // 属性提升 → 直接给属性选择
       this.showAttributeSelection();
     }
 
-    // Boss怪物击杀奖励：1张金色宝箱 + 2张金币卡(40金) + 1张属性提升
+    // Boss怪物击杀奖励：1张金色宝箱(遗物选择) + 100金币(2张金币卡) + 属性提升
     if (card.isBoss) {
-      GameState.gold += 40;
-      this.addLog('Boss奖励：+40金币');
-      // 金色宝箱 → 直接给遗物选择
+      GameState.gold += 100;
+      this.addLog('Boss奖励：+100金币');
       this.showRelicSelection('gold');
-      // 属性提升 → 直接给属性选择
       this.showAttributeSelection();
     }
 
@@ -1152,6 +1197,63 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 统一伤害方法：对格子顶卡造成伤害，自动处理死亡/摧毁效果
+  damageTopCard(cellIndex, amount, sourceName = '') {
+    const stack = this.grid[cellIndex];
+    if (stack.length === 0) return;
+    const topCard = stack[stack.length - 1];
+    if (topCard.type === CARD_TYPES.PLAYER || topCard.hp === undefined) return;
+
+    topCard.hp -= amount;
+    this.addLog(`${topCard.name} 受到 ${amount} 伤害${sourceName ? '（' + sourceName + '）' : ''}`);
+    this.flashCell(cellIndex, COLORS.danger);
+
+    if (topCard.hp <= 0) {
+      if (topCard.type === CARD_TYPES.MONSTER) {
+        this.addLog(`${topCard.name} 被消灭！`);
+        GameState.gold += 10;
+        this.applyRevengeOnKill(cellIndex);
+        this.recalcInspire();
+        this.refreshBloodShield();
+        this.onMonsterKilledPost(cellIndex, topCard);
+      } else if (topCard.type === CARD_TYPES.TRAP) {
+        this.addLog(`${topCard.name} 被摧毁！`);
+        this.onTrapDestroyed(cellIndex, topCard);
+      } else {
+        this.removeCardFromCell(cellIndex);
+      }
+      return true; // 死亡
+    } else {
+      this.renderCell(cellIndex);
+      return false; // 存活
+    }
+  }
+
+  // onMonsterKilled 的轻量版（不含 removeCard，由调用方处理）
+  onMonsterKilledPost(cellIndex, card) {
+    // 村好剑效果
+    if (card.isBoss || card.isElite) {
+      GameState.villageSwordBonus += 2;
+      this.addLog('村好剑：永久攻击+2！');
+      GameState.recalcStats();
+    }
+    // 精英/Boss奖励（环境击杀也给奖励）
+    if (card.isElite) {
+      GameState.gold += 50;
+      this.addLog('精英奖励：+50金币');
+      this.showRelicSelection('blue');
+      this.showAttributeSelection();
+    }
+    if (card.isBoss) {
+      GameState.gold += 100;
+      this.addLog('Boss奖励：+100金币');
+      this.showRelicSelection('gold');
+      this.showAttributeSelection();
+    }
+    this.consumeViolence();
+    this.removeCardFromCell(cellIndex);
+  }
+
   onTrapDestroyed(cellIndex, card) {
     switch (card.effectId) {
       case 'crossbow':
@@ -1163,8 +1265,8 @@ export class GameScene extends Phaser.Scene {
         this.addLog('尖刺机关被摧毁');
         break;
       case 'teleport':
-        // 传送机关摧毁时无额外效果（传送仅在翻开时触发）
-        this.addLog('传送机关被摧毁');
+        // 传送机关被摧毁后触发效果：洗混所有卡牌
+        this.executeTeleportTrap(cellIndex);
         break;
     }
     this.removeCardFromCell(cellIndex);
@@ -1172,7 +1274,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   executeCrossbowEffect(cellIndex) {
-    // 弩箭机关：摧毁时，对同列上方所有正面卡造成伤害
+    // 弩箭机关：摧毁时，对同列上方所有正面卡造成6点伤害
     const col = cellIndex % 3;
     const row = Math.floor(cellIndex / 3);
     this.addLog('弩箭机关触发！向上方射击');
@@ -1181,23 +1283,9 @@ export class GameScene extends Phaser.Scene {
       const stack = this.grid[targetCell];
       if (stack.length > 0) {
         const topCard = stack[stack.length - 1];
-        if (topCard.faceUp && topCard.type !== CARD_TYPES.PLAYER) {
-          if (topCard.hp !== undefined) {
-            topCard.hp -= 6;
-            this.addLog(`${topCard.name} 受到 6 伤害`);
-            this.flashCell(targetCell, COLORS.danger);
-            if (topCard.hp <= 0) {
-              if (topCard.type === CARD_TYPES.MONSTER) {
-                this.addLog(`${topCard.name} 被弩箭消灭！`);
-                GameState.gold += 10;
-                this.applyRevengeOnKill(targetCell);
-                this.recalcInspire();
-              }
-              this.removeCardFromCell(targetCell);
-            } else {
-              this.renderCell(targetCell);
-            }
-          }
+        // 只影响正面朝上的非玩家卡（正面朝下=不存在）
+        if (topCard.faceUp && topCard.type !== CARD_TYPES.PLAYER && topCard.hp !== undefined) {
+          this.damageTopCard(targetCell, 6, '弩箭');
         }
       }
     }
@@ -1269,9 +1357,8 @@ export class GameScene extends Phaser.Scene {
       // 触发尖刺伤害
       card.spikeTriggered = true;
       delete this.spikePending[cellStr];
-      this.addLog('尖刺机关触发！');
+      this.addLog('尖刺机关触发！范围伤害');
       const adj = getAdjacentCells(cellIndex);
-      let anyMonsterKilled = false;
       for (const ai of adj) {
         const aStack = this.grid[ai];
         if (aStack.length > 0) {
@@ -1280,31 +1367,17 @@ export class GameScene extends Phaser.Scene {
             GameState.damagePlayer(6);
             this.addLog('你受到尖刺 6 伤害');
             this.flashPlayerCell(COLORS.danger);
-            // 尖刺杀死玩家 → 游戏结束
             if (GameState.player.hp <= 0) {
               this.updateAllUI();
               this.onPlayerDeath();
               return;
             }
           } else if (topCard.faceUp && topCard.hp !== undefined) {
-            topCard.hp -= 6;
-            this.addLog(`${topCard.name} 受到尖刺 6 伤害`);
-            if (topCard.hp <= 0) {
-              if (topCard.type === CARD_TYPES.MONSTER) {
-                GameState.gold += 10;
-                this.applyRevengeOnKill(ai);
-                anyMonsterKilled = true;
-              }
-              this.removeCardFromCell(ai);
-            } else {
-              this.renderCell(ai);
-            }
+            // 使用统一伤害方法，自动处理怪物击杀和机关摧毁
+            this.damageTopCard(ai, 6, '尖刺');
           }
+          // 正面朝下的卡牌不受伤害（相当于不存在）
         }
-      }
-      // 尖刺杀怪后重新计算鼓舞
-      if (anyMonsterKilled) {
-        this.recalcInspire();
       }
     }
     this.updateAllUI();
@@ -1405,8 +1478,8 @@ export class GameScene extends Phaser.Scene {
     switch (itemId) {
       case 'healing_potion':
         GameState.useItem(slotIndex);
-        GameState.healPlayer(6);
-        this.addLog('使用恢复药水，HP+6');
+        GameState.healPlayer(10);
+        this.addLog('使用恢复药水，HP+10');
         this.flashPlayerCell(COLORS.success);
         this.updateAllUI();
         break;
@@ -1824,42 +1897,40 @@ export class GameScene extends Phaser.Scene {
   }
 
   showRoomClearUI() {
-    const overlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setDepth(150);
-
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, '房间清除！', {
-      fontFamily: 'sans-serif', fontSize: '36px', color: COLORS.textGold, fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(151);
-
-    // 遗物主动技能按钮
-    const activeRelics = GameState.relics.filter(r => r.active && !GameState.activeRelicCooldowns[r.id]);
-    let btnY = GAME_HEIGHT / 2 + 10;
-
-    for (const relic of activeRelics) {
-      const btn = this.add.text(GAME_WIDTH / 2, btnY, `${relic.name}: ${relic.desc}`, {
-        fontFamily: 'sans-serif', fontSize: '14px', color: COLORS.textWhite,
-        backgroundColor: '#2a2550', padding: { x: 16, y: 8 },
-      }).setOrigin(0.5).setDepth(151).setInteractive({ useHandCursor: true });
-
-      btn.on('pointerdown', () => {
-        this.useRelicInRoom(relic);
-        btn.destroy();
-      });
-      btnY += 40;
+    // 房间清除后，在底部显示一个不遮挡操作的小按钮，玩家可自由决定何时离开
+    // 清除旧的清房UI
+    if (this._roomClearElements) {
+      this._roomClearElements.forEach(el => el && el.destroy && el.destroy());
     }
+    this._roomClearElements = [];
 
-    const continueBtn = this.add.text(GAME_WIDTH / 2, btnY + 20, '继续前进', {
-      fontFamily: 'sans-serif', fontSize: '22px', color: COLORS.textWhite,
-      backgroundColor: '#1a5fb4', padding: { x: 28, y: 12 },
-    }).setOrigin(0.5).setDepth(151).setInteractive({ useHandCursor: true });
+    // 顶部小横幅提示
+    const banner = this.add.rectangle(GAME_WIDTH / 2, 24, 300, 28, 0x1a5fb4, 0.9)
+      .setStrokeStyle(1, 0x3584e4, 0.8).setDepth(50);
+    const bannerText = this.add.text(GAME_WIDTH / 2, 24, '✓ 房间已清除 — 可自由行动', {
+      fontFamily: 'sans-serif', fontSize: '13px', color: '#ffffff', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(51);
+    this._roomClearElements.push(banner, bannerText);
 
-    continueBtn.on('pointerover', () => continueBtn.setScale(1.05));
-    continueBtn.on('pointerout', () => continueBtn.setScale(1));
-    continueBtn.on('pointerdown', () => {
+    // 右下角离开按钮（不遮挡九宫格区域）
+    const gridBottom = GRID_Y + GRID_ROWS * CARD_H + (GRID_ROWS - 1) * CARD_GAP;
+    const btnX = GAME_WIDTH / 2;
+    const btnY = gridBottom + 45;
+
+    const leaveBtn = this.add.text(btnX, btnY, '▶ 离开房间', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: COLORS.textWhite,
+      backgroundColor: '#1a5fb4', padding: { x: 20, y: 10 },
+    }).setOrigin(0.5).setDepth(50).setInteractive({ useHandCursor: true });
+
+    leaveBtn.on('pointerover', () => leaveBtn.setScale(1.05));
+    leaveBtn.on('pointerout', () => leaveBtn.setScale(1));
+    leaveBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.time.delayedCall(300, () => {
         this.scene.start('MapScene');
       });
     });
+    this._roomClearElements.push(leaveBtn);
   }
 
   useRelicInRoom(relic) {
@@ -1877,8 +1948,27 @@ export class GameScene extends Phaser.Scene {
         GameState.healPlayer(6);
         this.addLog('无尽水袋：HP+6');
         this.flashPlayerCell(COLORS.success);
-        this.updateAllUI();
         break;
+      case 'blood_shield':
+        // 血盾：本房间防御+2，离开房间后效果消失
+        this.bloodShieldActive = true;
+        GameState.player.def += 2;
+        this.addLog('血盾激活：本房间防御+2');
+        this.flashPlayerCell(COLORS.success);
+        break;
+    }
+    // 使用后刷新UI以更新遗物CD状态
+    this.updateAllUI();
+    this.updateRelicPanel();
+  }
+
+  // 血盾CD刷新：每移除一张怪物卡时调用
+  refreshBloodShield() {
+    const bloodShield = GameState.relics.find(r => r.id === 'blood_shield');
+    if (bloodShield) {
+      // 移除CD，允许再次使用
+      delete GameState.activeRelicCooldowns['blood_shield'];
+      this.updateRelicPanel();
     }
   }
 
@@ -1914,11 +2004,49 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── 遗物选择 ──────────────────────────────────────
-  showRelicSelection(quality) {
-    // 根据品质生成3个遗物选择
-    const allWhiteRelics = Object.values(RELICS).filter(r => r.quality === 'white' && !r.isStarter);
-    const available = allWhiteRelics.filter(r => !GameState.relics.find(gr => gr.id === r.id));
-    const choices = shuffle(available).slice(0, Math.min(3, available.length));
+  showRelicSelection(chestQuality = 'normal') {
+    // 根据宝箱品质概率表，生成3个遗物选择
+    const roll = TREASURE_QUALITY_ROLL[chestQuality] || TREASURE_QUALITY_ROLL.normal;
+    const choices = [];
+    const usedRelicIds = new Set();
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      // 按概率决定此选项的品质
+      const r = Math.random();
+      let quality;
+      if (r < roll.white) quality = 'white';
+      else if (r < roll.white + roll.blue) quality = 'blue';
+      else quality = 'gold';
+
+      // 从对应品质池中选择未拥有且未重复的遗物
+      const poolIds = RELICS_BY_QUALITY[quality] || [];
+      const available = poolIds.filter(id => {
+        const relic = RELICS[id];
+        return relic && !relic.isStarter
+          && !GameState.relics.find(gr => gr.id === id)
+          && !usedRelicIds.has(id);
+      });
+
+      if (available.length > 0) {
+        const picked = RELICS[available[randomInt(0, available.length - 1)]];
+        choices.push(picked);
+        usedRelicIds.add(picked.id);
+      }
+      // 如果该品质池无可用遗物，回退到白色池
+      else if (quality !== 'white') {
+        const whitePool = (RELICS_BY_QUALITY.white || []).filter(id => {
+          const relic = RELICS[id];
+          return relic && !relic.isStarter
+            && !GameState.relics.find(gr => gr.id === id)
+            && !usedRelicIds.has(id);
+        });
+        if (whitePool.length > 0) {
+          const picked = RELICS[whitePool[randomInt(0, whitePool.length - 1)]];
+          choices.push(picked);
+          usedRelicIds.add(picked.id);
+        }
+      }
+    }
 
     if (choices.length === 0) {
       this.addLog('没有可获取的遗物');
@@ -1926,6 +2054,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     const overlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(150);
+
+    // 品质对应的颜色
+    const qualityColors = {
+      white: '#c0c0c0',
+      blue: '#62b6ff',
+      gold: '#f5c211',
+      starter: '#33d17a',
+    };
 
     this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 100, '选择遗物', {
       fontFamily: 'sans-serif', fontSize: '28px', color: COLORS.textGold, fontStyle: 'bold',
@@ -1941,10 +2077,11 @@ export class GameScene extends Phaser.Scene {
 
       const container = this.add.container(x, y).setDepth(151);
 
+      const qColorHex = qualityColors[relic.quality] ? parseInt(qualityColors[relic.quality].replace('#', ''), 16) : 0x9141ac;
       const bg = this.add.graphics();
       bg.fillStyle(0x2a2550, 1);
       bg.fillRoundedRect(-btnWidth / 2, -50, btnWidth, 100, 8);
-      bg.lineStyle(2, 0x9141ac, 0.8);
+      bg.lineStyle(2, qColorHex, 0.8);
       bg.strokeRoundedRect(-btnWidth / 2, -50, btnWidth, 100, 8);
       container.add(bg);
 
@@ -2018,27 +2155,32 @@ export class GameScene extends Phaser.Scene {
     if (stack.length > 0) {
       const newTop = stack[stack.length - 1];
       if (newTop.type !== CARD_TYPES.PLAYER) {
-        if (!newTop.faceUp) {
-          // 背面卡：翻开并触发效果
+        // 正面朝下的卡牌视为不存在：仅当玩家在正交相邻格时才自动翻开
+        if (!newTop.faceUp && isOrthogonallyAdjacent(this.playerCellIndex, cellIndex)) {
           newTop.faceUp = true;
           this.addLog(`翻开: ${newTop.name}`);
-          this.time.delayedCall(100, () => {
-            if (this.playerDead || this.scene.isPaused) return;
-            this.renderCell(cellIndex);
+          this.renderCell(cellIndex);
+          if (!this._removingCard) {
+            this._removingCard = true;
             this.onCardRevealed(newTop, cellIndex);
-          });
+            this._removingCard = false;
+          }
+          return;
+        } else if (!newTop.faceUp) {
+          // 玩家不在相邻格，背面卡保持正面朝下（不存在状态）
+          this.renderCell(cellIndex);
           return;
         } else {
-          // 已经是正面卡：仍然需要触发翻开效果（如金币自动拾取）
-          this.time.delayedCall(100, () => {
-            if (this.playerDead || this.scene.isPaused) return;
-            this.renderCell(cellIndex);
-            this.onCardRevealed(newTop, cellIndex);
-          });
+          // 已经是正面朝上：立即渲染
+          this.renderCell(cellIndex);
           return;
         }
       }
+      // 下方是玩家卡：立即渲染
+      this.renderCell(cellIndex);
+      return;
     }
+    // 栈为空，渲染空格
     this.renderCell(cellIndex);
   }
 

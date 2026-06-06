@@ -123,12 +123,13 @@ export const TRAIT_DESCRIPTIONS = {
 export const ITEMS = {
   HOOK_ROPE: {
     id: 'hook_rope', name: '勾绳',
-    desc: '拖到任意卡上，选择方向移动该卡到相邻格',
+    desc: '拖到任意非玩家卡牌上，选择方向移动该卡到相邻格',
     color: 0x8b6914,
   },
   HEALING_POTION: {
     id: 'healing_potion', name: '恢复药水',
-    desc: '恢复6点生命',
+    desc: '恢复10点生命值',
+    healAmount: 10,
     color: 0xe01b24,
   },
   THROWING_KNIFE: {
@@ -231,32 +232,77 @@ export const NODE_MONSTER_CONFIG = [
 
 // 遗物定义
 export const RELICS = {
+  // ── 白色被动遗物 ──
   living_flesh: {
     id: 'living_flesh', name: '活着的肉',
-    desc: '攻击+1。每进入3个房间额外+1攻击（效果最多+6）',
-    quality: 'white', atkBonus: 1,
+    desc: '攻击+1。每进入3个房间额外+1攻击',
+    quality: 'white', atkBonus: 1, type: 'passive',
   },
   wooden_shield: {
     id: 'wooden_shield', name: '木盾',
-    desc: '防御+1',
-    quality: 'white', defBonus: 1,
+    desc: '防御+2',
+    quality: 'white', defBonus: 2, type: 'passive',
   },
+  wooden_sword: {
+    id: 'wooden_sword', name: '木剑',
+    desc: '攻击+2',
+    quality: 'white', atkBonus: 2, type: 'passive',
+  },
+  // ── 白色主动遗物 ──
   law_wand: {
     id: 'law_wand', name: '法则魔杖',
     desc: '主动：移动任意卡到任意格。每房间一次',
-    quality: 'white', active: true,
+    quality: 'white', active: true, atkBonus: 1, type: 'active',
   },
   endless_water: {
     id: 'endless_water', name: '无尽水袋',
     desc: '主动：恢复6HP。每房间一次',
-    quality: 'white', active: true, hpBonus: 2,
+    quality: 'white', active: true, hpBonus: 4, type: 'active',
   },
+  // ── 蓝色被动遗物 ──
+  item_reserve: {
+    id: 'item_reserve', name: '道具储备',
+    desc: '进入非餐厅新房间时，额外添加2张道具卡',
+    quality: 'blue', type: 'passive',
+  },
+  // ── 蓝色主动遗物 ──
+  blood_shield: {
+    id: 'blood_shield', name: '血盾',
+    desc: '主动：本房间防御+2。每移除一张怪物卡刷新CD',
+    quality: 'blue', active: true, defBonus: 2, type: 'active',
+  },
+  // ── 金色被动遗物（预留）─
+  // ── 金色主动遗物（预留）─
+  // ── 初始遗物 ─
   village_sword: {
     id: 'village_sword', name: '村好剑',
     desc: '攻击+1。击败精英/Boss永久+2攻击',
-    quality: 'starter', atkBonus: 1, isStarter: true,
+    quality: 'starter', atkBonus: 1, isStarter: true, type: 'passive',
   },
 };
+
+// 按品质分组的遗物（用于宝箱随机）
+export const RELICS_BY_QUALITY = {
+  white: Object.keys(RELICS).filter(k => RELICS[k].quality === 'white'),
+  blue: Object.keys(RELICS).filter(k => RELICS[k].quality === 'blue'),
+  gold: Object.keys(RELICS).filter(k => RELICS[k].quality === 'gold'),
+};
+
+// 宝箱品质概率配置
+export const TREASURE_QUALITY_ROLL = {
+  normal: { white: 0.65, blue: 0.30, gold: 0.05 },
+  blue:   { white: 0.30, blue: 0.50, gold: 0.20 },
+  gold:   { white: 0.00, blue: 0.50, gold: 0.50 },
+};
+
+// 商店商品列表（设计文档价格）
+export const SHOP_ITEMS = [
+  { id: 'atk_up', name: '攻击+1', cost: 80, effect: 'atk+1' },
+  { id: 'def_up', name: '防御+1', cost: 80, effect: 'def+1' },
+  { id: 'hp_up', name: '生命+2', cost: 80, effect: 'hp+2' },
+  { id: 'buy_item', name: '随机道具', cost: 30, effect: 'random_item' },
+  { id: 'buy_treasure', name: '普通宝箱', cost: 160, effect: 'treasure' },
+];
 
 // 职业定义
 export const CLASSES = {

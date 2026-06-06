@@ -1,6 +1,6 @@
 {
-  "name": "phaser4-game",
-  "version": "0.0.0",
+  "name": "深入地牢",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
