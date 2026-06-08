@@ -132,8 +132,15 @@ export class BattleScene extends Phaser.Scene {
     this.itemSlots = new Array(ITEM_SLOT_COUNT).fill(null);
     this.cardDisplays = new Map();
     this.itemSlotDisplays = new Array(ITEM_SLOT_COUNT).fill(null);
+    this.overlayObjects = null;
+    this.popupObjects = null;
     this.targeting = null;
     this.escKey = this.input.keyboard.addKey("ESC");
+    this.shopSession = null;
+    this.pendingBoardRefillTimer = null;
+    this.boardRefillScheduled = false;
+    this.boardRefillRunning = false;
+    this.combatResolving = false;
 
     // 节点状态
     this.currentNode = 0;
@@ -173,6 +180,107 @@ export class BattleScene extends Phaser.Scene {
     return this.shuffle(deck);
   }
 
+  hasActiveOverlay() {
+    return !!(this.overlayObjects && this.overlayObjects.length > 0);
+  }
+
+  hasActivePopup() {
+    return !!(this.popupObjects && this.popupObjects.length > 0);
+  }
+
+  hasPendingBoardRefill() {
+    return this.boardRefillScheduled || this.boardRefillRunning;
+  }
+
+  isBattleInputLocked() {
+    return (
+      this.combatResolving ||
+      this.hasPendingBoardRefill() ||
+      this.hasActiveOverlay() ||
+      this.hasActivePopup()
+    );
+  }
+
+  getEmptyBoardSlots() {
+    return [1, 2, 3, 4, 6, 7, 8, 9].filter((gridNum) => !this.boardCards.has(gridNum));
+  }
+
+  cancelPendingBoardRefill() {
+    if (this.pendingBoardRefillTimer) {
+      this.pendingBoardRefillTimer.remove(false);
+      this.pendingBoardRefillTimer = null;
+    }
+    this.boardRefillScheduled = false;
+    this.boardRefillRunning = false;
+  }
+
+  requestBoardRefill(delay = 0) {
+    if (this.battleDeck.length === 0 || this.getEmptyBoardSlots().length === 0) return false;
+    if (this.boardRefillRunning || this.pendingBoardRefillTimer) return true;
+
+    const flush = () => {
+      this.pendingBoardRefillTimer = null;
+      this.boardRefillScheduled = false;
+      this.boardRefillRunning = true;
+
+      while (this.battleDeck.length > 0) {
+        const emptySlots = this.getEmptyBoardSlots();
+        if (emptySlots.length === 0) break;
+        this.drawFromBattleDeck(emptySlots[0]);
+      }
+
+      this.boardRefillRunning = false;
+      this.checkNodeComplete();
+    };
+
+    this.boardRefillScheduled = true;
+    if (delay > 0) {
+      this.pendingBoardRefillTimer = this.time.delayedCall(delay, flush);
+    } else {
+      flush();
+    }
+    return true;
+  }
+
+  settleBoardAfterMutation(delay = 0) {
+    if (!this.requestBoardRefill(delay)) {
+      this.checkNodeComplete();
+    }
+  }
+
+  finishCombatResolution(delay = 0) {
+    this.combatResolving = false;
+    this.settleBoardAfterMutation(delay);
+  }
+
+  buildShopSession() {
+    const offers = [];
+    const seenKeys = new Set();
+
+    for (const card of this.shuffle([...this.helpDeck])) {
+      if (seenKeys.has(card.key)) continue;
+      seenKeys.add(card.key);
+      if (!this.canAddHelpCardStack(card.key)) continue;
+
+      offers.push({
+        key: card.key,
+        card: { ...card },
+        sold: false,
+      });
+
+      if (offers.length >= 6) break;
+    }
+
+    while (offers.length < 6) offers.push(null);
+
+    this.shopSession = { offers };
+    return this.shopSession;
+  }
+
+  getShopSession() {
+    return this.shopSession || this.buildShopSession();
+  }
+
   // ============ 九宫格渲染 ============
 
   createGrid() {
@@ -184,6 +292,7 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5).setStrokeStyle(1, 0x3a3d44).setInteractive({ useHandCursor: false });
 
     gridBg.on("pointerdown", () => {
+      if (this.isBattleInputLocked()) return;
       if (this.targeting) this.exitTargeting(false);
     });
 
@@ -220,6 +329,10 @@ export class BattleScene extends Phaser.Scene {
     this.nodeComplete = false;
     this.nodeDrawnHelpUids = [];
     this.nodeUsedHelpUids = [];
+    this.shopSession = null;
+    this.combatResolving = false;
+    this.cancelPendingBoardRefill();
+    this.destroyPopup();
 
     // 重置玩家战斗状态
     this.playerState.isViolenceActive = false;
@@ -319,9 +432,7 @@ export class BattleScene extends Phaser.Scene {
 
   drawFromBattleDeck(slot) {
     if (!slot) {
-      const empty = [1, 2, 3, 4, 6, 7, 8, 9].find(
-        (gn) => !this.boardCards.has(gn)
-      );
+      const empty = this.getEmptyBoardSlots()[0];
       if (empty === undefined) return null;
       slot = empty;
     }
@@ -332,8 +443,6 @@ export class BattleScene extends Phaser.Scene {
     this.boardCards.set(slot, card);
     this.renderCard(slot);
     this.updateDeckUI();
-
-    this.time.delayedCall(200, () => this.checkNodeComplete());
     return card;
   }
 
@@ -345,7 +454,7 @@ export class BattleScene extends Phaser.Scene {
       if (card.type === "monster") { hasMonsters = true; break; }
     }
 
-    if (!hasMonsters && this.battleDeck.length === 0) {
+    if (!hasMonsters && this.battleDeck.length === 0 && !this.hasPendingBoardRefill()) {
       this.nodeComplete = true;
       this.showPassButton();
     }
@@ -384,6 +493,10 @@ export class BattleScene extends Phaser.Scene {
 
   completeNode() {
     this.hidePassButton();
+    this.shopSession = null;
+    this.combatResolving = false;
+    this.cancelPendingBoardRefill();
+    this.destroyPopup();
 
     // ★ 计算未使用帮助卡金币（基于 uid 精确匹配，同名卡各自独立计算）
     let unusedGold = 0;
@@ -482,6 +595,7 @@ export class BattleScene extends Phaser.Scene {
         const newCard = this.createHelpCard(cardKey);
         if (newCard) this.helpDeck.push(newCard);
         this.setLog(`✨ 获得「${def.name}」（${def.quality}）`);
+        this.updateDeckUI();
         this.destroyOverlay();
 
         // 进入商店
@@ -555,32 +669,30 @@ export class BattleScene extends Phaser.Scene {
 
   // ============ 商店 ============
 
-  showShop(boughtUids = new Set()) {
+  showShop() {
     this.destroyOverlay();
-    this._shopBoughtUids = boughtUids;
 
     const { bg, container } = this.createOverlay(
       `🛒 商店 — 金币: ${this.playerState.gold}`
     );
     this.overlayObjects = [bg, container];
+    const shopSession = this.getShopSession();
 
     const startX = GAME_W / 2 - 280;
     const buyY = GAME_H / 2 - 50;
 
-    // ===== 购买区：6 张随机帮助卡 =====
-    const buyCards = this.shuffle([...this.helpDeck]).slice(0, 6);
-
-    buyCards.forEach((card, i) => {
+    // ===== 购买区：固定 6 个商店坑位 =====
+    shopSession.offers.forEach((offer, i) => {
       const x = startX + i * 110;
-      // 已被购买的显示空白
-      if (boughtUids.has(card.uid)) {
+      if (!offer || offer.sold) {
         const emptyBg = this.add.rectangle(x, buyY, 100, 110, 0x15181b)
           .setOrigin(0.5).setStrokeStyle(1, 0x2a2a2a).setDepth(92);
-        const emptyText = this.add.text(x, buyY, "已售出", {
+        const emptyText = this.add.text(x, buyY, offer ? "已售出" : "暂无候选", {
           fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_DIM,
         }).setOrigin(0.5).setDepth(93);
         this.overlayObjects.push(emptyBg, emptyText);
       } else {
+        const card = offer.card;
         const objs = this.createShopCard(x, buyY, card, "buy", () => {
           if (this.playerState.gold < 100) {
             this.setLog("⚠️ 金币不足！（需要 100 金币）"); return;
@@ -589,13 +701,13 @@ export class BattleScene extends Phaser.Scene {
             this.showPopup(`⚠️「${card.name}」已达卡组上限（最多 3 张），无法购买！`); return;
           }
           this.playerState.gold -= 100;
-          const newCard = this.createHelpCard(card.key);
+          const newCard = this.createHelpCard(offer.key);
           if (newCard) this.helpDeck.push(newCard);
+          offer.sold = true;
           this.setLog(`🛒 购买「${card.name}」-100💰`);
           this.updatePlayerUI();
-          const next = new Set(boughtUids);
-          next.add(card.uid);
-          this.showShop(next);
+          this.updateDeckUI();
+          this.showShop();
         });
         this.overlayObjects.push(...objs);
       }
@@ -714,8 +826,7 @@ export class BattleScene extends Phaser.Scene {
         this.destroyOverlay();
         this.updatePlayerUI();
         this.updateEquipmentUI();
-        // 继续通关流程（检查是否需要显示通关按钮）
-        this.checkNodeComplete();
+        this.finishCombatResolution();
       });
       cardBg.on("pointerover", () => cardBg.setStrokeStyle(3, 0x9b59b6));
       cardBg.on("pointerout", () => cardBg.setStrokeStyle(2, 0x9b59b6));
@@ -785,6 +896,7 @@ export class BattleScene extends Phaser.Scene {
             this.playerState.gold += 20;
             this.setLog(`🗑️ 删除「${card.name}」+20💰`);
             this.updatePlayerUI();
+            this.updateDeckUI();
             // 刷新删除界面
             this.showDeleteScreen();
           }
@@ -807,7 +919,7 @@ export class BattleScene extends Phaser.Scene {
       .text(backX, backY, "↩ 返回商店", {
         fontFamily: "serif", fontSize: "13px", color: COLOR.TEXT_PRIMARY,
       }).setOrigin(0.5).setDepth(101);
-    backBg.on("pointerdown", () => this.showShop(this._shopBoughtUids || new Set()));
+    backBg.on("pointerdown", () => this.showShop());
     backBg.on("pointerover", () => backBg.setFillStyle(0x454545));
     backBg.on("pointerout", () => backBg.setFillStyle(0x353535));
     this.overlayObjects.push(backBg, backText);
@@ -847,23 +959,35 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  destroyPopup() {
+    if (this.popupObjects) {
+      for (const obj of this.popupObjects) {
+        if (obj && obj.active) obj.destroy();
+      }
+      this.popupObjects = null;
+    }
+  }
+
   /** 弹出提示窗口，点击任意位置关闭 */
   showPopup(message) {
+    this.destroyPopup();
     const popupW = 360, popupH = 90;
     const bg = this.add
       .rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.6)
       .setOrigin(0.5).setDepth(200).setInteractive();
     const box = this.add
       .rectangle(GAME_W / 2, GAME_H / 2, popupW, popupH, 0x2a2020)
-      .setOrigin(0.5).setStrokeStyle(2, 0xc0392b).setDepth(201);
+      .setOrigin(0.5).setStrokeStyle(2, 0xc0392b).setDepth(201).setInteractive();
     const text = this.add
       .text(GAME_W / 2, GAME_H / 2, message, {
         fontFamily: "serif", fontSize: "14px", fontStyle: "bold",
         color: COLOR.TEXT_DANGER, align: "center",
         wordWrap: { width: popupW - 30 },
-      }).setOrigin(0.5).setDepth(202);
+      }).setOrigin(0.5).setDepth(202).setInteractive({ useHandCursor: true });
 
-    const dismiss = () => { bg.destroy(); box.destroy(); text.destroy(); };
+    this.popupObjects = [bg, box, text];
+
+    const dismiss = () => this.destroyPopup();
     bg.on("pointerdown", dismiss);
     box.on("pointerdown", dismiss);
     text.on("pointerdown", dismiss);
@@ -1126,6 +1250,8 @@ export class BattleScene extends Phaser.Scene {
   // ============ 点击处理 ============
 
   handleGridClick(gridNum, card) {
+    if (this.isBattleInputLocked()) return;
+
     // 节点通关后只允许与帮助卡交互（拾取到道具牌格使用）
     if (this.nodeComplete) {
       if (card.type === "help") {
@@ -1167,6 +1293,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (t.type === "flyingDagger") {
+      this.combatResolving = true;
       const m = card.data;
       const dmg = t.amount;
       m.hp -= dmg;
@@ -1174,13 +1301,20 @@ export class BattleScene extends Phaser.Scene {
       this.setLog(`🔪 飞刀命中 ${m.name}，造成 ${dmg} 点伤害！`);
       this.flashCard(gridNum, 0xff4444);
       this.refreshCardTexts(gridNum);
-      if (m.hp <= 0) this.time.delayedCall(400, () => this.killMonster(gridNum, m, card));
       this.consumeItemSlot(t.sourceSlot);
       this.exitTargeting();
+
+      if (m.hp <= 0) {
+        this.time.delayedCall(400, () => this.killMonster(gridNum, m, card));
+      } else {
+        this.finishCombatResolution();
+      }
     }
   }
 
   handleItemSlotClick(index) {
+    if (this.isBattleInputLocked()) return;
+
     if (this.targeting) {
       if (this.targeting.sourceSlot === index) { this.exitTargeting(false); return; }
       this.exitTargeting(false);
@@ -1215,15 +1349,8 @@ export class BattleScene extends Phaser.Scene {
     this.boardCards.delete(gridNum);
     this.setLog(`✨ 拾取「${card.data.name}」→ 牌格 #${slot + 1}`);
 
-    // 空格从战斗卡组补牌（450ms 延迟降低连点吞卡概率）
-    if (this.battleDeck.length > 0) {
-      this.time.delayedCall(450, () => {
-        if (this._drawLocked) return;
-        this._drawLocked = true;
-        this.drawFromBattleDeck();
-        this.time.delayedCall(100, () => { this._drawLocked = false; });
-      });
-    }
+    // 空格从战斗卡组补牌（保留短暂延迟，但不再丢弃重复请求）
+    this.settleBoardAfterMutation(450);
   }
 
   useHealItem(index, h) {
@@ -1498,6 +1625,8 @@ export class BattleScene extends Phaser.Scene {
   initiateCombat(gridNum) {
     const card = this.boardCards.get(gridNum);
     if (!card || card.type !== "monster") return;
+    if (this.combatResolving) return;
+    this.combatResolving = true;
 
     const m = card.data;
     const p = this.playerState;
@@ -1599,6 +1728,7 @@ export class BattleScene extends Phaser.Scene {
           this.refreshCardTexts(gridNum);
           this.updatePlayerUI();
         });
+        return;
       }
 
       if (p.hp <= 0) {
@@ -1609,10 +1739,14 @@ export class BattleScene extends Phaser.Scene {
           this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode);
           this.setLog("🔥 凤凰羽毛触发！恢复 50% 血量");
           this.updatePlayerUI();
+          this.combatResolving = false;
           return;
         }
         this.time.delayedCall(400, () => this.gameOver());
+        return;
       }
+
+      this.combatResolving = false;
     });
   }
 
@@ -1670,6 +1804,7 @@ export class BattleScene extends Phaser.Scene {
       this.destroyCardDisplay(gridNum);
       this.boardCards.delete(gridNum);
       this.updatePlayerUI();
+      this.updateDeckUI();
       this.time.delayedCall(600, () => this.showMentorCard());
       return;
     }
@@ -1678,18 +1813,8 @@ export class BattleScene extends Phaser.Scene {
     this.destroyCardDisplay(gridNum);
     this.boardCards.delete(gridNum);
     this.updatePlayerUI();
-
-    // 从战斗卡组补牌（500ms 延迟降低连点吞卡概率）
-    if (this.battleDeck.length > 0) {
-      this.time.delayedCall(500, () => {
-        if (this._drawLocked || this.battleDeck.length === 0) return;
-        this._drawLocked = true;
-        this.drawFromBattleDeck();
-        this.time.delayedCall(120, () => { this._drawLocked = false; });
-      });
-    } else {
-      this.checkNodeComplete();
-    }
+    this.updateDeckUI();
+    this.finishCombatResolution(500);
   }
 
   resetViolence() {
