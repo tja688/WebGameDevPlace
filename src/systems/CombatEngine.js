@@ -24,8 +24,8 @@ export function getAdjacentGrids(gridNum) {
 // ==================== 遗物效果计算 ====================
 
 /** 从装备的遗物列表计算属性加成 */
-export function calcRelicBonuses(equippedRelics, currentNode) {
-  const bonus = { atk: 0, def: 0, maxHp: 0, thornDmg: 0, healOnKill: 0, eliteGold: 0 };
+export function calcRelicBonuses(equippedRelics, currentNode, killedThisNode = 0) {
+  const bonus = { atk: 0, def: 0, maxHp: 0, thornDmg: 0, healOnKill: 0, eliteGold: 0, monsterAtkDebuff: 0 };
   const setCounts = {};
 
   for (const key of equippedRelics) {
@@ -37,10 +37,16 @@ export function calcRelicBonuses(equippedRelics, currentNode) {
     bonus.thornDmg += relic.thornDmg || 0;
     bonus.healOnKill += relic.healOnKill || 0;
     bonus.eliteGold += relic.eliteGold || 0;
+    bonus.monsterAtkDebuff += relic.monsterAtkDebuff || 0;
 
-    // 成长型遗物
+    // 成长型遗物（活着的肉）
     if (relic.perNodeAtk && relic.perNodeInterval) {
       bonus.atk += Math.floor(currentNode / relic.perNodeInterval) * relic.perNodeAtk;
+    }
+
+    // 锐利长剑：每击杀怪物攻击+1（当前节点内）
+    if (relic.killAtkStack) {
+      bonus.atk += killedThisNode * relic.killAtkStack;
     }
 
     // 套装计数
@@ -78,15 +84,45 @@ export function consumeDeathSave(equippedRelics) {
   return false;
 }
 
-/** 金色宝箱遗物：加入金色宝箱卡 */
+/** 金色宝箱遗物：加入指定数量的宝箱卡 */
 export function applyGoldenChestRelic(equippedRelics, helpDeck, createHelpCard) {
   for (const key of equippedRelics) {
     const relic = RELICS[key];
-    if (relic?.addCard) {
-      const card = createHelpCard(relic.addCard);
-      if (card) helpDeck.push(card);
+    if (relic?.addCards) {
+      for (const [cardKey, count] of Object.entries(relic.addCards)) {
+        for (let i = 0; i < count; i++) {
+          const card = createHelpCard(cardKey);
+          if (card) helpDeck.push(card);
+        }
+      }
     }
   }
+}
+
+/** 幸运硬币：击败精英/层主时触发金币卡生成 */
+export function triggerLuckyCoin(equippedRelics, battleDeck) {
+  for (const key of equippedRelics) {
+    const relic = RELICS[key];
+    if (relic?.spawnGoldCard) {
+      const def = HELP_CARDS[relic.spawnGoldCard];
+      if (def) {
+        battleDeck.push({ type: "help", data: { key: relic.spawnGoldCard, ...def }, _fromHelpDeck: true });
+      }
+    }
+  }
+}
+
+/** 金剑：节点结束后移除 */
+export function removeNodeExpiredRelics(equippedRelics) {
+  const toRemove = [];
+  for (const key of equippedRelics) {
+    if (RELICS[key]?.removeAfterNode) toRemove.push(key);
+  }
+  for (const key of toRemove) {
+    const idx = equippedRelics.indexOf(key);
+    if (idx !== -1) equippedRelics.splice(idx, 1);
+  }
+  return toRemove;
 }
 
 // ==================== 怪物词条系统 ====================

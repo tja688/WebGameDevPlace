@@ -178,6 +178,7 @@ export const HELP_CARDS = {
     quality: "蓝",
     effectType: "attributeBoost",
     effectDesc: "选一项：攻+1 / 防+1 / 血+2",
+    permanentRemove: true,
   },
   金币卡: {
     name: "金币卡",
@@ -185,6 +186,7 @@ export const HELP_CARDS = {
     effectType: "goldGain",
     effectDesc: "获得 50 金币",
     amount: 50,
+    permanentRemove: true,
   },
   食品卡: {
     name: "食品卡",
@@ -198,6 +200,7 @@ export const HELP_CARDS = {
     effectType: "chest_normal",
     effectDesc: "三选一遗物（白65%/蓝30%/金5%）",
     chestProbs: { 白: 0.65, 蓝: 0.30, 金: 0.05 },
+    permanentRemove: true,
   },
   蓝色宝箱卡: {
     name: "蓝色宝箱卡",
@@ -205,6 +208,7 @@ export const HELP_CARDS = {
     effectType: "chest_blue",
     effectDesc: "三选一遗物（白30%/蓝50%/金20%）",
     chestProbs: { 白: 0.30, 蓝: 0.50, 金: 0.20 },
+    permanentRemove: true,
   },
   金色宝箱卡: {
     name: "金色宝箱卡",
@@ -212,6 +216,7 @@ export const HELP_CARDS = {
     effectType: "chest_gold",
     effectDesc: "三选一遗物（蓝50%/金50%）",
     chestProbs: { 蓝: 0.50, 金: 0.50 },
+    permanentRemove: true,
   },
 };
 
@@ -224,22 +229,22 @@ for (const [key, card] of Object.entries(HELP_CARDS)) {
 // ==================== 遗物定义（阶段四完整实现，阶段三仅存储） ====================
 
 export const RELICS = {
-  村好剑: { name: "村好剑", quality: "初始", atk: 1, effect: "攻+1，击败精英/层主时攻永久+2" },
+  村好剑: { name: "村好剑", quality: "初始", atk: 1, effect: "攻+1，击败精英/层主时攻永久+1", eliteKillAtk: 1 },
   活着的肉: { name: "活着的肉", quality: "白", atk: 1, effect: "攻+1，每3关攻额外+1", perNodeAtk: 1, perNodeInterval: 3 },
-  木盾: { name: "木盾", quality: "白", def: 2, effect: "防+2（木套组件）", set: "木套" },
-  木剑: { name: "木剑", quality: "白", atk: 2, effect: "攻+2（木套组件）", set: "木套" },
-  木甲: { name: "木甲", quality: "白", maxHp: 8, effect: "血上限+8（木套组件）", set: "木套" },
-  幸运硬币: { name: "幸运硬币", quality: "白", effect: "击败精英/层主获25金币", eliteGold: 25 },
-  铁盾: { name: "铁盾", quality: "蓝", def: 4, effect: "防+4" },
-  锐利长剑: { name: "锐利长剑", quality: "蓝", atk: 4, effect: "攻+4" },
+  木盾: { name: "木盾", quality: "白", def: 1, effect: "防+1（木套组件）", set: "木套" },
+  木剑: { name: "木剑", quality: "白", atk: 1, effect: "攻+1（木套组件）", set: "木套" },
+  木甲: { name: "木甲", quality: "白", maxHp: 4, effect: "血上限+4（木套组件）", set: "木套" },
+  幸运硬币: { name: "幸运硬币", quality: "白", effect: "击败精英/层主时将金币卡加入战斗卡组", spawnGoldCard: "金币卡" },
+  铁盾: { name: "铁盾", quality: "蓝", def: 2, maxHp: 4, effect: "防+2，血上限+4" },
+  锐利长剑: { name: "锐利长剑", quality: "蓝", atk: 1, effect: "攻+1，本关卡每击杀怪物攻+1（关卡结束复原）", killAtkStack: 1 },
   活力护符: { name: "活力护符", quality: "蓝", maxHp: 6, healPerNode: 6, effect: "血上限+6，每关结束回6血" },
   荆棘甲: { name: "荆棘甲", quality: "蓝", def: 2, thornDmg: 2, effect: "防+2，每次战斗额外造成2伤害" },
   嗜血之牙: { name: "嗜血之牙", quality: "蓝", atk: 2, healOnKill: 2, effect: "攻+2，击杀怪物回2血" },
-  金剑: { name: "金剑", quality: "金", atk: 8, effect: "攻+8" },
-  龙鳞甲: { name: "龙鳞甲", quality: "金", def: 5, maxHp: 10, effect: "防+5，血上限+10" },
-  金色宝箱: { name: "金色宝箱", quality: "金", effect: "加入一张金色宝箱卡到帮助卡组", addCard: "金色宝箱卡" },
-  狂战士斧: { name: "狂战士斧", quality: "金", atk: 4, lowHpAtkDouble: true, effect: "攻+4，血<50%时攻击翻倍" },
-  凤凰羽毛: { name: "凤凰羽毛", quality: "金", effect: "致命伤时回50%血并移除", deathSave: 0.5 },
+  金剑: { name: "金剑", quality: "金", atk: 8, effect: "攻+8，关卡结束后永久移除", removeAfterNode: true },
+  龙鳞甲: { name: "龙鳞甲", quality: "金", def: 3, maxHp: 6, monsterAtkDebuff: 1, effect: "防+3，血上限+6，所有怪物攻击-1" },
+  金色宝箱: { name: "金色宝箱", quality: "金", effect: "加入两张金色宝箱卡到帮助卡组", addCards: { "金色宝箱卡": 2 } },
+  狂战士斧: { name: "狂战士斧", quality: "金", atk: 3, lowHpAtkDouble: true, effect: "攻+3，血<50%时攻击翻倍" },
+  凤凰羽毛: { name: "凤凰羽毛", quality: "金", maxHp: 8, effect: "生命+8，致命伤回50%血并移除", deathSave: 0.5 },
 };
 
 // 套装定义

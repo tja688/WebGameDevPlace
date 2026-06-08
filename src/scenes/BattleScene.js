@@ -7,6 +7,7 @@ import {
 import {
   isAdjacent, getAdjacentGrids, calcRelicBonuses, calcEffectiveStats,
   hasDeathSave, consumeDeathSave, applyGoldenChestRelic,
+  triggerLuckyCoin, removeNodeExpiredRelics,
   calcInspireBonus, calcRevengeBonus, checkWarlikeTrigger,
   checkAmbushTrigger, checkGripLock, checkScatterSpawn,
   calcThornsDamage, calcHardSkinBonus, calcBattleVeteranAtk,
@@ -115,7 +116,7 @@ export class BattleScene extends Phaser.Scene {
     // 玩家属性（深拷贝初始值）
     const p = PLAYER_INIT;
     this.playerState = {
-      name: p.name, hp: p.hp, maxHp: p.maxHp,
+      name: p.name, hp: p.hp, maxHp: p.maxHp, baseMaxHp: p.maxHp,
       attack: p.attack, baseAttack: p.baseAttack,
       defense: p.defense, baseDefense: p.baseDefense,
       gold: p.gold, isViolenceActive: false, shieldActive: false,
@@ -148,6 +149,7 @@ export class BattleScene extends Phaser.Scene {
     this.nodeComplete = false;
     this.nodeDrawnHelpUids = []; // 本节点从帮助卡组抽出的卡 uid
     this.nodeUsedHelpUids = [];  // 本节点已使用的帮助卡 uid
+    this.nodePermaRemovedUids = []; // 本节点永久移除的帮助卡 uid
 
     // 装备/遗物
     this.equippedRelics = ["村好剑"];
@@ -254,22 +256,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   buildShopSession() {
-    const offers = [];
-    const seenKeys = new Set();
+    // 商店独立固定卡池：所有非红品质帮助卡（与帮助卡组库存无关）
+    const shopPool = Object.entries(HELP_CARDS)
+      .filter(([, def]) => def.quality !== "红")
+      .map(([key, def]) => ({ key, ...def }));
 
-    for (const card of this.shuffle([...this.helpDeck])) {
-      if (seenKeys.has(card.key)) continue;
-      seenKeys.add(card.key);
-      if (!this.canAddHelpCardStack(card.key)) continue;
-
-      offers.push({
-        key: card.key,
-        card: { ...card },
-        sold: false,
-      });
-
-      if (offers.length >= 6) break;
-    }
+    const shuffled = this.shuffle(shopPool);
+    const offers = shuffled.slice(0, 6).map((card) => ({
+      key: card.key,
+      card,
+      sold: false,
+    }));
 
     while (offers.length < 6) offers.push(null);
 
@@ -329,6 +326,7 @@ export class BattleScene extends Phaser.Scene {
     this.nodeComplete = false;
     this.nodeDrawnHelpUids = [];
     this.nodeUsedHelpUids = [];
+    this.nodePermaRemovedUids = [];
     this.shopSession = null;
     this.combatResolving = false;
     this.cancelPendingBoardRefill();
@@ -355,7 +353,7 @@ export class BattleScene extends Phaser.Scene {
     this.totalKilledThisNode = 0;
     this.clickCounter = {};
     this.battleVetState = { lastTargetId: null, stacks: 0 };
-    this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode);
+    this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
 
     // 金色宝箱遗物效果
     applyGoldenChestRelic(this.equippedRelics, this.helpDeck, (k) => this.createHelpCard(k));
@@ -508,9 +506,9 @@ export class BattleScene extends Phaser.Scene {
         const hasUid = card.data?.uid !== undefined;
         const wasUsed = hasUid && this.nodeUsedHelpUids.includes(card.data.uid);
         const counted = isFromDeck && hasUid && !wasUsed;
-        if (counted) { unusedGold += 20; debugCount++; }
+        if (counted) { unusedGold += 10; debugCount++; }
         debugLines.push(
-          `  格${gn}「${card.data?.name}」uid=${card.data?.uid} fromDeck=${isFromDeck} used=${wasUsed} → ${counted ? "+20" : "跳过"}`
+          `  格${gn}「${card.data?.name}」uid=${card.data?.uid} fromDeck=${isFromDeck} used=${wasUsed} → ${counted ? "+10" : "跳过"}`
         );
       }
     }
@@ -521,9 +519,9 @@ export class BattleScene extends Phaser.Scene {
         const hasUid = slot.data?.uid !== undefined;
         const wasUsed = hasUid && this.nodeUsedHelpUids.includes(slot.data.uid);
         const counted = isFromDeck && hasUid && !wasUsed;
-        if (counted) { unusedGold += 20; debugCount++; }
+        if (counted) { unusedGold += 10; debugCount++; }
         debugLines.push(
-          `  牌格#${i+1}「${slot.data?.name}」uid=${slot.data?.uid} fromDeck=${isFromDeck} used=${wasUsed} → ${counted ? "+20" : "跳过"}`
+          `  牌格#${i+1}「${slot.data?.name}」uid=${slot.data?.uid} fromDeck=${isFromDeck} used=${wasUsed} → ${counted ? "+10" : "跳过"}`
         );
       }
     }
@@ -534,27 +532,45 @@ export class BattleScene extends Phaser.Scene {
       `\n  未使用: ${debugCount}张 = +${unusedGold}金币`
     );
 
-    // ★ 快照恢复帮助卡组（简单可靠）
-    this.helpDeck = JSON.parse(JSON.stringify(this._preNodeHelpDeck));
+    // ★ 快照恢复帮助卡组（仅从快照中移除永久移除卡）
+    const permaSet = new Set(this.nodePermaRemovedUids);
+    const nodeAdditions = [...this.helpDeck]; // 节点内新增卡（掉落等）
+    console.log(`[复原] 快照: ${this._preNodeHelpDeck.length}张, 永久移除uid: [${[...permaSet].join(',')}], 节点新增: ${nodeAdditions.length}张`);
+    if (permaSet.size > 0) {
+      const removedNames = JSON.parse(JSON.stringify(this._preNodeHelpDeck)).filter((c) => permaSet.has(c.uid)).map(c => c.name);
+      console.log(`[复原] 被永久移除的卡: ${removedNames.join(', ')}`);
+    }
+    this.helpDeck = [
+      ...JSON.parse(JSON.stringify(this._preNodeHelpDeck)).filter((c) => !permaSet.has(c.uid)),
+      ...nodeAdditions,
+    ];
+    console.log(`[复原] 结果: ${this.helpDeck.length}张, 种类: [${[...new Set(this.helpDeck.map(c=>c.key))].join(',')}]`);
     this.helpCardsInBattleDeck = null;
     this.battleDeck = [];
     this.nodeDrawnHelpUids = [];
     this.nodeUsedHelpUids = [];
+    this.nodePermaRemovedUids = [];
 
-    // 节点结束遗物/技能恢复
+    // 破甲恢复：防御复原到基础值
+    this.playerState.defense = this.playerState.baseDefense;
+    // 金剑：节点结束后移除
+    const removed = removeNodeExpiredRelics(this.equippedRelics);
+    if (removed.length > 0) {
+      this.setLog("⚔️ 金剑已破碎（节点结束自动移除）");
+    }
+    // 锐利长剑击杀加成重置 + 重算遗物属性
+    this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, 0);
+    // 重算血量上限（基础 + 遗物 + 硬皮）
+    const hsBonus = calcHardSkinBonus(this.learnedSkills);
+    this.playerState.maxHp = this.playerState.baseMaxHp + this.relicBonuses.maxHp + hsBonus.maxHp;
+    // 活力护符 + 硬皮恢复血量
     let healAmt = 0;
-    // 活力护符
     const vhRelic = this.equippedRelics.find((k) => RELICS[k]?.healPerNode);
     if (vhRelic) healAmt += RELICS[vhRelic].healPerNode;
-    // 硬皮技能
-    const hs = calcHardSkinBonus(this.learnedSkills);
-    healAmt += hs.healPerNode;
+    healAmt += hsBonus.healPerNode;
     if (healAmt > 0) {
       this.playerState.hp = Math.min(this.playerState.maxHp, this.playerState.hp + healAmt);
     }
-    // 破甲恢复：防御复原到基础值
-    this.playerState.defense = this.playerState.baseDefense;
-    this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode);
 
     this.playerState.gold += unusedGold;
     if (unusedGold > 0) {
@@ -612,12 +628,12 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER)
       .setInteractive({ useHandCursor: true }).setDepth(92);
     const skipText = this.add
-      .text(skipX, skipY, "跳过 → +20💰", {
+      .text(skipX, skipY, "跳过 → +10💰", {
         fontFamily: "serif", fontSize: "13px", color: COLOR.TEXT_GOLD,
       }).setOrigin(0.5).setDepth(93);
     skipBg.on("pointerdown", () => {
-      this.playerState.gold += 20;
-      this.setLog("↩ 跳过选牌，获得 20 金币");
+      this.playerState.gold += 10;
+      this.setLog("↩ 跳过选牌，获得 10 金币");
       this.destroyOverlay();
       this.time.delayedCall(600, () => this.showShop());
     });
@@ -721,7 +737,7 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5).setStrokeStyle(2, 0xc0392b)
       .setInteractive({ useHandCursor: true }).setDepth(100);
     const delBtnText = this.add
-      .text(delBtnX, delBtnY, "🗑️ 删除帮助卡 (+20💰)", {
+      .text(delBtnX, delBtnY, "🗑️ 删除帮助卡 (+10💰)", {
         fontFamily: "serif", fontSize: "13px", fontStyle: "bold", color: COLOR.TEXT_DANGER,
       }).setOrigin(0.5).setDepth(101);
     delBtnBg.on("pointerdown", () => this.showDeleteScreen());
@@ -885,7 +901,7 @@ export class BattleScene extends Phaser.Scene {
           .setOrigin(0.5).setStrokeStyle(1, 0xc0392b)
           .setInteractive({ useHandCursor: true }).setDepth(93);
         const delLabel = this.add
-          .text(x, y + cardH / 2 - 16, "删除 +20💰", {
+          .text(x, y + cardH / 2 - 16, "删除 +10💰", {
             fontFamily: "sans-serif", fontSize: "10px", fontStyle: "bold", color: COLOR.TEXT_DANGER,
           }).setOrigin(0.5).setDepth(94);
 
@@ -893,8 +909,8 @@ export class BattleScene extends Phaser.Scene {
           const idx = this.helpDeck.findIndex((c) => c.uid === card.uid);
           if (idx !== -1) {
             this.helpDeck.splice(idx, 1);
-            this.playerState.gold += 20;
-            this.setLog(`🗑️ 删除「${card.name}」+20💰`);
+            this.playerState.gold += 10;
+            this.setLog(`🗑️ 删除「${card.name}」+10💰`);
             this.updatePlayerUI();
             this.updateDeckUI();
             // 刷新删除界面
@@ -1502,7 +1518,7 @@ export class BattleScene extends Phaser.Scene {
           return;
         }
         this.equippedRelics.push(relicKey);
-        this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode);
+        this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
         this.setLog(`📦 获得遗物「${relic.name}」（${relic.quality}）`);
         this._markHelpUsed(index);
         this.consumeItemSlot(index);
@@ -1524,12 +1540,12 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER)
       .setInteractive({ useHandCursor: true }).setDepth(92);
     const skipText = this.add
-      .text(skipX, skipY, "跳过 → +20💰", {
+      .text(skipX, skipY, "跳过 → +10💰", {
         fontFamily: "serif", fontSize: "13px", color: COLOR.TEXT_GOLD,
       }).setOrigin(0.5).setDepth(93);
     skipBg.on("pointerdown", () => {
-      this.playerState.gold += 20;
-      this.setLog("↩ 跳过宝箱，获得 20 金币");
+      this.playerState.gold += 10;
+      this.setLog("↩ 跳过宝箱，获得 10 金币");
       this._markHelpUsed(index);
       this.consumeItemSlot(index);
       this.destroyOverlay();
@@ -1572,6 +1588,10 @@ export class BattleScene extends Phaser.Scene {
     const item = this.itemSlots[index];
     if (item && item._fromHelpDeck && item.data.uid !== undefined) {
       this.nodeUsedHelpUids.push(item.data.uid);
+      // 永久移除卡单独追踪
+      if (item.data.permanentRemove) {
+        this.nodePermaRemovedUids.push(item.data.uid);
+      }
     }
   }
 
@@ -1635,7 +1655,8 @@ export class BattleScene extends Phaser.Scene {
     // 怪物词条加成
     const inspireBonus = calcInspireBonus(this.boardCards, gridNum);
     const revengeBonus = calcRevengeBonus(m, this.totalKilledThisNode);
-    const monsterAtk = m.attack + inspireBonus + revengeBonus;
+    // 龙鳞甲减益：所有怪物攻击-1
+    const monsterAtk = Math.max(0, m.attack + inspireBonus + revengeBonus - this.relicBonuses.monsterAtkDebuff);
 
     // 荆棘甲额外伤害
     const thornDmg = this.relicBonuses.thornDmg;
@@ -1736,7 +1757,7 @@ export class BattleScene extends Phaser.Scene {
         if (hasDeathSave(this.equippedRelics)) {
           p.hp = Math.floor(p.maxHp * 0.5);
           consumeDeathSave(this.equippedRelics);
-          this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode);
+          this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
           this.setLog("🔥 凤凰羽毛触发！恢复 50% 血量");
           this.updatePlayerUI();
           this.combatResolving = false;
@@ -1755,14 +1776,15 @@ export class BattleScene extends Phaser.Scene {
 
     // 基础金币
     let goldGain = monster.goldDrop || 10;
-    // 幸运硬币
+    // 幸运硬币：击败精英/层主时将金币卡加入战斗卡组
     if (card.isElite || card.isBoss) {
-      goldGain += this.relicBonuses.eliteGold;
+      triggerLuckyCoin(this.equippedRelics, this.battleDeck);
     }
-    // 村好剑：击败精英/层主攻+2
+    // 村好剑：击败精英/层主攻永久+1
     if ((card.isElite || card.isBoss) && this.equippedRelics.includes("村好剑")) {
-      this.playerState.baseAttack += 2;
-      this.playerState.attack += 2;
+      const bonusAtk = RELICS["村好剑"].eliteKillAtk || 1;
+      this.playerState.baseAttack += bonusAtk;
+      this.playerState.attack += bonusAtk;
     }
 
     this.playerState.gold += goldGain;
@@ -1917,9 +1939,9 @@ export class BattleScene extends Phaser.Scene {
       bg.on("pointerdown", (pointer) => {
         if (pointer.rightButtonDown() && i < this.equippedRelics.length) {
           const removed = this.equippedRelics.splice(i, 1)[0];
-          this.playerState.gold += 20;
-          this.setLog(`🗑️ 丢弃遗物「${RELICS[removed]?.name || removed}」+20💰`);
-          this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode);
+          this.playerState.gold += 10;
+          this.setLog(`🗑️ 丢弃遗物「${RELICS[removed]?.name || removed}」+10💰`);
+          this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
           this.updateEquipmentUI();
           this.updatePlayerUI();
         }
