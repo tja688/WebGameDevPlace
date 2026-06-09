@@ -124,7 +124,8 @@ export class BattleScene extends Phaser.Scene {
     this.totalKilledThisNode = 0;
     this.clickCounter = {};
     this._lightCartUsed = false;
-    this._moveCount = 0;  // 棋盘旋转计数（用于移动相关技能）
+    this._moveCount = 0;
+    this._pendingRoomType = null;
   }
 
   // ============ 卡组快捷访问（减少 this.deck. 重复） ============
@@ -347,6 +348,9 @@ export class BattleScene extends Phaser.Scene {
     // 重置玩家战斗状态
     this.playerState.isViolenceActive = false;
     this.playerState.shieldActive = false;
+    this.playerState._healingSpring = false;
+    this.playerState._watchtower = false;
+    this.playerState._doubleTower = false;
     this.playerState.attack = this.playerState.baseAttack;
     this.playerState.defense = this.playerState.baseDefense;
 
@@ -366,6 +370,7 @@ export class BattleScene extends Phaser.Scene {
     this.clickCounter = {};
     this._lightCartUsed = false;
     this._moveCount = 0;
+    this._pendingRoomType = null;
     this.battleVetState = { lastTargetId: null, stacks: 0 };
     this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
 
@@ -461,8 +466,51 @@ export class BattleScene extends Phaser.Scene {
     this.updatePlayerUI();
     this.updateSkillUI();
 
-    // 显示帮助卡选择
-    this.time.delayedCall(800, () => this.showHelpCardSelection());
+    // 显示房间卡选择（二选一）
+    this.time.delayedCall(800, () => this.showRoomCardSelection());
+  }
+
+  // ============ 房间卡选择 ============
+
+  showRoomCardSelection() {
+    // 随机生成两个不同类型的房间
+    const roomTypes = [
+      { type: "shop", name: "商店", desc: "可从6张帮助卡中购买", icon: "🛒" },
+      { type: "gold", name: "金币房", desc: "加入一张金币卡到战斗牌组", icon: "💰" },
+      { type: "chest", name: "宝箱房", desc: "加入一张宝箱卡到战斗牌组", icon: "📦" },
+      { type: "attribute", name: "属性房", desc: "加入一张属性卡到战斗牌组", icon: "📈" },
+    ];
+    const shuffled = this.shuffle(roomTypes);
+    const choices = shuffled.slice(0, 2);
+
+    this.overlay.showRoomCardSelection(choices, (roomType) => {
+      this._pendingRoomType = roomType;
+      this.destroyOverlay();
+      this.time.delayedCall(400, () => this.showHelpCardSelection());
+    });
+  }
+
+  /** 非商店房间：应用房间效果后进入下一节点 */
+  _applyRoomEffectAndNext() {
+    const roomType = this._pendingRoomType;
+    this._pendingRoomType = null;
+    if (roomType === "gold") {
+      this.battleDeck.push({ type: "help", data: this.createHelpCard("金币卡"), _fromHelpDeck: false });
+      this.setLog("💰 金币房：金币卡加入战斗牌组");
+    } else if (roomType === "chest") {
+      this.battleDeck.push({ type: "help", data: this.createHelpCard("普通宝箱卡"), _fromHelpDeck: false });
+      this.setLog("📦 宝箱房：宝箱卡加入战斗牌组");
+    } else if (roomType === "attribute") {
+      this.battleDeck.push({ type: "help", data: this.createHelpCard("属性提升卡"), _fromHelpDeck: false });
+      this.setLog("📈 属性房：属性卡加入战斗牌组");
+    }
+    this.time.delayedCall(300, () => {
+      if (this.currentNode >= 9) {
+        this.showLayerComplete();
+      } else {
+        this.startNewNode(this.currentNode + 1);
+      }
+    });
   }
 
   // ============ 帮助卡选择 ============
@@ -477,7 +525,12 @@ export class BattleScene extends Phaser.Scene {
         this._lightCartUsed = true;
         this.time.delayedCall(400, () => this.showHelpCardSelection());
       } else {
-        this.time.delayedCall(600, () => this.showShop());
+        // 检查房间类型：仅商店房间才进商店
+        if (this._pendingRoomType === "shop") {
+          this.time.delayedCall(600, () => this.showShop());
+        } else {
+          this._applyRoomEffectAndNext();
+        }
       }
     };
 
@@ -535,19 +588,6 @@ export class BattleScene extends Phaser.Scene {
     return result;
   }
 
-  /** 检查同名帮助卡是否已达 3 张上限 */
-  canAddHelpCardStack(key) {
-    const count = this.helpDeck.filter((c) => c.key === key).length;
-    return count < 3;
-  }
-
-  canAddHelpCard() {
-    const uniqueKeys = new Set();
-    for (const c of this.helpDeck) uniqueKeys.add(c.key);
-    const cap = HELP_DECK_CAPACITY[this.currentLayer] || 12;
-    return uniqueKeys.size < cap;
-  }
-
   // ============ 商店 ============
 
   showShop() {
@@ -555,17 +595,21 @@ export class BattleScene extends Phaser.Scene {
     this.overlay.showShop(shopSession, this.playerState.gold,
       // onBuy
       (offer) => {
-        if (this.playerState.gold < 100) {
-          this.setLog("⚠️ 金币不足！（需要 100 金币）"); return;
+        const cardPrice = offer.card.price || 100;
+        if (this.playerState.gold < cardPrice) {
+          this.setLog(`⚠️ 金币不足！（需要 ${cardPrice} 金币）`); return;
         }
         if (!this.canAddHelpCardStack(offer.card.key)) {
           this.showPopup(`⚠️「${offer.card.name}」已达卡组上限（最多 3 张），无法购买！`); return;
         }
-        this.playerState.gold -= 100;
+        if (!this.canAddHelpCard()) {
+          this.showPopup("⚠️ 帮助卡组已达上限，无法购买！"); return;
+        }
+        this.playerState.gold -= cardPrice;
         const newCard = this.createHelpCard(offer.key);
         if (newCard) this.helpDeck.push(newCard);
         offer.sold = true;
-        this.setLog(`🛒 购买「${offer.card.name}」-100💰`);
+        this.setLog(`🛒 购买「${offer.card.name}」-${cardPrice}💰`);
         this.updatePlayerUI();
         this.updateDeckUI();
         this.showShop();
@@ -761,24 +805,55 @@ export class BattleScene extends Phaser.Scene {
       this.handleGridClick(gridNum, card);
       return;
     }
-    if (t.type === "flyingDagger") {
+    if (t.type === "flyingDagger" || t.type === "fireball" || t.type === "ram") {
       this._pendingRotation = true;
       this.combatResolving = true;
       const m = card.data;
-      const dmg = t.amount;
+      let dmg;
+      if (t.type === "fireball") dmg = this.playerState.attack;
+      else if (t.type === "ram") dmg = this.playerState.hp;
+      else dmg = t.amount;
+      // 倍增塔效果
+      if (this.playerState._doubleTower) { dmg *= 2; this.playerState._doubleTower = false; }
       m.hp -= dmg;
       if (m.hp < 0) m.hp = 0;
-      this.setLog(`🔪 飞刀命中 ${m.name}，造成 ${dmg} 点伤害！`);
+      const logIcon = t.type === "fireball" ? "🔥" : t.type === "ram" ? "💥" : "🔪";
+      this.setLog(`${logIcon} ${t.type}命中 ${m.name}，造成 ${dmg} 伤害！`);
       this.flashCard(gridNum, 0xff4444);
       this.refreshCardTexts(gridNum);
       this.consumeItemSlot(t.sourceSlot);
       this.exitTargeting();
-
       if (m.hp <= 0) {
         this.time.delayedCall(400, () => this.killMonster(gridNum, m, card));
       } else {
         this.finishCombatResolution();
       }
+    } else if (t.type === "armorBreak") {
+      const m = card.data;
+      m.defense = Math.max(0, m.defense - (t.amount || 5));
+      this.setLog(`🔨 破击锤: ${m.name} 防御-${t.amount || 5}（剩余 ${m.defense}）`);
+      this.refreshCardTexts(gridNum);
+      this._markHelpUsed(t.sourceSlot);
+      this.consumeItemSlot(t.sourceSlot);
+      this.exitTargeting();
+    } else if (t.type === "exchange") {
+      this._exchangeTarget1 = { gridNum, card };
+      this.exitTargeting(true);
+      this.enterTargeting("exchange2", t.sourceSlot, {});
+      return;
+    } else if (t.type === "exchange2") {
+      const g1 = this._exchangeTarget1;
+      if (!g1) { this.exitTargeting(); return; }
+      this._exchangeTarget1 = null;
+      // 交换两张卡牌
+      const c1 = this.boardCards.get(g1.gridNum);
+      const c2 = this.boardCards.get(gridNum);
+      if (c1) { c1._slot = gridNum; this.boardCards.set(gridNum, c1); } else { this.boardCards.delete(gridNum); }
+      if (c2) { c2._slot = g1.gridNum; this.boardCards.set(g1.gridNum, c2); } else { this.boardCards.delete(g1.gridNum); }
+      this.setLog(`🔄 交换卡: 格${g1.gridNum} ↔ 格${gridNum} 交换位置`);
+      this.renderAllCards();
+      this.consumeItemSlot(t.sourceSlot);
+      this.exitTargeting();
     }
   }
 
@@ -802,6 +877,16 @@ export class BattleScene extends Phaser.Scene {
       case "fullHeal": this.useFullHealItem(index, h); break;
       case "chest_normal": case "chest_blue": case "chest_gold":
         this.useChestItem(index, h); break;
+      case "fireball": this.enterTargeting("fireball", index, h); break;
+      case "reverseRotation": this.useReverseRotation(index, h); break;
+      case "bomb": this.useBomb(index, h); break;
+      case "exchange": this.enterTargeting("exchange", index, h); break;
+      case "armorBreak": this.enterTargeting("armorBreak", index, h); break;
+      case "ram": this.enterTargeting("ram", index, h); break;
+      case "healingSpring": this.useHealingSpring(index, h); break;
+      case "rollingStone": this.useRollingStone(index, h); break;
+      case "watchtower": this.useWatchtower(index, h); break;
+      case "doubleTower": this.useDoubleTower(index, h); break;
       default: this.setLog(`⚠️ 未知帮助卡: ${h.effectType}`);
     }
   }
@@ -940,6 +1025,85 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  // ============ 新帮助卡效果 ============
+
+  useReverseRotation(index, h) {
+    this.rotateBoardCounterClockwise();
+    this.setLog(`🔄 ${h.name}: 棋盘逆时针旋转！`);
+    this._markHelpUsed(index);
+    this.consumeItemSlot(index);
+  }
+
+  useBomb(index, h) {
+    const dmg = h.amount || 4;
+    let count = 0;
+    for (const [gn, card] of this.boardCards) {
+      if (card.type === "monster") {
+        card.data.hp = Math.max(0, card.data.hp - dmg);
+        this.showFloatingText(getGridCenter(gn).x, getGridCenter(gn).y, `-${dmg}`, COLOR.TEXT_DAMAGE);
+        this.flashCard(gn, 0xff4444);
+        count++;
+        if (card.data.hp <= 0) {
+          this.time.delayedCall(200, () => this.killMonster(gn, card.data, card));
+        }
+      }
+    }
+    this.setLog(`💣 ${h.name}: 对 ${count} 只怪物造成 ${dmg} 伤害`);
+    this.renderAllCards();
+    this._markHelpUsed(index);
+    this.consumeItemSlot(index);
+    this.settleBoardAfterMutation(500);
+  }
+
+  useHealingSpring(index, h) {
+    this.playerState._healingSpring = true;
+    this.setLog(`💧 ${h.name}: 放入道具牌格，每战斗一次恢复1血`);
+    this._markHelpUsed(index);
+    this.consumeItemSlot(index);
+  }
+
+  useRollingStone(index, h) {
+    this._pendingRotation = false;
+    const emptySlot = this.getEmptyBoardSlots()[0];
+    if (emptySlot !== undefined) {
+      this.boardCards.set(emptySlot, { type: "help", data: { ...h, _isRollingStone: true } });
+      this.renderCard(emptySlot);
+      this.setLog(`🪨 ${h.name}: 放置于格${emptySlot}，移至格3时触发`);
+    }
+    this.consumeItemSlot(index);
+  }
+
+  useWatchtower(index, h) {
+    this.playerState._watchtower = true;
+    this.setLog(`🔭 ${h.name}: 放入道具牌格，每战斗一次对随机怪物2伤害`);
+    this._markHelpUsed(index);
+    this.consumeItemSlot(index);
+  }
+
+  useDoubleTower(index, h) {
+    this.playerState._doubleTower = true;
+    this.setLog(`🏗 ${h.name}: 放入道具牌格，下次帮助卡效果×2后移除`);
+    this._markHelpUsed(index);
+    this.consumeItemSlot(index);
+  }
+
+  /** 逆时针旋转：8个外圈逆时针移动 */
+  rotateBoardCounterClockwise() {
+    const order = [1, 4, 7, 8, 9, 6, 3, 2];
+    const snapshot = {};
+    for (const pos of order) snapshot[pos] = this.boardCards.has(pos) ? this.boardCards.get(pos) : null;
+    for (let i = 0; i < order.length; i++) {
+      const targetPos = order[i];
+      const sourcePos = order[(i - 1 + order.length) % order.length];
+      const card = snapshot[sourcePos];
+      if (card) { if (card._slot !== undefined) card._slot = targetPos; this.boardCards.set(targetPos, card); }
+      else { this.boardCards.delete(targetPos); }
+    }
+    for (const pos of order) { this.destroyCardDisplay(pos); if (this.boardCards.has(pos)) this.renderCard(pos); }
+    this._moveCount = (this._moveCount || 0) + 1;
+    this._afterRotationSkills(order.filter(p => this.boardCards.has(p)));
+  }
+
   generateRelicChoices(probs) {
     // 排除已拥有的遗物
     const owned = new Set(this.equippedRelics);
@@ -986,23 +1150,21 @@ export class BattleScene extends Phaser.Scene {
   // ============ 瞄准系统 ============
 
   enterTargeting(type, sourceSlot, helpData) {
-    // 仅检查是否有正交相邻的怪物
+    // 帮助牌可瞄准九宫格任意怪物（不受距离限制）
     let hasTargetableMonster = false;
-    for (const [gn, c] of this.boardCards) {
-      if (c.type === "monster" && isAdjacent(gn, 5)) {
-        hasTargetableMonster = true; break;
-      }
+    for (const [, c] of this.boardCards) {
+      if (c.type === "monster") { hasTargetableMonster = true; break; }
     }
-    if (!hasTargetableMonster) { this.setLog("⚠️ 相邻格子上没有可瞄准的怪物！"); return; }
+    if (!hasTargetableMonster) { this.setLog("⚠️ 棋盘上没有可瞄准的怪物！"); return; }
     if (this.targeting) this.exitTargeting(true);
     this.targeting = { type, sourceSlot, amount: helpData.amount };
-    // 仅高亮正交相邻的怪物
+    // 高亮所有怪物
     for (const [gn, c] of this.boardCards) {
-      if (c.type === "monster" && isAdjacent(gn, 5)) this.setGridHighlight(gn, true);
+      if (c.type === "monster") this.setGridHighlight(gn, true);
     }
     this.highlightItemSlot(sourceSlot, true);
     this.input.setDefaultCursor("crosshair");
-    this.setLog("🎯 瞄准模式：点击相邻怪物 | Esc/点其他取消");
+    this.setLog("🎯 瞄准模式：点击任意怪物 | Esc/点其他取消");
   }
 
   exitTargeting(silent = true) {
@@ -1066,6 +1228,9 @@ export class BattleScene extends Phaser.Scene {
     // 暴力卡翻倍（在有效攻击基础上）
     if (p.isViolenceActive) playerDmg = Math.max(0, p.attack - monsterEffDef) + thornDmg;
 
+    // 提前声明 logParts（后续的庇佑检查和伤害日志都会用到）
+    let logParts = [];
+
     // 怪物庇佑：下次受伤变为0
     if (m._hasBlessing && playerDmg > 0) {
       playerDmg = 0;
@@ -1084,7 +1249,7 @@ export class BattleScene extends Phaser.Scene {
     const monPos = getGridCenter(gridNum);
     this.showFloatingText(monPos.x, monPos.y - 20, `-${playerDmg}`, COLOR.TEXT_DAMAGE);
 
-    let logParts = [`⚔ 小鬼(${eff.atk}攻) → ${m.name}：${playerDmg} 伤害`];
+    logParts = [`⚔ 小鬼(${eff.atk}攻) → ${m.name}：${playerDmg} 伤害`];
     if (inspireBonus > 0) logParts.push(`📯鼓舞+${inspireBonus}`);
     if (revengeBonus > 0) logParts.push(`💢复仇+${revengeBonus}`);
     if (spadeYoungBonus > 0) logParts.push(`♠黑桃+${spadeYoungBonus}`);
@@ -1209,6 +1374,8 @@ export class BattleScene extends Phaser.Scene {
       }
 
       this.combatResolving = false;
+      // 治疗泉/瞭望塔道具牌格效果
+      this._applyItemSlotCombatEffects();
     });
   }
 
@@ -1287,6 +1454,31 @@ export class BattleScene extends Phaser.Scene {
       this.playerState.attack = this.playerState.baseAttack;
       this.playerState.isViolenceActive = false;
     }
+  }
+
+  /** 道具牌格持续效果：治疗泉回血、瞭望塔伤敌 */
+  _applyItemSlotCombatEffects() {
+    // 治疗泉：每战斗一次回1血
+    if (this.playerState._healingSpring) {
+      this.playerState.hp = Math.min(this.playerState.maxHp, this.playerState.hp + 1);
+    }
+    // 瞭望塔：每战斗一次对随机怪物2伤害
+    if (this.playerState._watchtower) {
+      const monsters = [];
+      for (const [gn, c] of this.boardCards) {
+        if (c.type === "monster") monsters.push({ gn, card: c });
+      }
+      if (monsters.length > 0) {
+        const target = monsters[Math.floor(Math.random() * monsters.length)];
+        target.card.data.hp = Math.max(0, target.card.data.hp - 2);
+        this.showFloatingText(getGridCenter(target.gn).x, getGridCenter(target.gn).y, "-2", COLOR.TEXT_DAMAGE);
+        this.refreshCardTexts(target.gn);
+        if (target.card.data.hp <= 0) {
+          this.time.delayedCall(200, () => this.killMonster(target.gn, target.card.data, target.card));
+        }
+      }
+    }
+    this.updatePlayerUI();
   }
 
   /** 金剑战损：每次战斗后攻击-1，归零则移除 */

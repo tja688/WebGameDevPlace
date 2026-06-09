@@ -144,7 +144,8 @@ export class OverlayManager {
       }).setOrigin(0.5, 0).setDepth(93));
     }
 
-    const label = mode === "buy" ? "💰100 购买" : "🗑️ +20 删除";
+    const buyPrice = card.price || 100;
+    const label = mode === "buy" ? `💰${buyPrice} 购买` : "🗑️ +20 删除";
     const labelColor = mode === "buy" ? COLOR.TEXT_GOLD : COLOR.TEXT_DANGER;
     objs.push(scene.add.text(x, y + cardH / 2 - 14, label, {
       fontFamily: "sans-serif", fontSize: "9px", color: labelColor,
@@ -455,6 +456,54 @@ export class OverlayManager {
     skipBg.on("pointerover", () => skipBg.setFillStyle(0x4a4a4a));
     skipBg.on("pointerout", () => skipBg.setFillStyle(0x353535));
     scene.overlayObjects.push(skipBg, skipText);
+  }
+
+  // ==================== 房间卡选择 ====================
+
+  /**
+   * @param {object[]} rooms - [{type, name, desc, icon}]
+   * @param {Function} onPick - (roomType) => void
+   */
+  showRoomCardSelection(rooms, onPick) {
+    this.destroyOverlay();
+    const scene = this.scene;
+    const { bg, container } = this.createOverlay("🚪 选择下一个房间类型");
+    scene.overlayObjects = [bg, container];
+
+    const startX = GAME_W / 2 - 180;
+    const y = GAME_H / 2;
+
+    rooms.forEach((room, i) => {
+      const x = startX + i * 360;
+      const cardW = 160, cardH = 200;
+
+      const cardBg = scene.add.rectangle(x, y, cardW, cardH, 0x252830)
+        .setOrigin(0.5).setStrokeStyle(2, 0xf5c86a)
+        .setInteractive({ useHandCursor: true }).setDepth(92);
+
+      const iconText = scene.add.text(x, y - cardH / 2 + 16, room.icon, {
+        fontFamily: "serif", fontSize: "24px",
+      }).setOrigin(0.5, 0).setDepth(93);
+
+      const nameText = scene.add.text(x, y - 10, room.name, {
+        fontFamily: "serif", fontSize: "16px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
+      }).setOrigin(0.5).setDepth(93);
+
+      const descText = scene.add.text(x, y + 30, room.desc, {
+        fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_PRIMARY,
+        wordWrap: { width: cardW - 16 }, align: "center",
+      }).setOrigin(0.5, 0).setDepth(93);
+
+      const pickText = scene.add.text(x, y + cardH / 2 - 18, "👆 选择", {
+        fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_GOLD,
+      }).setOrigin(0.5, 1).setDepth(93);
+
+      cardBg.on("pointerdown", () => onPick(room.type));
+      cardBg.on("pointerover", () => cardBg.setStrokeStyle(3, 0xf5c86a));
+      cardBg.on("pointerout", () => cardBg.setStrokeStyle(2, 0xf5c86a));
+
+      scene.overlayObjects.push(cardBg, iconText, nameText, descText, pickText);
+    });
   }
 
   // ==================== 属性提升选择 ====================

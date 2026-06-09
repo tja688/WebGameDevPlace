@@ -65,7 +65,13 @@ export function calcRelicBonuses(equippedRelics, currentNode, killedThisNode = 0
 }
 
 export function hasDeathSave(equippedRelics) { return equippedRelics.some((k) => RELICS[k]?.deathSave); }
-export function isBerserkerActive(equippedRelics, hp, maxHp) { return equippedRelics.some((k) => RELICS[k]?.lowHpAtkDouble) && hp < maxHp * 0.5; }
+export function getBerserkerBonus(equippedRelics, hp, maxHp) {
+  if (hp >= maxHp * 0.5) return 0;
+  for (const key of equippedRelics) {
+    if (RELICS[key]?.lowHpAtkBonus) return RELICS[key].lowHpAtkBonus;
+  }
+  return 0;
+}
 export function consumeDeathSave(equippedRelics) { const idx = equippedRelics.findIndex((k) => RELICS[k]?.deathSave); if (idx !== -1) { equippedRelics.splice(idx, 1); return true; } return false; }
 
 export function applyGoldenChestRelic(equippedRelics, helpDeck, createHelpCard) {
@@ -107,8 +113,12 @@ export function calcInspireBonus(boardCards, excludeGrid) {
 }
 
 export function calcRevengeBonus(monsterData, totalKilledThisNode) {
-  if (monsterData.traits?.includes("复仇")) return totalKilledThisNode * 4;
-  return 0;
+  if (!monsterData.traits?.includes("复仇")) return 0;
+  // 首次计算时记录该怪物上场时的击杀基数，后续只统计上场后发生的击杀
+  if (monsterData._revengeBaseKills === undefined) {
+    monsterData._revengeBaseKills = totalKilledThisNode;
+  }
+  return Math.max(0, totalKilledThisNode - monsterData._revengeBaseKills) * 4;
 }
 
 export function checkWarlikeTrigger(monster, clickCounter) {
@@ -379,6 +389,6 @@ export function calcEffectiveStats(playerState, equippedRelics, learnedSkills, c
   let atk = p.baseAttack + relicBonus.atk + vetAtk;
   const def = p.baseDefense + relicBonus.def;
   const maxHp = p.maxHp + relicBonus.maxHp + hsBonus.maxHp;
-  if (isBerserkerActive(equippedRelics, p.hp, maxHp)) atk *= 2;
+  atk += getBerserkerBonus(equippedRelics, p.hp, maxHp);
   return { atk, def, maxHp, relicBonus, hsBonus, vetAtk };
 }

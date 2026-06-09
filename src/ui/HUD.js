@@ -1,7 +1,7 @@
 // ==================== 深入地牢 — 静态 UI 面板 ====================
 // 玩家信息面板、装备栏、技能栏、牌组区的创建与更新
 
-import { RELICS, getNodeConfig } from "../data/GameData.js";
+import { RELICS, getNodeConfig, HELP_DECK_CAPACITY } from "../data/GameData.js";
 import { calcRelicBonuses } from "../systems/CombatEngine.js";
 import {
   GAME_W, GAME_H, ITEM_Y, ITEM_SLOT_H, COLOR,
@@ -22,6 +22,7 @@ export class HUD {
     this.createEquipmentSlots();
     this.createSkillArea();
     this.createDeckArea();
+    this.createTooltipPanel();
 
     // 道具牌格标题
     this.scene.add.text(GAME_W / 2, ITEM_Y - ITEM_SLOT_H / 2 - 28, "🎒 道具牌格 (上限 5)", {
@@ -259,8 +260,9 @@ export class HUD {
 
     this.deckCountText.setText(`战斗卡组: ${battleDeck.length} 张`);
 
+    const cap = HELP_DECK_CAPACITY[scene.currentLayer] || 12;
     const uniqueKeys = new Set(helpDeck.map((c) => c.key));
-    this.deckHelpCountText.setText(`帮助卡组: ${uniqueKeys.size} 种 ${helpDeck.length} 张`);
+    this.deckHelpCountText.setText(`帮助卡组: ${uniqueKeys.size}种 ${helpDeck.length}/${cap} 张`);
 
     if (battleDeck.length > 0) {
       const nextCard = battleDeck[battleDeck.length - 1];
@@ -313,4 +315,111 @@ export class HUD {
       }
     });
   }
+
+  // ==================== 怪物技能提示面板 ====================
+
+  /** 在牌组区和技能栏之间的空白区域创建提示面板 */
+  createTooltipPanel() {
+    const scene = this.scene;
+    const x = 770, areaW = 180;
+    // 牌组区底部 ~240，技能区顶部 ~485，面板放在中间
+    const panelY = 360, panelH = 230;
+    this._tooltipBg = scene.add.rectangle(x + areaW / 2, panelY, areaW, panelH, COLOR.PANEL_BG)
+      .setOrigin(0.5).setStrokeStyle(1, 0xf5c86a).setDepth(5).setVisible(false);
+    this._tooltipTitle = scene.add.text(x + areaW / 2, panelY - panelH / 2 + 8, "", {
+      fontFamily: "serif", fontSize: "13px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
+    }).setOrigin(0.5, 0).setDepth(6).setVisible(false);
+    scene.add.line(x + 8, panelY - panelH / 2 + 26, 0, 0, areaW - 16, 0, COLOR.PANEL_BORDER).setOrigin(0).setDepth(6).setVisible(false);
+    this._tooltipTexts = [];
+  }
+
+  /** 显示怪物技能详细描述 */
+  showMonsterTooltip(cardData) {
+    if (!cardData || !cardData.traits || cardData.traits.length === 0) return;
+    this.hideTooltip();
+    const scene = this.scene;
+    const x = 770, areaW = 180;
+    const panelY = 360, panelH = 230;
+    const startY = panelY - panelH / 2 + 34;
+
+    this._tooltipBg.setVisible(true);
+    this._tooltipTitle.setText(`📋 ${cardData.name} 技能`).setVisible(true);
+
+    const lines = [];
+    for (const trait of cardData.traits) {
+      const desc = SKILL_DESC[trait];
+      if (desc) {
+        lines.push({ text: `▪ ${trait}`, color: "#f5c86a", style: { fontFamily: "serif", fontSize: "11px", fontStyle: "bold" } });
+        // 描述文字自动换行
+        lines.push({ text: desc, color: COLOR.TEXT_PRIMARY, style: { fontFamily: "sans-serif", fontSize: "9px" } });
+      }
+    }
+    // 额外显示动态加成
+    if (cardData._danceAtk || cardData._danceDef) {
+      lines.push({ text: `💃 战舞: 攻+${cardData._danceAtk||0} 防+${cardData._danceDef||0}`, color: "#e67e22", style: { fontFamily: "sans-serif", fontSize: "9px" } });
+    }
+    if (cardData._royalAtk) {
+      lines.push({ text: `👑 皇室: 攻+${cardData._royalAtk}`, color: "#f5c86a", style: { fontFamily: "sans-serif", fontSize: "9px" } });
+    }
+    if (cardData._hasBlessing) {
+      lines.push({ text: "🛡 庇佑: 下次受伤变为0", color: "#3498db", style: { fontFamily: "sans-serif", fontSize: "9px" } });
+    }
+    if (cardData._duelActive) {
+      lines.push({ text: "⚔ 决斗: 已激活", color: "#e74c3c", style: { fontFamily: "sans-serif", fontSize: "9px" } });
+    }
+
+    let y = startY;
+    for (const line of lines) {
+      const t = scene.add.text(x + areaW / 2, y, line.text, {
+        ...line.style, color: line.color,
+        wordWrap: { width: areaW - 16 }, align: "left",
+      }).setOrigin(0.5, 0).setDepth(6);
+      this._tooltipTexts.push(t);
+      y += t.height + 3;
+    }
+  }
+
+  /** 隐藏技能提示 */
+  hideTooltip() {
+    if (this._tooltipBg) this._tooltipBg.setVisible(false);
+    if (this._tooltipTitle) this._tooltipTitle.setVisible(false);
+    if (this._tooltipTexts) {
+      for (const t of this._tooltipTexts) { if (t && t.active) t.destroy(); }
+      this._tooltipTexts = [];
+    }
+  }
 }
+
+// ==================== 技能描述映射表 ====================
+
+const SKILL_DESC = {
+  // 新怪物词条
+  "黑桃幼崽": "处于格1/2/3时，场上所有其他怪物攻击+2（不可叠加）",
+  "红桃幼崽": "处于格7/8/9时，本牌血量上限+2",
+  "方块幼崽": "处于格4时，本牌防御+2",
+  "梅花幼崽": "处于格6时，本牌攻击力+2",
+  "尖盾": "处于格1/2/3时，每次战斗对玩家额外造成2点伤害（无视防御）",
+  "爱之躯": "每次战斗时恢复2点血量",
+  "破防专家": "处于格1/4/7时，战斗后玩家防御-2",
+  "叫人！": "玩家每行动3次，将一张等级2怪物加入战斗牌组",
+  "复仇": "在九宫格上时，每有一张怪物卡被移除，本牌攻击力+4",
+  "医疗兵": "处于格7/8/9时，玩家每行动一次恢复全体怪物4血",
+  "防护光环": "处于格1/4/7时，其他怪物防御+2",
+  "不休追击": "移动到玩家正交相邻格时，自动与玩家战斗一次",
+  "侧方打击": "移动到格1/3/7/9时，对玩家造成3点伤害（无视防御）",
+  "红桃之母": "累计损失满10血触发，召唤随机红桃怪物加入战斗牌组",
+  "牢不可破": "移动到格1/3/7/9时，场上随机怪物获得庇佑",
+  "竖向拉杆": "移动到格7时竖列1-4-7轮换；移动到格3时竖列3-6-9轮换",
+  "决斗": "与玩家战斗后锁定棋盘，禁止所有卡牌移动",
+  "战舞": "棋盘每旋转1次，本牌攻击+1或防御+1（交替）",
+  "暴力": "棋盘每旋转4次，若处于正交相邻格则与玩家战斗一次",
+  "黑桃皇室": "棋盘每旋转4次，所有黑桃怪物攻击+1",
+  "先攻": "怪物先手攻击（双方均有先攻时玩家优先）",
+  // 旧词条（保留）
+  "鼓舞": "场上所有其他怪物攻击+1，多个鼓舞可叠加",
+  "好战": "玩家每点击3次，本牌与玩家战斗一次",
+  "伏击": "玩家点击本怪相邻格时，本怪与玩家战斗一次",
+  "破甲": "每次战斗后玩家防御-1（节点结束恢复）",
+  "散子": "累计损失满10血触发，召唤骷髅加入战斗牌组",
+  "紧握": "玩家在相邻格时只能选择本牌作为战斗目标",
+};

@@ -137,50 +137,94 @@ export const BOSS_MONSTER = {
   bossDrop: ["金色宝箱卡", "金币卡", "金币卡", "属性提升卡"],
 };
 
-// ==================== 帮助卡定义（全部 10 种） ====================
+// ==================== 帮助卡定义（全部 20 种） ====================
 
 export const HELP_CARDS = {
+  // === 白色 ===
   恢复药水: {
-    name: "恢复药水", quality: "白", effectType: "heal",
+    name: "恢复药水", quality: "白", effectType: "heal", price: 30,
     effectDesc: "恢复 10 点生命，使用后永久移除", amount: 10, permanentRemove: true,
   },
   庇佑魔法卡: {
-    name: "庇佑魔法卡", quality: "白", effectType: "shield",
+    name: "庇佑魔法卡", quality: "白", effectType: "shield", price: 20,
     effectDesc: "下次受伤变为 0，使用后永久移除", permanentRemove: true,
   },
   飞刀: {
-    name: "飞刀", quality: "白", effectType: "flyingDagger",
+    name: "飞刀", quality: "白", effectType: "flyingDagger", price: 20,
     effectDesc: "对目标怪物造成 6 点伤害，使用后永久移除", amount: 6, permanentRemove: true,
   },
+  火球术: {
+    name: "火球术", quality: "白", effectType: "fireball", price: 30,
+    effectDesc: "对目标怪物造成等于玩家攻击的伤害，使用后永久移除", permanentRemove: true,
+  },
+  旋转轮: {
+    name: "旋转轮", quality: "白", effectType: "reverseRotation", price: 20,
+    effectDesc: "除格5外逆时针旋转一格，使用后永久移除", permanentRemove: true,
+  },
   暴力卡: {
-    name: "暴力卡", quality: "白", effectType: "violence",
+    name: "暴力卡", quality: "白", effectType: "violence", price: 30,
     effectDesc: "攻击翻倍，战斗一次后复原，使用后永久移除", multiplier: 2, permanentRemove: true,
   },
+  滚石: {
+    name: "滚石", quality: "白", effectType: "rollingStone", price: 50,
+    effectDesc: "当在九宫格上移动到格3时，移除格6的非精英/层主怪物，使用后永久移除", permanentRemove: true,
+  },
+  爆弹: {
+    name: "爆弹", quality: "白", effectType: "bomb", price: 50,
+    effectDesc: "对所有怪物造成 4 点伤害，使用后永久移除", amount: 4, permanentRemove: true,
+  },
+  交换卡: {
+    name: "交换卡", quality: "白", effectType: "exchange", price: 50,
+    effectDesc: "选择两张卡牌互换所在格位置，使用后永久移除", permanentRemove: true,
+  },
+  破击锤: {
+    name: "破击锤", quality: "白", effectType: "armorBreak", price: 50,
+    effectDesc: "将目标怪物的防御力降低 5 点，使用后永久移除", amount: 5, permanentRemove: true,
+  },
+  // === 蓝色 ===
   属性提升卡: {
-    name: "属性提升卡", quality: "蓝", effectType: "attributeBoost",
-    effectDesc: "选一项：攻+1 / 防+1 / 血+2", permanentRemove: true,
+    name: "属性提升卡", quality: "蓝", effectType: "attributeBoost", price: 100,
+    effectDesc: "选一项：攻+1 / 防+1 / 血+2，使用后永久移除", permanentRemove: true,
   },
   金币卡: {
-    name: "金币卡", quality: "蓝", effectType: "goldGain",
-    effectDesc: "获得 50 金币", amount: 50, permanentRemove: true,
+    name: "金币卡", quality: "蓝", effectType: "goldGain", price: 30,
+    effectDesc: "获得 50 金币，使用后永久移除", amount: 50, permanentRemove: true,
   },
   食品卡: {
-    name: "食品卡", quality: "蓝", effectType: "fullHeal",
+    name: "食品卡", quality: "蓝", effectType: "fullHeal", price: 50,
     effectDesc: "血量回满，使用后永久移除", permanentRemove: true,
   },
+  治疗泉: {
+    name: "治疗泉", quality: "蓝", effectType: "healingSpring", price: 80,
+    effectDesc: "在九宫格上：移到玩家相邻格时回2血；在道具牌格：每战斗1次回1血。点击后永久移除", permanentRemove: true,
+  },
+  撞击教程: {
+    name: "撞击教程", quality: "蓝", effectType: "ram", price: 80,
+    effectDesc: "对目标怪物造成等于玩家当前血量的伤害，使用后永久移除", permanentRemove: true,
+  },
   普通宝箱卡: {
-    name: "普通宝箱卡", quality: "蓝", effectType: "chest_normal",
-    effectDesc: "三选一遗物（白65%/蓝30%/金5%）",
+    name: "普通宝箱卡", quality: "蓝", effectType: "chest_normal", price: 100,
+    effectDesc: "三选一遗物（白65%/蓝30%/金5%），使用后永久移除",
     chestProbs: { 白: 0.65, 蓝: 0.30, 金: 0.05 }, permanentRemove: true,
   },
+  // === 金色 ===
   蓝色宝箱卡: {
-    name: "蓝色宝箱卡", quality: "金", effectType: "chest_blue",
-    effectDesc: "三选一遗物（白30%/蓝50%/金20%）",
-    chestProbs: { 白: 0.30, 蓝: 0.50, 金: 0.20 }, permanentRemove: true,
+    name: "蓝色宝箱卡", quality: "金", effectType: "chest_blue", price: 150,
+    effectDesc: "三选一遗物（白50%/蓝50%/金10%），使用后永久移除",
+    chestProbs: { 白: 0.50, 蓝: 0.50, 金: 0.10 }, permanentRemove: true,
   },
+  瞭望塔: {
+    name: "瞭望塔", quality: "金", effectType: "watchtower", price: 150,
+    effectDesc: "在九宫格上：移到角格时对随机怪物3伤(4次后移除)；在道具牌格：每战斗1次2伤。点击后永久移除", permanentRemove: true,
+  },
+  倍增塔: {
+    name: "倍增塔", quality: "金", effectType: "doubleTower", price: 150,
+    effectDesc: "在九宫格格1时：怪物帮助卡效果×2；在道具牌格：玩家帮助卡效果×2（触发后移除）。点击后永久移除", permanentRemove: true,
+  },
+  // === 红色 ===
   金色宝箱卡: {
-    name: "金色宝箱卡", quality: "红", effectType: "chest_gold",
-    effectDesc: "三选一遗物（蓝50%/金50%）",
+    name: "金色宝箱卡", quality: "红", effectType: "chest_gold", price: 400,
+    effectDesc: "三选一遗物（蓝50%/金50%），使用后永久移除",
     chestProbs: { 蓝: 0.50, 金: 0.50 }, permanentRemove: true,
   },
 };
@@ -208,7 +252,7 @@ export const RELICS = {
   金剑: { name: "金剑", quality: "金", atk: 8, effect: "攻+8，每进行一次战斗攻击-1", battleAtkDecay: 1 },
   龙鳞甲: { name: "龙鳞甲", quality: "金", def: 1, maxHp: 6, monsterAtkDebuff: 1, effect: "防+1，血上限+6，所有怪物攻击-1" },
   金色宝箱: { name: "金色宝箱", quality: "金", effect: "加入两张金色宝箱卡到帮助卡组", addCards: { "金色宝箱卡": 2 } },
-  狂战士斧: { name: "狂战士斧", quality: "金", atk: 1, lowHpAtkDouble: true, effect: "攻+1，血<50%时攻击翻倍" },
+  狂战士斧: { name: "狂战士斧", quality: "金", atk: 1, effect: "攻+1，血<50%时攻击额外+3", lowHpAtkBonus: 3 },
   凤凰羽毛: { name: "凤凰羽毛", quality: "金", maxHp: 8, effect: "生命+8，致命伤回50%血并移除", deathSave: 0.5 },
 };
 

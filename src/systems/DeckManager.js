@@ -261,12 +261,10 @@ export class DeckManager {
     return count < 3;
   }
 
-  /** 检查帮助卡组种类是否超限 */
+  /** 检查帮助卡组总数量是否超限（含同名堆叠） */
   canAddHelpCard(currentLayer) {
-    const uniqueKeys = new Set();
-    for (const c of this.helpDeck) uniqueKeys.add(c.key);
     const cap = HELP_DECK_CAPACITY[currentLayer] || 12;
-    return uniqueKeys.size < cap;
+    return this.helpDeck.length < cap;
   }
 
   /** 生成随机帮助卡（用于三选一） */

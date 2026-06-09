@@ -215,8 +215,17 @@ export class GridRenderer {
     bg.on("pointerover", () => {
       if (scene.targeting && card.type === "monster") bg.setStrokeStyle(3, COLOR.GRID_TARGET_BORDER);
       else bg.setStrokeStyle(3, borderColor);
+      // 怪物卡悬停时显示技能详细描述
+      if (card.type === "monster" && scene.hud) {
+        scene.hud.showMonsterTooltip(card.data);
+      }
     });
-    bg.on("pointerout", () => bg.setStrokeStyle(2, borderColor));
+    bg.on("pointerout", () => {
+      bg.setStrokeStyle(2, borderColor);
+      if (card.type === "monster" && scene.hud) {
+        scene.hud.hideTooltip();
+      }
+    });
 
     scene.cardDisplays.set(gridNum, { bg, texts, type: card.type });
   }
