@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import {
   PLAYER_INIT, INITIAL_HELP_DECK, HELP_CARDS, HELP_CARDS_BY_QUALITY,
   QUALITY_PROB, RELICS, RELICS_BY_QUALITY, HELP_DECK_CAPACITY,
-  getNodeConfig,
+  MONSTERS, getNodeConfig,
 } from "../data/GameData.js";
 import {
   isAdjacent, getAdjacentGrids, calcRelicBonuses, calcEffectiveStats,
@@ -11,59 +11,23 @@ import {
   calcInspireBonus, calcRevengeBonus, checkWarlikeTrigger,
   checkAmbushTrigger, checkGripLock, checkScatterSpawn,
   calcThornsDamage, calcHardSkinBonus, calcBattleVeteranAtk,
+  calcSpadeYoungBonus, calcHeartYoungBonus, calcDiamondYoungBonus, calcClubYoungBonus,
+  calcSharpShieldDamage, calcLoveBodyHeal, checkDefenseBreaker, checkCallFriends,
+  calcProtectAuraBonus, calcMedicHeal, checkRelentlessPursuit, calcSideStrike,
+  checkHeartMotherSpawn, checkUnbreakable, checkVerticalLever,
+  checkDuelLock, applyBattleDance, checkBossViolence, calcSpadeRoyalBonus,
 } from "../systems/CombatEngine.js";
-
-// ==================== 布局常量 ====================
-const GAME_W = 960;
-const GAME_H = 640;
-
-const GRID_COLS = 3;
-const GRID_ROWS = 3;
-const CELL_W = 110;
-const CELL_H = 120;
-const CELL_GAP = 6;
-const GRID_TOTAL_W = CELL_W * GRID_COLS + CELL_GAP * (GRID_COLS - 1);
-const GRID_TOTAL_H = CELL_H * GRID_ROWS + CELL_GAP * (GRID_ROWS - 1);
-const CENTER_LEFT = 200;
-const CENTER_W = GAME_W - 400;
-const GRID_LEFT = CENTER_LEFT + (CENTER_W - GRID_TOTAL_W) / 2;
-const GRID_TOP = 50;
-
-const ITEM_SLOT_COUNT = 5;
-const ITEM_SLOT_W = 80;
-const ITEM_SLOT_H = 90;
-const ITEM_SLOT_GAP = 8;
-const ITEM_TOTAL_W = ITEM_SLOT_COUNT * ITEM_SLOT_W + (ITEM_SLOT_COUNT - 1) * ITEM_SLOT_GAP;
-const ITEM_START_X = (GAME_W - ITEM_TOTAL_W) / 2;
-const ITEM_Y = GAME_H - 80;
-
-const COLOR = {
-  BG_DARK: 0x1a1c20, GRID_NORMAL: 0x2d3035, GRID_NORMAL_BORDER: 0x4a5058,
-  GRID_PLAYER: 0x3a3520, GRID_PLAYER_BORDER: 0xf5c86a,
-  GRID_TARGET: 0x4a2020, GRID_TARGET_BORDER: 0xff4444,
-  CARD_PLAYER: 0x2a4a6b, CARD_PLAYER_BORDER: 0x5b9bd5,
-  CARD_MONSTER: 0x4a1a1a, CARD_MONSTER_BORDER: 0xc0392b,
-  CARD_HELP: 0x1a3a28, CARD_HELP_BORDER: 0x27ae60,
-  PANEL_BG: 0x252830, PANEL_BORDER: 0x3a3d44,
-  SLOT_EMPTY: 0x1e2025, SLOT_BORDER: 0x3a3d44,
-  SLOT_FILLED: 0x1a2a1a, SLOT_FILLED_BORDER: 0x27ae60,
-  OVERLAY_BG: 0x000000,
-  TEXT_PRIMARY: "#e0d8c0", TEXT_GOLD: "#f5c86a", TEXT_DIM: "#7a7e85",
-  TEXT_DANGER: "#e74c3c", TEXT_HEAL: "#2ecc71", TEXT_DAMAGE: "#e67e22",
-  QUALITY_COLORS: { 白: "#bdc3c7", 蓝: "#3498db", 金: "#f5c86a", 红: "#e74c3c" },
-};
-
-function getGridCenter(gridNum) {
-  const idx = gridNum - 1;
-  return {
-    x: GRID_LEFT + (idx % GRID_COLS) * (CELL_W + CELL_GAP) + CELL_W / 2,
-    y: GRID_TOP + Math.floor(idx / GRID_COLS) * (CELL_H + CELL_GAP) + CELL_H / 2,
-  };
-}
-
-function getItemSlotCenter(index) {
-  return { x: ITEM_START_X + index * (ITEM_SLOT_W + ITEM_SLOT_GAP) + ITEM_SLOT_W / 2, y: ITEM_Y };
-}
+import {
+  GAME_W, GAME_H, GRID_COLS, GRID_ROWS, CELL_W, CELL_H, CELL_GAP,
+  GRID_TOTAL_W, GRID_TOTAL_H, GRID_LEFT, GRID_TOP,
+  ITEM_SLOT_COUNT, ITEM_SLOT_W, ITEM_SLOT_H, ITEM_SLOT_GAP,
+  ITEM_TOTAL_W, ITEM_START_X, ITEM_Y,
+  COLOR, getGridCenter, getItemSlotCenter,
+} from "../config/LayoutConfig.js";
+import { DeckManager } from "../systems/DeckManager.js";
+import { GridRenderer } from "../ui/GridRenderer.js";
+import { HUD } from "../ui/HUD.js";
+import { OverlayManager } from "../ui/OverlayManager.js";
 
 // ==================== 战斗场景 ====================
 
@@ -81,8 +45,14 @@ export class BattleScene extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
 
     this.initGameState();
-    this.createGrid();
-    this.createStaticUI();
+
+    // 渲染器
+    this.grid = new GridRenderer(this);
+    this.hud = new HUD(this);
+    this.overlay = new OverlayManager(this);
+
+    this.grid.createGrid();
+    this.hud.createAll();
 
     // 底部日志
     this.logText = this.add
@@ -122,65 +92,62 @@ export class BattleScene extends Phaser.Scene {
       gold: p.gold, isViolenceActive: false, shieldActive: false,
     };
 
-    // uid 计数器（必须在 buildInitialHelpDeck 之前初始化）
-    this.nextUid = 0;
+    // 卡组管理器（三大卡池 + 棋盘状态 + 节点追踪）
+    this.deck = new DeckManager();
+    this.deck.helpDeck = this.deck.buildInitialHelpDeck();
+    // 道具牌格数量由 DeckManager 默认 5 格，与 ITEM_SLOT_COUNT 一致
 
-    // 卡组
-    this.helpDeck = this.buildInitialHelpDeck();
-    this.battleDeck = [];
-    this.demonDeck = [];
-    this.boardCards = new Map();  // gridNum -> cardData (非显示对象)
-    this.itemSlots = new Array(ITEM_SLOT_COUNT).fill(null);
     this.cardDisplays = new Map();
     this.itemSlotDisplays = new Array(ITEM_SLOT_COUNT).fill(null);
     this.overlayObjects = null;
     this.popupObjects = null;
     this.targeting = null;
     this.escKey = this.input.keyboard.addKey("ESC");
-    this.shopSession = null;
     this.pendingBoardRefillTimer = null;
-    this.boardRefillScheduled = false;
-    this.boardRefillRunning = false;
     this.combatResolving = false;
+    this._pendingRotation = false;  // 互动后是否需要旋转棋盘
 
     // 节点状态
     this.currentNode = 0;
     this.currentLayer = 1;
     this.nodeComplete = false;
-    this.nodeDrawnHelpUids = []; // 本节点从帮助卡组抽出的卡 uid
-    this.nodeUsedHelpUids = [];  // 本节点已使用的帮助卡 uid
-    this.nodePermaRemovedUids = []; // 本节点永久移除的帮助卡 uid
 
     // 装备/遗物
-    this.equippedRelics = ["村好剑"];
+    this.equippedRelics = [];
     this.relicBonuses = { atk: 0, def: 0, maxHp: 0, thornDmg: 0, healOnKill: 0, eliteGold: 0 };
 
-    // 已习得技能
-    this.learnedSkills = [];
+    // 已习得技能（初始技能：轻车熟路）
+    this.learnedSkills = ["轻车熟路"];
     this.battleVetState = { lastTargetId: null, stacks: 0 };
 
     // 节点追踪
     this.totalKilledThisNode = 0;
     this.clickCounter = {};
+    this._lightCartUsed = false;
+    this._moveCount = 0;  // 棋盘旋转计数（用于移动相关技能）
   }
 
-  /** 创建一张带唯一 uid 的帮助卡 */
-  createHelpCard(key) {
-    const def = HELP_CARDS[key];
-    if (!def) return null;
-    return { key, uid: this.nextUid++, ...def };
-  }
+  // ============ 卡组快捷访问（减少 this.deck. 重复） ============
+  get helpDeck() { return this.deck.helpDeck; }
+  set helpDeck(v) { this.deck.helpDeck = v; }
+  get battleDeck() { return this.deck.battleDeck; }
+  set battleDeck(v) { this.deck.battleDeck = v; }
+  get demonDeck() { return this.deck.demonDeck; }
+  set demonDeck(v) { this.deck.demonDeck = v; }
+  get boardCards() { return this.deck.boardCards; }
+  set boardCards(v) { this.deck.boardCards = v; }
+  get itemSlots() { return this.deck.itemSlots; }
+  set itemSlots(v) { this.deck.itemSlots = v; }
 
-  buildInitialHelpDeck() {
-    const deck = [];
-    for (const item of INITIAL_HELP_DECK) {
-      for (let i = 0; i < item.quantity; i++) {
-        const card = this.createHelpCard(item.name);
-        if (card) deck.push(card);
-      }
-    }
-    return this.shuffle(deck);
-  }
+  // ============ 委托给 DeckManager 的方法 ============
+  createHelpCard(key) { return this.deck.createHelpCard(key); }
+  getEmptyBoardSlots() { return this.deck.getEmptyBoardSlots(); }
+  canAddHelpCardStack(key) { return this.deck.canAddHelpCardStack(key); }
+  canAddHelpCard() { return this.deck.canAddHelpCard(this.currentLayer); }
+  generateRandomHelpCards(count) { return this.deck.generateRandomHelpCards(count); }
+  shuffle(array) { return this.deck.shuffle(array); }
+  buildShopSession() { return this.deck.buildShopSession(); }
+  getShopSession() { return this.deck.getShopSession(); }
 
   hasActiveOverlay() {
     return !!(this.overlayObjects && this.overlayObjects.length > 0);
@@ -191,7 +158,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   hasPendingBoardRefill() {
-    return this.boardRefillScheduled || this.boardRefillRunning;
+    return this.deck.hasPendingBoardRefill();
   }
 
   isBattleInputLocked() {
@@ -203,39 +170,31 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  getEmptyBoardSlots() {
-    return [1, 2, 3, 4, 6, 7, 8, 9].filter((gridNum) => !this.boardCards.has(gridNum));
-  }
-
   cancelPendingBoardRefill() {
     if (this.pendingBoardRefillTimer) {
       this.pendingBoardRefillTimer.remove(false);
       this.pendingBoardRefillTimer = null;
     }
-    this.boardRefillScheduled = false;
-    this.boardRefillRunning = false;
+    this.deck.boardRefillScheduled = false;
+    this.deck.boardRefillRunning = false;
   }
 
   requestBoardRefill(delay = 0) {
     if (this.battleDeck.length === 0 || this.getEmptyBoardSlots().length === 0) return false;
-    if (this.boardRefillRunning || this.pendingBoardRefillTimer) return true;
+    if (this.deck.boardRefillRunning || this.pendingBoardRefillTimer) return true;
 
     const flush = () => {
       this.pendingBoardRefillTimer = null;
-      this.boardRefillScheduled = false;
-      this.boardRefillRunning = true;
+      this.deck.boardRefillScheduled = false;
+      this.deck.boardRefillRunning = true;
 
-      while (this.battleDeck.length > 0) {
-        const emptySlots = this.getEmptyBoardSlots();
-        if (emptySlots.length === 0) break;
-        this.drawFromBattleDeck(emptySlots[0]);
-      }
+      this.deck.refillBoardFromBattleDeck();
 
-      this.boardRefillRunning = false;
+      this.deck.boardRefillRunning = false;
       this.checkNodeComplete();
     };
 
-    this.boardRefillScheduled = true;
+    this.deck.boardRefillScheduled = true;
     if (delay > 0) {
       this.pendingBoardRefillTimer = this.time.delayedCall(delay, flush);
     } else {
@@ -248,6 +207,8 @@ export class BattleScene extends Phaser.Scene {
     if (!this.requestBoardRefill(delay)) {
       this.checkNodeComplete();
     }
+    // 互动后旋转棋盘（在补牌之后执行）
+    this._scheduleBoardRotation(delay);
   }
 
   finishCombatResolution(delay = 0) {
@@ -255,80 +216,131 @@ export class BattleScene extends Phaser.Scene {
     this.settleBoardAfterMutation(delay);
   }
 
-  buildShopSession() {
-    // 商店独立固定卡池：所有非红品质帮助卡（与帮助卡组库存无关）
-    const shopPool = Object.entries(HELP_CARDS)
-      .filter(([, def]) => def.quality !== "红")
-      .map(([key, def]) => ({ key, ...def }));
-
-    const shuffled = this.shuffle(shopPool);
-    const offers = shuffled.slice(0, 6).map((card) => ({
-      key: card.key,
-      card,
-      sold: false,
-    }));
-
-    while (offers.length < 6) offers.push(null);
-
-    this.shopSession = { offers };
-    return this.shopSession;
+  /** 在互动结算后触发棋盘顺时针旋转 */
+  _scheduleBoardRotation(baseDelay = 0) {
+    if (!this._pendingRotation) return;
+    this._pendingRotation = false;
+    const rotationDelay = baseDelay > 0 ? baseDelay + 120 : 10;
+    this.time.delayedCall(rotationDelay, () => this.rotateBoardClockwise());
   }
 
-  getShopSession() {
-    return this.shopSession || this.buildShopSession();
+  /**
+   * 棋盘顺时针旋转：除格5（玩家）外，8个外圈格子顺时针移动一格
+   * 旋转路径: 1→2→3→6→9→8→7→4→1
+   */
+  rotateBoardClockwise() {
+    // ★ 决斗锁定检查：如果有怪物持有决斗且已触发过战斗，锁定旋转
+    for (const [, card] of this.boardCards) {
+      if (card.type === "monster" && card.data._duelActive) {
+        this.setLog("⚔️ 决斗生效——棋盘被锁定，无法旋转！");
+        return;
+      }
+    }
+
+    const order = [1, 2, 3, 6, 9, 8, 7, 4];
+
+    // 拍快照（用于追踪移动前后位置）
+    const snapshot = {};
+    for (const pos of order) {
+      snapshot[pos] = this.boardCards.has(pos) ? this.boardCards.get(pos) : null;
+    }
+
+    // 顺时针旋转
+    const movedToGrids = []; // 记录卡牌移动到的目标格
+    for (let i = 0; i < order.length; i++) {
+      const targetPos = order[i];
+      const sourcePos = order[(i - 1 + order.length) % order.length];
+      const card = snapshot[sourcePos];
+
+      if (card) {
+        if (card._slot !== undefined) card._slot = targetPos;
+        this.boardCards.set(targetPos, card);
+        // 追踪移动（仅怪物卡）
+        if (card.type === "monster" && sourcePos !== targetPos) {
+          movedToGrids.push(targetPos);
+        }
+      } else {
+        this.boardCards.delete(targetPos);
+      }
+    }
+
+    // 增量移动计数 + 战舞加成 + 黑桃皇室
+    this._moveCount = (this._moveCount || 0) + 1;
+    for (const [, card] of this.boardCards) {
+      if (card.type === "monster") {
+        const dance = applyBattleDance(card.data, this._moveCount);
+        if (dance.atk > 0 || dance.def > 0) {
+          card.data._danceAtk = dance.atk;
+          card.data._danceDef = dance.def;
+        }
+      }
+    }
+    calcSpadeRoyalBonus(this.boardCards, this._moveCount);
+
+    // 刷新渲染
+    for (const pos of order) {
+      this.destroyCardDisplay(pos);
+      if (this.boardCards.has(pos)) { this.renderCard(pos); }
+    }
+
+    this.setLog("🔄 棋盘顺时针旋转！");
+
+    // ★ 移动后技能触发
+    this._afterRotationSkills(movedToGrids);
   }
 
-  // ============ 九宫格渲染 ============
+  /** 旋转后触发移动相关技能 */
+  _afterRotationSkills(movedToGrids) {
+    // 侧方打击：对玩家造成伤害
+    const sideDmg = calcSideStrike(this.boardCards, movedToGrids);
+    if (sideDmg > 0) {
+      this.playerState.hp = Math.max(0, this.playerState.hp - sideDmg);
+      this.showFloatingText(getGridCenter(5).x, getGridCenter(5).y - 40, `侧方-${sideDmg}`, COLOR.TEXT_DANGER);
+      this.setLog(`💥 侧方打击！玩家受到 ${sideDmg} 伤害`);
+      this.updatePlayerUI();
+      if (this.playerState.hp <= 0) { this.gameOver(); return; }
+    }
 
-  createGrid() {
-    this.gridCells = {};
-    const gridBgX = GRID_LEFT - 12, gridBgY = GRID_TOP - 12;
-    const gridBgW = GRID_TOTAL_W + 24, gridBgH = GRID_TOTAL_H + 24;
-    const gridBg = this.add
-      .rectangle(gridBgX + gridBgW / 2, gridBgY + gridBgH / 2, gridBgW, gridBgH, 0x1e2025)
-      .setOrigin(0.5).setStrokeStyle(1, 0x3a3d44).setInteractive({ useHandCursor: false });
+    // 牢不可破：随机怪物获得庇佑
+    const blessed = checkUnbreakable(this.boardCards, movedToGrids);
+    if (blessed > 0) {
+      this.setLog(`🛡️ 牢不可破：格${blessed} 怪物获得庇佑！`);
+      this.refreshCardTexts(blessed);
+    }
 
-    gridBg.on("pointerdown", () => {
-      if (this.isBattleInputLocked()) return;
-      if (this.targeting) this.exitTargeting(false);
-    });
+    // 竖向拉杆：竖列轮换
+    const leverSwaps = checkVerticalLever(this.boardCards, movedToGrids);
+    if (Object.keys(leverSwaps).length > 0) {
+      for (const [pos, card] of Object.entries(leverSwaps)) {
+        const p = parseInt(pos);
+        if (card) { this.boardCards.set(p, card); }
+        else { this.boardCards.delete(p); }
+      }
+      this.setLog("🎰 竖向拉杆触发！竖列轮换");
+      this.renderAllCards();
+    }
 
-    this.add.text(gridBgX + gridBgW / 2, gridBgY - 16, "⚔ 作战场地 ⚔", {
-      fontFamily: "serif", fontSize: "14px", color: COLOR.TEXT_DIM,
-    }).setOrigin(0.5, 1);
-
-    for (let i = 1; i <= 9; i++) {
-      const { x, y } = getGridCenter(i);
-      const isPlayerCell = i === 5;
-      const fc = isPlayerCell ? COLOR.GRID_PLAYER : COLOR.GRID_NORMAL;
-      const bc = isPlayerCell ? COLOR.GRID_PLAYER_BORDER : COLOR.GRID_NORMAL_BORDER;
-
-      const cell = this.add.rectangle(x, y, CELL_W, CELL_H, fc).setOrigin(0.5).setStrokeStyle(1, bc);
-      const label = this.add.text(x - CELL_W / 2 + 4, y - CELL_H / 2 + 2, `${i}`, {
-        fontFamily: "monospace", fontSize: "10px",
-        color: isPlayerCell ? COLOR.TEXT_GOLD : COLOR.TEXT_DIM,
-      });
-      this.gridCells[i] = { rect: cell, label, x, y, isPlayerCell };
+    // 不休追击：移动到玩家相邻格时自动战斗
+    const pursuits = checkRelentlessPursuit(this.boardCards, movedToGrids);
+    for (const p of pursuits) {
+      this.setLog(`🏃 不休追击！${p.monster.name} 追击战斗`);
+      this.initiateCombat(p.gridNum);
     }
   }
 
-  setGridHighlight(gridNum, on) {
-    const cell = this.gridCells[gridNum];
-    if (!cell || cell.isPlayerCell) return;
-    cell.rect.setFillStyle(on ? COLOR.GRID_TARGET : COLOR.GRID_NORMAL);
-    cell.rect.setStrokeStyle(on ? 2 : 1, on ? COLOR.GRID_TARGET_BORDER : COLOR.GRID_NORMAL_BORDER);
-  }
+  // ============ 九宫格渲染（委托 GridRenderer） ============
+
+  createGrid() { this.grid.createGrid(); }
+  setGridHighlight(gridNum, on) { this.grid.setGridHighlight(gridNum, on); }
 
   // ============ 节点与卡组管理 ============
 
   startNewNode(nodeNum) {
     this.currentNode = nodeNum;
     this.nodeComplete = false;
-    this.nodeDrawnHelpUids = [];
-    this.nodeUsedHelpUids = [];
-    this.nodePermaRemovedUids = [];
-    this.shopSession = null;
+    this.deck.shopSession = null;
     this.combatResolving = false;
+    this._pendingRotation = false;
     this.cancelPendingBoardRefill();
     this.destroyPopup();
 
@@ -346,12 +358,14 @@ export class BattleScene extends Phaser.Scene {
     // 玩家卡固定在格5
     this.boardCards.set(5, { type: "player", data: null });
 
-    // ★ 快照保存节点前的帮助卡组（用于复盘原样恢复）
-    this._preNodeHelpDeck = JSON.parse(JSON.stringify(this.helpDeck));
+    // ★ 快照保存节点前的帮助卡组
+    this.deck.savePreNodeSnapshot();
 
     // 重置节点计数器
     this.totalKilledThisNode = 0;
     this.clickCounter = {};
+    this._lightCartUsed = false;
+    this._moveCount = 0;
     this.battleVetState = { lastTargetId: null, stacks: 0 };
     this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
 
@@ -375,8 +389,8 @@ export class BattleScene extends Phaser.Scene {
     }
     this.demonDeck = this.shuffle(this.demonDeck);
 
-    // 发牌
-    this.dealInitialCards();
+    // 发牌（委托 DeckManager）
+    this.deck.dealInitialCards(this.demonDeck);
 
     // 渲染棋盘
     this.renderAllCards();
@@ -388,168 +402,36 @@ export class BattleScene extends Phaser.Scene {
     this.setLog(`📍 第 ${nodeNum} 节点 ${info}战斗卡组: ${this.battleDeck.length} 张`);
   }
 
-  dealInitialCards() {
-    const emptySlots = [1, 2, 3, 4, 6, 7, 8, 9];
-    const shuffled = this.shuffle(emptySlots);
-
-    // 从帮助卡组抽 3 张
-    const helpCount = Math.min(3, this.helpDeck.length);
-    this.nodeDrawnHelpUids = [];
-    for (let i = 0; i < helpCount; i++) {
-      const card = this.helpDeck.pop();
-      const slot = shuffled.pop();
-      card._slot = slot;
-      this.boardCards.set(slot, { type: "help", data: { ...card }, _fromHelpDeck: true });
-      this.nodeDrawnHelpUids.push(card.uid);
-    }
-
-    // 从恶魔卡组抽 3 张
-    const demonCount = Math.min(3, this.demonDeck.length);
-    for (let i = 0; i < demonCount; i++) {
-      const card = this.demonDeck.pop();
-      const slot = shuffled.pop();
-      card._slot = slot;
-      this.boardCards.set(slot, card);
-    }
-
-    // 剩余帮助卡 + 全部恶魔卡 → 战斗卡组
-    const remainingHelp = this.helpDeck.splice(0).map((c) => ({
-      type: "help",
-      data: { ...c },
-      _fromHelpDeck: true,
-    }));
-    this.helpCardsInBattleDeck = remainingHelp;
-    this.battleDeck = this.shuffle([...remainingHelp, ...this.demonDeck]);
-    this.demonDeck = [];
-
-    // 从战斗卡组抽 2 张
-    for (let i = 0; i < 2 && shuffled.length > 0; i++) {
-      this.drawFromBattleDeck(shuffled.pop());
-    }
-  }
-
   drawFromBattleDeck(slot) {
-    if (!slot) {
-      const empty = this.getEmptyBoardSlots()[0];
-      if (empty === undefined) return null;
-      slot = empty;
+    const card = this.deck.drawFromBattleDeck(slot);
+    if (card) {
+      this.renderCard(slot);
+      this.updateDeckUI();
     }
-
-    if (this.battleDeck.length === 0) return null;
-
-    const card = this.battleDeck.pop();
-    this.boardCards.set(slot, card);
-    this.renderCard(slot);
-    this.updateDeckUI();
     return card;
   }
 
   checkNodeComplete() {
     if (this.nodeComplete) return;
-
-    let hasMonsters = false;
-    for (const [, card] of this.boardCards) {
-      if (card.type === "monster") { hasMonsters = true; break; }
-    }
-
-    if (!hasMonsters && this.battleDeck.length === 0 && !this.hasPendingBoardRefill()) {
+    if (this.deck.isNodeComplete()) {
       this.nodeComplete = true;
       this.showPassButton();
     }
   }
 
-  showPassButton() {
-    this.hidePassButton();
-    const btnX = GRID_LEFT + GRID_TOTAL_W / 2;
-    const btnY = GRID_TOP + GRID_TOTAL_H + 24;
-
-    const btnBg = this.add
-      .rectangle(btnX, btnY, 140, 32, 0x2a5a1a)
-      .setOrigin(0.5).setStrokeStyle(2, 0x4ae04a)
-      .setInteractive({ useHandCursor: true }).setDepth(20);
-
-    const btnText = this.add
-      .text(btnX, btnY, "🏆 通 关", {
-        fontFamily: "serif", fontSize: "16px", fontStyle: "bold", color: "#4ae04a",
-      }).setOrigin(0.5).setDepth(21);
-
-    btnBg.on("pointerdown", () => this.completeNode());
-    btnBg.on("pointerover", () => btnBg.setFillStyle(0x3a7a2a));
-    btnBg.on("pointerout", () => btnBg.setFillStyle(0x2a5a1a));
-
-    this.passButton = { bg: btnBg, text: btnText };
-    this.setLog("🎉 所有怪物已清除！点击「通关」进入奖励环节");
-  }
-
-  hidePassButton() {
-    if (this.passButton) {
-      this.passButton.bg.destroy();
-      this.passButton.text.destroy();
-      this.passButton = null;
-    }
-  }
+  showPassButton() { this.grid.showPassButton(); }
+  hidePassButton() { this.grid.hidePassButton(); }
 
   completeNode() {
     this.hidePassButton();
-    this.shopSession = null;
+    this.deck.shopSession = null;
     this.combatResolving = false;
     this.cancelPendingBoardRefill();
     this.destroyPopup();
 
-    // ★ 计算未使用帮助卡金币（基于 uid 精确匹配，同名卡各自独立计算）
-    let unusedGold = 0;
-    let debugCount = 0;
-    const debugLines = [];
-    for (const [gn, card] of this.boardCards) {
-      if (card.type === "help") {
-        const isFromDeck = !!card._fromHelpDeck;
-        const hasUid = card.data?.uid !== undefined;
-        const wasUsed = hasUid && this.nodeUsedHelpUids.includes(card.data.uid);
-        const counted = isFromDeck && hasUid && !wasUsed;
-        if (counted) { unusedGold += 10; debugCount++; }
-        debugLines.push(
-          `  格${gn}「${card.data?.name}」uid=${card.data?.uid} fromDeck=${isFromDeck} used=${wasUsed} → ${counted ? "+10" : "跳过"}`
-        );
-      }
-    }
-    for (let i = 0; i < this.itemSlots.length; i++) {
-      const slot = this.itemSlots[i];
-      if (slot && slot.type === "help") {
-        const isFromDeck = !!slot._fromHelpDeck;
-        const hasUid = slot.data?.uid !== undefined;
-        const wasUsed = hasUid && this.nodeUsedHelpUids.includes(slot.data.uid);
-        const counted = isFromDeck && hasUid && !wasUsed;
-        if (counted) { unusedGold += 10; debugCount++; }
-        debugLines.push(
-          `  牌格#${i+1}「${slot.data?.name}」uid=${slot.data?.uid} fromDeck=${isFromDeck} used=${wasUsed} → ${counted ? "+10" : "跳过"}`
-        );
-      }
-    }
-    console.log(
-      `[金币结算] 棋盘帮助卡: ${[...this.boardCards.entries()].filter(([_,c]) => c.type === 'help').length}张, ` +
-      `已使用uid: [${this.nodeUsedHelpUids.join(',')}]\n` +
-      debugLines.join('\n') +
-      `\n  未使用: ${debugCount}张 = +${unusedGold}金币`
-    );
-
-    // ★ 快照恢复帮助卡组（仅从快照中移除永久移除卡）
-    const permaSet = new Set(this.nodePermaRemovedUids);
-    const nodeAdditions = [...this.helpDeck]; // 节点内新增卡（掉落等）
-    console.log(`[复原] 快照: ${this._preNodeHelpDeck.length}张, 永久移除uid: [${[...permaSet].join(',')}], 节点新增: ${nodeAdditions.length}张`);
-    if (permaSet.size > 0) {
-      const removedNames = JSON.parse(JSON.stringify(this._preNodeHelpDeck)).filter((c) => permaSet.has(c.uid)).map(c => c.name);
-      console.log(`[复原] 被永久移除的卡: ${removedNames.join(', ')}`);
-    }
-    this.helpDeck = [
-      ...JSON.parse(JSON.stringify(this._preNodeHelpDeck)).filter((c) => !permaSet.has(c.uid)),
-      ...nodeAdditions,
-    ];
-    console.log(`[复原] 结果: ${this.helpDeck.length}张, 种类: [${[...new Set(this.helpDeck.map(c=>c.key))].join(',')}]`);
-    this.helpCardsInBattleDeck = null;
-    this.battleDeck = [];
-    this.nodeDrawnHelpUids = [];
-    this.nodeUsedHelpUids = [];
-    this.nodePermaRemovedUids = [];
+    // ★ 使用 DeckManager 计算未使用帮助卡金币 + 快照恢复
+    const unusedGold = this.deck.calcUnusedHelpGold();
+    this.deck.restoreHelpDeckFromSnapshot();
 
     // 破甲恢复：防御复原到基础值
     this.playerState.defense = this.playerState.baseDefense;
@@ -586,24 +468,26 @@ export class BattleScene extends Phaser.Scene {
   // ============ 帮助卡选择 ============
 
   showHelpCardSelection() {
-    // 生成 3 张随机帮助卡
     const choices = this.generateRandomHelpCards(3);
+    // 轻车熟路：首次选牌后可以再选一次
+    const hasDoublePick = this.learnedSkills.includes("轻车熟路") && !this._lightCartUsed;
 
-    const { bg, container } = this.createOverlay("🎴 选择一张帮助卡加入卡组");
-    const startX = GAME_W / 2 - 180;
-    const y = GAME_H / 2;
+    const afterPick = () => {
+      if (hasDoublePick) {
+        this._lightCartUsed = true;
+        this.time.delayedCall(400, () => this.showHelpCardSelection());
+      } else {
+        this.time.delayedCall(600, () => this.showShop());
+      }
+    };
 
-    const choiceCards = [];
-    choices.forEach((cardKey, i) => {
-      const def = HELP_CARDS[cardKey];
-      const x = startX + i * 180;
-      const card = this.createSelectionCard(x, y, def, () => {
-        // 检查种类容量
+    this.overlay.showHelpCardSelection(choices,
+      // onPick
+      (cardKey, def) => {
         if (!this.canAddHelpCard()) {
           this.setLog("⚠️ 帮助卡组种类已达上限，无法加入！");
           return;
         }
-        // 检查同名堆叠上限
         if (!this.canAddHelpCardStack(cardKey)) {
           this.showPopup(`⚠️「${def.name}」已达卡组上限（最多 3 张），无法加入！`);
           return;
@@ -613,35 +497,16 @@ export class BattleScene extends Phaser.Scene {
         this.setLog(`✨ 获得「${def.name}」（${def.quality}）`);
         this.updateDeckUI();
         this.destroyOverlay();
-
-        // 进入商店
-        this.time.delayedCall(600, () => this.showShop());
-      });
-      choiceCards.push(card);
-    });
-
-    // 跳过按钮
-    const skipX = GAME_W / 2;
-    const skipY = GAME_H / 2 + 130;
-    const skipBg = this.add
-      .rectangle(skipX, skipY, 160, 32, 0x353535)
-      .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER)
-      .setInteractive({ useHandCursor: true }).setDepth(92);
-    const skipText = this.add
-      .text(skipX, skipY, "跳过 → +10💰", {
-        fontFamily: "serif", fontSize: "13px", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5).setDepth(93);
-    skipBg.on("pointerdown", () => {
-      this.playerState.gold += 10;
-      this.setLog("↩ 跳过选牌，获得 10 金币");
-      this.destroyOverlay();
-      this.time.delayedCall(600, () => this.showShop());
-    });
-    skipBg.on("pointerover", () => skipBg.setFillStyle(0x4a4a4a));
-    skipBg.on("pointerout", () => skipBg.setFillStyle(0x353535));
-    choiceCards.push([skipBg, skipText]);
-
-    this.overlayObjects = [bg, container, ...choiceCards.flat()];
+        afterPick();
+      },
+      // onSkip
+      () => {
+        this.playerState.gold += 10;
+        this.setLog("↩ 跳过选牌，获得 10 金币");
+        this.destroyOverlay();
+        afterPick();
+      }
+    );
   }
 
   generateRandomHelpCards(count) {
@@ -686,592 +551,165 @@ export class BattleScene extends Phaser.Scene {
   // ============ 商店 ============
 
   showShop() {
-    this.destroyOverlay();
-
-    const { bg, container } = this.createOverlay(
-      `🛒 商店 — 金币: ${this.playerState.gold}`
-    );
-    this.overlayObjects = [bg, container];
     const shopSession = this.getShopSession();
-
-    const startX = GAME_W / 2 - 280;
-    const buyY = GAME_H / 2 - 50;
-
-    // ===== 购买区：固定 6 个商店坑位 =====
-    shopSession.offers.forEach((offer, i) => {
-      const x = startX + i * 110;
-      if (!offer || offer.sold) {
-        const emptyBg = this.add.rectangle(x, buyY, 100, 110, 0x15181b)
-          .setOrigin(0.5).setStrokeStyle(1, 0x2a2a2a).setDepth(92);
-        const emptyText = this.add.text(x, buyY, offer ? "已售出" : "暂无候选", {
-          fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_DIM,
-        }).setOrigin(0.5).setDepth(93);
-        this.overlayObjects.push(emptyBg, emptyText);
-      } else {
-        const card = offer.card;
-        const objs = this.createShopCard(x, buyY, card, "buy", () => {
-          if (this.playerState.gold < 100) {
-            this.setLog("⚠️ 金币不足！（需要 100 金币）"); return;
-          }
-          if (!this.canAddHelpCardStack(card.key)) {
-            this.showPopup(`⚠️「${card.name}」已达卡组上限（最多 3 张），无法购买！`); return;
-          }
-          this.playerState.gold -= 100;
-          const newCard = this.createHelpCard(offer.key);
-          if (newCard) this.helpDeck.push(newCard);
-          offer.sold = true;
-          this.setLog(`🛒 购买「${card.name}」-100💰`);
-          this.updatePlayerUI();
-          this.updateDeckUI();
-          this.showShop();
-        });
-        this.overlayObjects.push(...objs);
-      }
-    });
-
-    // ===== 删卡按钮 =====
-    const delBtnX = GAME_W / 2 - 100;
-    const delBtnY = buyY + 140;
-    const delBtnBg = this.add
-      .rectangle(delBtnX, delBtnY, 180, 36, 0x302020)
-      .setOrigin(0.5).setStrokeStyle(2, 0xc0392b)
-      .setInteractive({ useHandCursor: true }).setDepth(100);
-    const delBtnText = this.add
-      .text(delBtnX, delBtnY, "🗑️ 删除帮助卡 (+10💰)", {
-        fontFamily: "serif", fontSize: "13px", fontStyle: "bold", color: COLOR.TEXT_DANGER,
-      }).setOrigin(0.5).setDepth(101);
-    delBtnBg.on("pointerdown", () => this.showDeleteScreen());
-    delBtnBg.on("pointerover", () => delBtnBg.setFillStyle(0x4a3030));
-    delBtnBg.on("pointerout", () => delBtnBg.setFillStyle(0x302020));
-    this.overlayObjects.push(delBtnBg, delBtnText);
-
-    // ===== 离开按钮 =====
-    const leaveX = GAME_W / 2 + 100;
-    const leaveY = buyY + 140;
-    const leaveBg = this.add
-      .rectangle(leaveX, leaveY, 180, 36, 0x4a3520)
-      .setOrigin(0.5).setStrokeStyle(2, 0xf5c86a)
-      .setInteractive({ useHandCursor: true }).setDepth(100);
-    const leaveText = this.add
-      .text(leaveX, leaveY, "▶ 前往下一节点", {
-        fontFamily: "serif", fontSize: "13px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5).setDepth(101);
-    leaveBg.on("pointerdown", () => {
-      this.destroyOverlay();
-      this.time.delayedCall(300, () => {
-        if (this.currentNode >= 9) {
-          this.showLayerComplete();
-        } else {
-          this.startNewNode(this.currentNode + 1);
+    this.overlay.showShop(shopSession, this.playerState.gold,
+      // onBuy
+      (offer) => {
+        if (this.playerState.gold < 100) {
+          this.setLog("⚠️ 金币不足！（需要 100 金币）"); return;
         }
-      });
-    });
-    leaveBg.on("pointerover", () => leaveBg.setFillStyle(0x6a5530));
-    leaveBg.on("pointerout", () => leaveBg.setFillStyle(0x4a3520));
-    this.overlayObjects.push(leaveBg, leaveText);
+        if (!this.canAddHelpCardStack(offer.card.key)) {
+          this.showPopup(`⚠️「${offer.card.name}」已达卡组上限（最多 3 张），无法购买！`); return;
+        }
+        this.playerState.gold -= 100;
+        const newCard = this.createHelpCard(offer.key);
+        if (newCard) this.helpDeck.push(newCard);
+        offer.sold = true;
+        this.setLog(`🛒 购买「${offer.card.name}」-100💰`);
+        this.updatePlayerUI();
+        this.updateDeckUI();
+        this.showShop();
+      },
+      // onDelete
+      () => this.showDeleteScreen(),
+      // onLeave
+      () => {
+        this.destroyOverlay();
+        this.time.delayedCall(300, () => {
+          if (this.currentNode >= 9) {
+            this.showLayerComplete();
+          } else {
+            this.startNewNode(this.currentNode + 1);
+          }
+        });
+      }
+    );
   }
 
   /** 导师卡：击败精英后三选一技能 */
   showMentorCard() {
-    this.destroyOverlay();
-    const { bg, container } = this.createOverlay("🎓 导师卡 — 选择一项技能永久习得");
-    this.overlayObjects = [bg, container];
-
     const skills = [
-      {
-        name: "刺皮", desc: "每次被攻击，对攻击者造成等同于其攻击力的反伤",
-        action: () => {
-          this.learnedSkills.push("刺皮");
-          this.setLog("🎓 习得「刺皮」：受伤时反伤攻击者");
-        },
-      },
-      {
-        name: "硬皮", desc: "血量上限 +10，每关结束恢复 10 血",
+      { name: "刺皮", desc: "每次被攻击，对攻击者造成等同于其攻击力的反伤",
+        action: () => { this.learnedSkills.push("刺皮"); this.setLog("🎓 习得「刺皮」：受伤时反伤攻击者"); } },
+      { name: "硬皮", desc: "血量上限 +10，每关结束恢复 10 血",
         action: () => {
           this.learnedSkills.push("硬皮");
           const hs = calcHardSkinBonus(this.learnedSkills);
           this.playerState.maxHp += hs.maxHp;
           this.playerState.hp += hs.maxHp;
           this.setLog(`🎓 习得「硬皮」：血量上限 +${hs.maxHp}`);
-        },
-      },
-      {
-        name: "历战", desc: "每次与同一敌人战斗攻击+1，换目标复原",
-        action: () => {
-          this.learnedSkills.push("历战");
-          this.setLog("🎓 习得「历战」：连续攻击同目标递增攻击力");
-        },
-      },
-      {
-        name: "先攻", desc: "优先造成伤害（双方均有先攻则玩家先）",
-        action: () => {
-          this.learnedSkills.push("先攻");
-          this.setLog("🎓 习得「先攻」：战斗时优先攻击");
-        },
-      },
+        } },
+      { name: "历战", desc: "每次与同一敌人战斗攻击+1，换目标复原",
+        action: () => { this.learnedSkills.push("历战"); this.setLog("🎓 习得「历战」：连续攻击同目标递增攻击力"); } },
+      { name: "先攻", desc: "优先造成伤害（双方均有先攻则玩家先）",
+        action: () => { this.learnedSkills.push("先攻"); this.setLog("🎓 习得「先攻」：战斗时优先攻击"); } },
     ];
 
-    // 随机选 3 个
-    const choices = this.shuffle(skills).slice(0, 3);
-    const startX = GAME_W / 2 - 180;
-
-    choices.forEach((skill, i) => {
-      const x = startX + i * 180, y = GAME_H / 2;
-      const cardW = 160, cardH = 180;
-
-      const cardBg = this.add
-        .rectangle(x, y, cardW, cardH, 0x252830)
-        .setOrigin(0.5).setStrokeStyle(2, 0x9b59b6)
-        .setInteractive({ useHandCursor: true }).setDepth(92);
-
-      const nameText = this.add.text(x, y - cardH / 2 + 16, skill.name, {
-        fontFamily: "serif", fontSize: "16px", fontStyle: "bold", color: "#9b59b6",
-      }).setOrigin(0.5, 0).setDepth(93);
-
-      const descText = this.add.text(x, y + 10, skill.desc, {
-        fontFamily: "sans-serif", fontSize: "11px", color: COLOR.TEXT_PRIMARY,
-        wordWrap: { width: cardW - 20 }, align: "center",
-      }).setOrigin(0.5, 0).setDepth(93);
-
-      const pickText = this.add.text(x, y + cardH / 2 - 18, "👆 选择", {
-        fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5, 1).setDepth(93);
-
-      cardBg.on("pointerdown", () => {
-        skill.action();
-        this.destroyOverlay();
-        this.updatePlayerUI();
-        this.updateEquipmentUI();
-        this.finishCombatResolution();
-      });
-      cardBg.on("pointerover", () => cardBg.setStrokeStyle(3, 0x9b59b6));
-      cardBg.on("pointerout", () => cardBg.setStrokeStyle(2, 0x9b59b6));
-
-      this.overlayObjects.push(cardBg, nameText, descText, pickText);
+    this.overlay.showMentorCard(skills, (skill) => {
+      skill.action();
+      this.destroyOverlay();
+      this.updatePlayerUI();
+      this.updateEquipmentUI();
+      this.finishCombatResolution();
     });
   }
 
-  /** 独立删卡界面：展示帮助卡组所有卡牌 */
   showDeleteScreen() {
-    this.destroyOverlay();
-    const { bg, container } = this.createOverlay(
-      `🗑️ 删除帮助卡 — 金币: ${this.playerState.gold}`
+    this.overlay.showDeleteScreen([...this.helpDeck], this.playerState.gold,
+      // onDelete
+      (card) => {
+        const idx = this.helpDeck.findIndex((c) => c.uid === card.uid);
+        if (idx !== -1) {
+          this.helpDeck.splice(idx, 1);
+          this.playerState.gold += 10;
+          this.setLog(`🗑️ 删除「${card.name}」+10💰`);
+          this.updatePlayerUI();
+          this.updateDeckUI();
+          this.showDeleteScreen();
+        }
+      },
+      // onBack
+      () => this.showShop()
     );
-    this.overlayObjects = [bg, container];
-
-    const allCards = [...this.helpDeck];
-    const cols = 4;
-    const cardW = 140, cardH = 120, gapX = 16, gapY = 16;
-    const totalW = cols * cardW + (cols - 1) * gapX;
-    const startX = (GAME_W - totalW) / 2 + cardW / 2;
-    const startY = 100;
-
-    if (allCards.length === 0) {
-      const emptyText = this.add
-        .text(GAME_W / 2, GAME_H / 2, "帮助卡组为空", {
-          fontFamily: "serif", fontSize: "18px", color: COLOR.TEXT_DIM,
-        }).setOrigin(0.5).setDepth(91);
-      this.overlayObjects.push(emptyText);
-    } else {
-      allCards.forEach((card, i) => {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const x = startX + col * (cardW + gapX);
-        const y = startY + row * (cardH + gapY);
-
-        const qColor = parseInt(
-          ({ 白: "0xbdc3c7", 蓝: "0x3498db", 金: "0xf5c86a", 红: "0xe74c3c" })[card.quality] || "0xbdc3c7"
-        );
-        const cardBg = this.add
-          .rectangle(x, y, cardW, cardH, 0x252830)
-          .setOrigin(0.5).setStrokeStyle(1, qColor).setDepth(92);
-        const nameText = this.add
-          .text(x, y - cardH / 2 + 12, card.name, {
-            fontFamily: "serif", fontSize: "12px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-          }).setOrigin(0.5, 0).setDepth(93);
-        const qualText = this.add
-          .text(x, y - cardH / 2 + 30, `[${card.quality}] ${card.effectDesc || ""}`, {
-            fontFamily: "sans-serif", fontSize: "9px",
-            color: COLOR.QUALITY_COLORS[card.quality] || COLOR.TEXT_DIM,
-            wordWrap: { width: cardW - 16 }, align: "center",
-          }).setOrigin(0.5, 0).setDepth(93);
-
-        const delBg = this.add
-          .rectangle(x, y + cardH / 2 - 16, cardW - 20, 22, 0x4a2020)
-          .setOrigin(0.5).setStrokeStyle(1, 0xc0392b)
-          .setInteractive({ useHandCursor: true }).setDepth(93);
-        const delLabel = this.add
-          .text(x, y + cardH / 2 - 16, "删除 +10💰", {
-            fontFamily: "sans-serif", fontSize: "10px", fontStyle: "bold", color: COLOR.TEXT_DANGER,
-          }).setOrigin(0.5).setDepth(94);
-
-        delBg.on("pointerdown", () => {
-          const idx = this.helpDeck.findIndex((c) => c.uid === card.uid);
-          if (idx !== -1) {
-            this.helpDeck.splice(idx, 1);
-            this.playerState.gold += 10;
-            this.setLog(`🗑️ 删除「${card.name}」+10💰`);
-            this.updatePlayerUI();
-            this.updateDeckUI();
-            // 刷新删除界面
-            this.showDeleteScreen();
-          }
-        });
-        delBg.on("pointerover", () => delBg.setFillStyle(0x6a3030));
-        delBg.on("pointerout", () => delBg.setFillStyle(0x4a2020));
-
-        this.overlayObjects.push(cardBg, nameText, qualText, delBg, delLabel);
-      });
-    }
-
-    // 返回按钮
-    const backX = GAME_W / 2;
-    const backY = GAME_H - 80;
-    const backBg = this.add
-      .rectangle(backX, backY, 180, 36, 0x353535)
-      .setOrigin(0.5).setStrokeStyle(2, COLOR.PANEL_BORDER)
-      .setInteractive({ useHandCursor: true }).setDepth(100);
-    const backText = this.add
-      .text(backX, backY, "↩ 返回商店", {
-        fontFamily: "serif", fontSize: "13px", color: COLOR.TEXT_PRIMARY,
-      }).setOrigin(0.5).setDepth(101);
-    backBg.on("pointerdown", () => this.showShop());
-    backBg.on("pointerover", () => backBg.setFillStyle(0x454545));
-    backBg.on("pointerout", () => backBg.setFillStyle(0x353535));
-    this.overlayObjects.push(backBg, backText);
   }
 
   showLayerComplete() {
     this.setLog("🏆 第一层通关！完整游戏将在阶段五实现");
-    const { bg, container } = this.createOverlay("🏆 第一层通关！");
-    const text = this.add
-      .text(GAME_W / 2, GAME_H / 2, "恭喜！第一层 9 个节点已全部通过\n完整三层游戏将在阶段五实现", {
-        fontFamily: "serif", fontSize: "18px", color: COLOR.TEXT_GOLD, align: "center",
-      }).setOrigin(0.5).setDepth(100);
-    this.overlayObjects = [bg, container, text];
+    this.overlay.showLayerComplete();
   }
 
   // ============ 覆盖层工具 ============
 
-  createOverlay(title) {
-    const bg = this.add
-      .rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, COLOR.OVERLAY_BG, 0.85)
-      .setOrigin(0.5).setDepth(90).setInteractive();
+  // ============ 覆盖层工具（委托 OverlayManager） ============
 
-    const container = this.add
-      .text(GAME_W / 2, 30, title, {
-        fontFamily: "serif", fontSize: "18px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5, 0).setDepth(91);
+  createOverlay(title) { return this.overlay.createOverlay(title); }
+  destroyOverlay() { this.overlay.destroyOverlay(); }
+  destroyPopup() { this.overlay.destroyPopup(); }
+  showPopup(message) { this.overlay.showPopup(message); }
+  createSelectionCard(x, y, def, onClick) { return this.overlay.createSelectionCard(x, y, def, onClick); }
+  createShopCard(x, y, card, mode, onClick) { return this.overlay.createShopCard(x, y, card, mode, onClick); }
+  generateRelicChoices(probs) { return this.overlay.generateRelicChoices(probs, this.equippedRelics); }
 
-    return { bg, container };
-  }
+  // ============ 卡牌显示（委托 GridRenderer） ============
 
-  destroyOverlay() {
-    if (this.overlayObjects) {
-      for (const obj of this.overlayObjects) {
-        if (obj && obj.active) obj.destroy();
-      }
-      this.overlayObjects = null;
-    }
-  }
+  renderCard(gridNum) { this.grid.renderCard(gridNum); }
+  destroyCardDisplay(gridNum) { this.grid.destroyCardDisplay(gridNum); }
+  refreshCardTexts(gridNum) { this.grid.refreshCardTexts(gridNum); }
+  renderAllCards() { this.grid.renderAllCards(); }
 
-  destroyPopup() {
-    if (this.popupObjects) {
-      for (const obj of this.popupObjects) {
-        if (obj && obj.active) obj.destroy();
-      }
-      this.popupObjects = null;
-    }
-  }
+  // ============ 道具牌格（委托 GridRenderer） ============
 
-  /** 弹出提示窗口，点击任意位置关闭 */
-  showPopup(message) {
-    this.destroyPopup();
-    const popupW = 360, popupH = 90;
-    const bg = this.add
-      .rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.6)
-      .setOrigin(0.5).setDepth(200).setInteractive();
-    const box = this.add
-      .rectangle(GAME_W / 2, GAME_H / 2, popupW, popupH, 0x2a2020)
-      .setOrigin(0.5).setStrokeStyle(2, 0xc0392b).setDepth(201).setInteractive();
-    const text = this.add
-      .text(GAME_W / 2, GAME_H / 2, message, {
-        fontFamily: "serif", fontSize: "14px", fontStyle: "bold",
-        color: COLOR.TEXT_DANGER, align: "center",
-        wordWrap: { width: popupW - 30 },
-      }).setOrigin(0.5).setDepth(202).setInteractive({ useHandCursor: true });
-
-    this.popupObjects = [bg, box, text];
-
-    const dismiss = () => this.destroyPopup();
-    bg.on("pointerdown", dismiss);
-    box.on("pointerdown", dismiss);
-    text.on("pointerdown", dismiss);
-  }
-
-  createSelectionCard(x, y, def, onClick) {
-    const cardW = 160, cardH = 200;
-    const qColor = parseInt(
-      ({ 白: "0xbdc3c7", 蓝: "0x3498db", 金: "0xf5c86a", 红: "0xe74c3c" })[def.quality]
-    );
-
-    const cardBg = this.add
-      .rectangle(x, y, cardW, cardH, 0x252830)
-      .setOrigin(0.5).setStrokeStyle(2, qColor)
-      .setInteractive({ useHandCursor: true }).setDepth(92);
-
-    const nameText = this.add
-      .text(x, y - cardH / 2 + 16, def.name, {
-        fontFamily: "serif", fontSize: "14px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-      }).setOrigin(0.5, 0).setDepth(93);
-
-    const qualText = this.add
-      .text(x, y - cardH / 2 + 36, `品质: ${def.quality}`, {
-        fontFamily: "monospace", fontSize: "10px",
-        color: COLOR.QUALITY_COLORS[def.quality],
-      }).setOrigin(0.5, 0).setDepth(93);
-
-    const descText = this.add
-      .text(x, y + 10, def.effectDesc, {
-        fontFamily: "sans-serif", fontSize: "11px", color: COLOR.TEXT_PRIMARY,
-        wordWrap: { width: cardW - 20 }, align: "center",
-      }).setOrigin(0.5, 0).setDepth(93);
-
-    const pickText = this.add
-      .text(x, y + cardH / 2 - 18, "👆 点击选择", {
-        fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5, 1).setDepth(93);
-
-    cardBg.on("pointerdown", onClick);
-    cardBg.on("pointerover", () => cardBg.setStrokeStyle(3, qColor));
-    cardBg.on("pointerout", () => cardBg.setStrokeStyle(2, qColor));
-
-    return [cardBg, nameText, qualText, descText, pickText];
-  }
-
-  createShopCard(x, y, card, mode, onClick) {
-    const cardW = 100, cardH = 110;
-    const objs = [];
-    const qColorStr = COLOR.QUALITY_COLORS[card.quality] || "#bdc3c7";
-    const qColor = parseInt(
-      ({ 白: "0xbdc3c7", 蓝: "0x3498db", 金: "0xf5c86a", 红: "0xe74c3c" })[card.quality]
-    );
-
-    const bg = this.add
-      .rectangle(x, y, cardW, cardH, mode === "buy" ? 0x252830 : 0x302020)
-      .setOrigin(0.5).setStrokeStyle(1, qColor)
-      .setInteractive({ useHandCursor: true }).setDepth(92);
-
-    objs.push(bg);
-
-    objs.push(this.add.text(x, y - cardH / 2 + 10, card.name, {
-      fontFamily: "serif", fontSize: "10px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-    }).setOrigin(0.5, 0).setDepth(93));
-
-    objs.push(this.add.text(x, y - cardH / 2 + 24, `[${card.quality}]`, {
-      fontFamily: "monospace", fontSize: "8px", color: qColorStr,
-    }).setOrigin(0.5, 0).setDepth(93));
-
-    if (card.effectDesc) {
-      objs.push(this.add.text(x, y + 8, card.effectDesc, {
-        fontFamily: "sans-serif", fontSize: "8px", color: COLOR.TEXT_DIM,
-        wordWrap: { width: cardW - 12 }, align: "center",
-      }).setOrigin(0.5, 0).setDepth(93));
-    }
-
-    const label = mode === "buy" ? "💰100 购买" : "🗑️ +20 删除";
-    const labelColor = mode === "buy" ? COLOR.TEXT_GOLD : COLOR.TEXT_DANGER;
-    objs.push(this.add.text(x, y + cardH / 2 - 14, label, {
-      fontFamily: "sans-serif", fontSize: "9px", color: labelColor,
-    }).setOrigin(0.5, 1).setDepth(93));
-
-    bg.on("pointerdown", onClick);
-    bg.on("pointerover", () => bg.setStrokeStyle(2, qColor));
-    bg.on("pointerout", () => bg.setStrokeStyle(1, qColor));
-
-    return objs;
-  }
-
-  // ============ 卡牌显示 ============
-
-  renderCard(gridNum) {
-    const card = this.boardCards.get(gridNum);
-    if (!card) return;
-
-    this.destroyCardDisplay(gridNum);
-
-    const { x, y } = getGridCenter(gridNum);
-    const cardW = CELL_W - 12, cardH = CELL_H - 12;
-    const texts = [];
-
-    let fillColor, borderColor;
-    if (card.type === "player") {
-      fillColor = COLOR.CARD_PLAYER; borderColor = COLOR.CARD_PLAYER_BORDER;
-    } else if (card.type === "monster") {
-      fillColor = COLOR.CARD_MONSTER; borderColor = COLOR.CARD_MONSTER_BORDER;
-    } else {
-      fillColor = COLOR.CARD_HELP; borderColor = COLOR.CARD_HELP_BORDER;
-    }
-
-    const bg = this.add
-      .rectangle(x, y, cardW, cardH, fillColor)
-      .setOrigin(0.5).setStrokeStyle(2, borderColor).setDepth(1);
-
-    // 名称
-    const displayName = card.type === "player" ? this.playerState.name : card.data.name;
-    let namePrefix = "";
-    if (card.isElite) namePrefix = "💀";
-    else if (card.isBoss) namePrefix = "👑";
-    texts.push(this.add.text(x, y - cardH / 2 + 12, namePrefix + displayName, {
-      fontFamily: "serif", fontSize: "13px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-    }).setOrigin(0.5, 0).setDepth(2));
-
-    // 属性
-    if (card.type === "player") {
-      const p = this.playerState;
-      const eff = this.getEffectiveStats();
-      const stats = [
-        `♥ ${p.hp}/${p.maxHp}${p.shieldActive ? "🛡️" : ""}`,
-        `⚔ ${eff.atk}${p.isViolenceActive ? "💪" : ""}`,
-        `🛡 ${eff.def}`,
-      ];
-      stats.forEach((s, i) => {
-        texts.push(this.add.text(x, y - 3 + i * 15, s, {
-          fontFamily: "monospace", fontSize: "10px",
-          color: [COLOR.TEXT_DANGER, COLOR.TEXT_DAMAGE, "#3498db"][i],
-        }).setOrigin(0.5, 0).setDepth(2));
-      });
-    } else if (card.type === "monster") {
-      const m = card.data;
-      const inspireBonus = calcInspireBonus(this.boardCards, gridNum);
-      const revengeBonus = calcRevengeBonus(m, this.totalKilledThisNode);
-      const effAtk = m.attack + inspireBonus + revengeBonus;
-      const stats = [
-        `♥ ${m.hp}/${m.maxHp || m.hp}`,
-        `⚔ ${effAtk}${inspireBonus > 0 ? "📯" : ""}${revengeBonus > 0 ? "💢" : ""}`,
-        `🛡 ${m.defense}`,
-      ];
-      if (m.traits && m.traits.length > 0) {
-        stats.push(`词条: ${m.traits.join(",")}`);
-      }
-      if (m.level) stats.push(`Lv.${m.level}`);
-      stats.forEach((s, i) => {
-        texts.push(this.add.text(x, y - 3 + i * 15, s, {
-          fontFamily: "monospace", fontSize: "10px",
-          color: [COLOR.TEXT_DANGER, COLOR.TEXT_DAMAGE, "#3498db", "#9b59b6", COLOR.TEXT_DIM][i] || COLOR.TEXT_PRIMARY,
-        }).setOrigin(0.5, 0).setDepth(2));
-      });
-    } else if (card.type === "help") {
-      const h = card.data;
-      const qColor = COLOR.QUALITY_COLORS[h.quality] || "#bdc3c7";
-      texts.push(this.add.text(x, y - 3, `品质: ${h.quality}`, {
-        fontFamily: "monospace", fontSize: "10px", color: qColor,
-      }).setOrigin(0.5, 0).setDepth(2));
-      texts.push(this.add.text(x, y + cardH / 2 - 24, h.effectDesc, {
-        fontFamily: "sans-serif", fontSize: "9px", color: COLOR.TEXT_DIM,
-        wordWrap: { width: cardW - 12 }, align: "center",
-      }).setOrigin(0.5, 1).setDepth(2));
-    }
-
-    // 类型图标
-    const iconMap = { player: "👤", monster: "👹", help: "✨" };
-    texts.push(this.add.text(x + cardW / 2 - 14, y - cardH / 2 + 2, iconMap[card.type], {
-      fontFamily: "monospace", fontSize: "9px",
-    }).setOrigin(1, 0).setDepth(2));
-
-    // 交互
-    bg.setInteractive({ useHandCursor: true });
-    bg.on("pointerdown", () => this.handleGridClick(gridNum, card));
-    bg.on("pointerover", () => {
-      if (this.targeting && card.type === "monster") bg.setStrokeStyle(3, COLOR.GRID_TARGET_BORDER);
-      else bg.setStrokeStyle(3, borderColor);
-    });
-    bg.on("pointerout", () => bg.setStrokeStyle(2, borderColor));
-
-    this.cardDisplays.set(gridNum, { bg, texts, type: card.type });
-  }
-
-  destroyCardDisplay(gridNum) {
-    const d = this.cardDisplays.get(gridNum);
-    if (d) {
-      d.bg.destroy();
-      d.texts.forEach((t) => t.destroy());
-      this.cardDisplays.delete(gridNum);
-    }
-  }
-
-  refreshCardTexts(gridNum) {
-    this.destroyCardDisplay(gridNum);
-    this.renderCard(gridNum);
-  }
-
-  renderAllCards() {
-    for (const [gn] of this.boardCards) this.renderCard(gn);
-  }
-
-  // ============ 道具牌格 ============
-
-  renderItemSlot(index) {
-    this._clearItemSlotDisplay(index);
-    const item = this.itemSlots[index];
-    const { x, y } = getItemSlotCenter(index);
-    const objs = [];
-
-    let fill = COLOR.SLOT_EMPTY, border = COLOR.SLOT_BORDER;
-    if (item) {
-      fill = COLOR.SLOT_FILLED; border = COLOR.SLOT_FILLED_BORDER;
-      objs.push(this.add.text(x, y - ITEM_SLOT_H / 2 + 8, item.data.name, {
-        fontFamily: "serif", fontSize: "11px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-      }).setOrigin(0.5, 0).setDepth(2));
-      objs.push(this.add.text(x, y + ITEM_SLOT_H / 2 - 18, item.data.effectDesc, {
-        fontFamily: "sans-serif", fontSize: "8px", color: COLOR.TEXT_DIM,
-        wordWrap: { width: ITEM_SLOT_W - 10 }, align: "center",
-      }).setOrigin(0.5, 1).setDepth(2));
-      objs.push(this.add.text(x, y + ITEM_SLOT_H / 2 - 6, "点击使用", {
-        fontFamily: "sans-serif", fontSize: "7px", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5, 1).setDepth(2));
-    } else {
-      objs.push(this.add.text(x, y + ITEM_SLOT_H / 2 - 12, `${index + 1}`, {
-        fontFamily: "monospace", fontSize: "9px", color: COLOR.TEXT_DIM,
-      }).setOrigin(0.5).setDepth(2));
-    }
-
-    const slotBg = this.add
-      .rectangle(x, y, ITEM_SLOT_W, ITEM_SLOT_H, fill)
-      .setOrigin(0.5).setStrokeStyle(item ? 2 : 1, border).setDepth(1);
-    slotBg.setInteractive({ useHandCursor: item != null });
-    slotBg.on("pointerdown", () => {
-      if (this.itemSlots[index]) this.handleItemSlotClick(index);
-    });
-    slotBg.on("pointerover", () => {
-      if (this.itemSlots[index]) slotBg.setStrokeStyle(3, COLOR.TEXT_GOLD);
-    });
-    slotBg.on("pointerout", () => {
-      slotBg.setStrokeStyle(item ? 2 : 1, border);
-    });
-
-    objs.unshift(slotBg);
-    this.itemSlotDisplays[index] = objs;
-  }
-
-  _clearItemSlotDisplay(index) {
-    const d = this.itemSlotDisplays[index];
-    if (d) { d.forEach((o) => o.destroy()); this.itemSlotDisplays[index] = null; }
-  }
-
-  renderAllItemSlots() {
-    for (let i = 0; i < ITEM_SLOT_COUNT; i++) this.renderItemSlot(i);
-  }
+  renderItemSlot(index) { this.grid.renderItemSlot(index); }
+  _clearItemSlotDisplay(index) { this.grid._clearItemSlotDisplay(index); }
+  renderAllItemSlots() { this.grid.renderAllItemSlots(); }
 
   // ============ 点击处理 ============
+
+  /** 点击空格子：触发旋转并补牌 */
+  handleEmptyCellClick(gridNum) {
+    if (this.isBattleInputLocked()) return;
+    // 仅允许正交相邻的空格子
+    if (!isAdjacent(gridNum, 5)) return;
+    if (this.nodeComplete) return;
+
+    // 直接执行旋转（不通过 _pendingRotation 标志，避免双重旋转）
+    this.rotateBoardClockwise();
+    this.setLog(`👆 点击空格——棋盘顺时针旋转！`);
+
+    // 旋转后补牌：从战斗卡组填充空格
+    this.settleBoardAfterMutation(100);
+  }
 
   handleGridClick(gridNum, card) {
     if (this.isBattleInputLocked()) return;
 
+    // 医疗兵：每次玩家行动，位于下排的医疗兵恢复全体怪物4血
+    const medicHeals = calcMedicHeal(this.boardCards, this.clickCounter);
+    for (const { gridNum: hGn, amount } of medicHeals) {
+      const targetCard = this.boardCards.get(hGn);
+      if (targetCard && targetCard.type === "monster") {
+        targetCard.data.hp = Math.min(targetCard.data.maxHp || targetCard.data.hp, targetCard.data.hp + amount);
+        this.showFloatingText(getGridCenter(hGn).x, getGridCenter(hGn).y, `+${amount}💚`, COLOR.TEXT_HEAL);
+      }
+    }
+    if (medicHeals.length > 0) {
+      this.setLog(`💉 医疗兵恢复 ${medicHeals.length} 只怪物 4 血量`);
+      this.renderAllCards();
+    }
+
+    // ★ 正交相邻检查：玩家只能与格5（玩家位置）正交相邻的卡牌互动
+    if (!isAdjacent(gridNum, 5)) {
+      this.setLog("🔒 只能与正交相邻格子上的卡牌互动！（对角位置不可达）");
+      if (this.targeting) this.exitTargeting(false);
+      return;
+    }
+
     // 节点通关后只允许与帮助卡交互（拾取到道具牌格使用）
     if (this.nodeComplete) {
       if (card.type === "help") {
-        this.pickupHelpCard(gridNum);
+        if (this.pickupHelpCard(gridNum)) {
+          this._pendingRotation = true;
+        }
       }
       return;
     }
@@ -1281,7 +719,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (card.type === "player") {
-      this.setLog("👤 兵大哥坚守阵地！"); return;
+      this.setLog("👤 小鬼坚守阵地！"); return;
     }
     if (card.type === "monster") {
       // 紧握词条检查：玩家在相邻格时只能攻击紧握怪物
@@ -1294,10 +732,25 @@ export class BattleScene extends Phaser.Scene {
       if (checkWarlikeTrigger(card, this.clickCounter)) {
         this.setLog(`⚡ 好战触发！${card.data.name} 主动攻击！`);
       }
+      // 叫人！词条：每3次行动将等级2怪物加入战斗牌组
+      if (checkCallFriends(card, this.clickCounter)) {
+        // 从等级2怪物池随机取一只加入战斗卡组
+        const lv2Keys = Object.keys(MONSTERS).filter(k => MONSTERS[k].level === 2);
+        if (lv2Keys.length > 0) {
+          const key = lv2Keys[Math.floor(Math.random() * lv2Keys.length)];
+          this.battleDeck.push({ type: "monster", data: { ...MONSTERS[key], id: `${MONSTERS[key].name}_call_${Date.now()}` } });
+          this.setLog(`📞 叫人！触发——${MONSTERS[key].name} 加入战斗牌组`);
+          this.updateDeckUI();
+        }
+      }
+      this._pendingRotation = true;
       this.initiateCombat(gridNum); return;
     }
     if (card.type === "help") {
-      this.pickupHelpCard(gridNum); return;
+      if (this.pickupHelpCard(gridNum)) {
+        this._pendingRotation = true;
+      }
+      return;
     }
   }
 
@@ -1309,6 +762,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (t.type === "flyingDagger") {
+      this._pendingRotation = true;
       this.combatResolving = true;
       const m = card.data;
       const dmg = t.amount;
@@ -1356,9 +810,9 @@ export class BattleScene extends Phaser.Scene {
 
   pickupHelpCard(gridNum) {
     const card = this.boardCards.get(gridNum);
-    if (!card || card.type !== "help") return;
+    if (!card || card.type !== "help") return false;
     const slot = this.itemSlots.findIndex((s) => s === null);
-    if (slot === -1) { this.setLog("⚠️ 道具牌格已满！"); return; }
+    if (slot === -1) { this.setLog("⚠️ 道具牌格已满！"); return false; }
     this.itemSlots[slot] = { type: "help", data: { ...card.data }, _fromHelpDeck: card._fromHelpDeck };
     this.renderItemSlot(slot);
     this.destroyCardDisplay(gridNum);
@@ -1367,6 +821,7 @@ export class BattleScene extends Phaser.Scene {
 
     // 空格从战斗卡组补牌（保留短暂延迟，但不再丢弃重复请求）
     this.settleBoardAfterMutation(450);
+    return true;
   }
 
   useHealItem(index, h) {
@@ -1405,11 +860,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   useAttributeBoostItem(index, h) {
-    // 弹出属性选择框
-    this.destroyOverlay();
-    const { bg, container } = this.createOverlay("📈 属性提升 — 选择一项");
     const p = this.playerState;
-
     const options = [
       { label: `⚔ 攻击 +1（当前: ${p.attack}）`, action: () => {
           p.baseAttack += 1; p.attack += 1;
@@ -1424,30 +875,18 @@ export class BattleScene extends Phaser.Scene {
           this.setLog(`📈 血量上限 +2 → ${p.maxHp}`);
         }},
     ];
-
-    this.overlayObjects = [bg, container];
-    options.forEach((opt, i) => {
-      const y = 160 + i * 70;
-      const btnBg = this.add
-        .rectangle(GAME_W / 2, y, 300, 50, 0x252830)
-        .setOrigin(0.5).setStrokeStyle(2, COLOR.PANEL_BORDER)
-        .setInteractive({ useHandCursor: true }).setDepth(92);
-      const btnText = this.add
-        .text(GAME_W / 2, y, opt.label, {
-          fontFamily: "serif", fontSize: "14px", color: COLOR.TEXT_PRIMARY,
-        }).setOrigin(0.5).setDepth(93);
-      btnBg.on("pointerdown", () => {
-        opt.action();
+    // 给每个 option 的 action 添加收尾操作
+    options.forEach(opt => {
+      const origAction = opt.action;
+      opt.action = () => {
+        origAction();
         this._markHelpUsed(index);
         this.consumeItemSlot(index);
         this.refreshCardTexts(5);
         this.updatePlayerUI();
-        this.destroyOverlay();
-      });
-      btnBg.on("pointerover", () => btnBg.setFillStyle(0x353840));
-      btnBg.on("pointerout", () => btnBg.setFillStyle(0x252830));
-      this.overlayObjects.push(btnBg, btnText);
+      };
     });
+    this.overlay.showAttributeBoost(options);
   }
 
   useGoldGainItem(index, h) {
@@ -1472,88 +911,33 @@ export class BattleScene extends Phaser.Scene {
   }
 
   useChestItem(index, h) {
-    this.destroyOverlay();
-    const { bg, container } = this.createOverlay("📦 宝箱 — 三选一遗物");
-    this.overlayObjects = [bg, container];
-
-    // 生成三个遗物选项
     const relics = this.generateRelicChoices(h.chestProbs || { 白: 0.65, 蓝: 0.30, 金: 0.05 });
-    const startX = GAME_W / 2 - 180;
-
-    relics.forEach((relicKey, i) => {
-      const relic = RELICS[relicKey];
-      if (!relic) return;
-      const x = startX + i * 180, y = GAME_H / 2;
-      const cardW = 160, cardH = 180;
-      const qColor = parseInt(
-        ({ 白: "0xbdc3c7", 蓝: "0x3498db", 金: "0xf5c86a" })[relic.quality]
-      );
-
-      const cardBg = this.add
-        .rectangle(x, y, cardW, cardH, 0x252830)
-        .setOrigin(0.5).setStrokeStyle(2, qColor)
-        .setInteractive({ useHandCursor: true }).setDepth(92);
-
-      const nameText = this.add
-        .text(x, y - cardH / 2 + 16, relic.name, {
-          fontFamily: "serif", fontSize: "14px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-        }).setOrigin(0.5, 0).setDepth(93);
-
-      const qualText = this.add
-        .text(x, y - cardH / 2 + 36, `[${relic.quality}] ${relic.effect}`, {
-          fontFamily: "sans-serif", fontSize: "9px",
-          color: COLOR.QUALITY_COLORS[relic.quality],
-          wordWrap: { width: cardW - 20 }, align: "center",
-        }).setOrigin(0.5, 0).setDepth(93);
-
-      const pickText = this.add
-        .text(x, y + cardH / 2 - 18, "👆 选择", {
-          fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_GOLD,
-        }).setOrigin(0.5, 1).setDepth(93);
-
-      cardBg.on("pointerdown", () => {
-        // 检查遗物格子是否已满
+    this.overlay.showChestSelection(relics,
+      // onPick
+      (relicKey) => {
         if (this.equippedRelics.length >= 12) {
           this.showPopup("⚠️ 遗物格子已满（最多 12 件），请先右键丢弃遗物！");
           return;
         }
         this.equippedRelics.push(relicKey);
         this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
-        this.setLog(`📦 获得遗物「${relic.name}」（${relic.quality}）`);
+        this.setLog(`📦 获得遗物「${RELICS[relicKey].name}」（${RELICS[relicKey].quality}）`);
         this._markHelpUsed(index);
         this.consumeItemSlot(index);
         this.destroyOverlay();
         this.updatePlayerUI();
         this.updateEquipmentUI();
-      });
-      cardBg.on("pointerover", () => cardBg.setStrokeStyle(3, qColor));
-      cardBg.on("pointerout", () => cardBg.setStrokeStyle(2, qColor));
-
-      this.overlayObjects.push(cardBg, nameText, qualText, pickText);
-    });
-
-    // 跳过按钮
-    const skipX = GAME_W / 2;
-    const skipY = GAME_H / 2 + 130;
-    const skipBg = this.add
-      .rectangle(skipX, skipY, 160, 32, 0x353535)
-      .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER)
-      .setInteractive({ useHandCursor: true }).setDepth(92);
-    const skipText = this.add
-      .text(skipX, skipY, "跳过 → +10💰", {
-        fontFamily: "serif", fontSize: "13px", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5).setDepth(93);
-    skipBg.on("pointerdown", () => {
-      this.playerState.gold += 10;
-      this.setLog("↩ 跳过宝箱，获得 10 金币");
-      this._markHelpUsed(index);
-      this.consumeItemSlot(index);
-      this.destroyOverlay();
-      this.updatePlayerUI();
-    });
-    skipBg.on("pointerover", () => skipBg.setFillStyle(0x4a4a4a));
-    skipBg.on("pointerout", () => skipBg.setFillStyle(0x353535));
-    this.overlayObjects.push(skipBg, skipText);
+      },
+      // onSkip
+      () => {
+        this.playerState.gold += 20;
+        this.setLog("↩ 跳过宝箱，获得 20 金币");
+        this._markHelpUsed(index);
+        this.consumeItemSlot(index);
+        this.destroyOverlay();
+        this.updatePlayerUI();
+      }
+    );
   }
 
   generateRelicChoices(probs) {
@@ -1585,37 +969,40 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _markHelpUsed(index) {
-    const item = this.itemSlots[index];
-    if (item && item._fromHelpDeck && item.data.uid !== undefined) {
-      this.nodeUsedHelpUids.push(item.data.uid);
-      // 永久移除卡单独追踪
-      if (item.data.permanentRemove) {
-        this.nodePermaRemovedUids.push(item.data.uid);
-      }
+    this.deck.markHelpUsed(index);
+    // 活着的肉遗物：使用帮助卡时恢复1血
+    const healAmt = this.relicBonuses.healOnHelpUse || 0;
+    if (healAmt > 0 && this.playerState.hp < this.playerState.maxHp) {
+      this.playerState.hp = Math.min(this.playerState.maxHp, this.playerState.hp + healAmt);
+      this.showFloatingText(getGridCenter(5).x, getGridCenter(5).y - 40, `+${healAmt}♥`, COLOR.TEXT_HEAL);
     }
   }
 
   consumeItemSlot(index) {
-    this.itemSlots[index] = null;
+    this.deck.consumeItemSlot(index);
     this.renderItemSlot(index);
   }
 
   // ============ 瞄准系统 ============
 
   enterTargeting(type, sourceSlot, helpData) {
-    let hasMonster = false;
-    for (const [, c] of this.boardCards) {
-      if (c.type === "monster") { hasMonster = true; break; }
+    // 仅检查是否有正交相邻的怪物
+    let hasTargetableMonster = false;
+    for (const [gn, c] of this.boardCards) {
+      if (c.type === "monster" && isAdjacent(gn, 5)) {
+        hasTargetableMonster = true; break;
+      }
     }
-    if (!hasMonster) { this.setLog("⚠️ 棋盘上没有怪物！"); return; }
+    if (!hasTargetableMonster) { this.setLog("⚠️ 相邻格子上没有可瞄准的怪物！"); return; }
     if (this.targeting) this.exitTargeting(true);
     this.targeting = { type, sourceSlot, amount: helpData.amount };
+    // 仅高亮正交相邻的怪物
     for (const [gn, c] of this.boardCards) {
-      if (c.type === "monster") this.setGridHighlight(gn, true);
+      if (c.type === "monster" && isAdjacent(gn, 5)) this.setGridHighlight(gn, true);
     }
     this.highlightItemSlot(sourceSlot, true);
     this.input.setDefaultCursor("crosshair");
-    this.setLog("🎯 瞄准模式：点击怪物 | Esc/点其他取消");
+    this.setLog("🎯 瞄准模式：点击相邻怪物 | Esc/点其他取消");
   }
 
   exitTargeting(silent = true) {
@@ -1652,19 +1039,39 @@ export class BattleScene extends Phaser.Scene {
     const p = this.playerState;
     const eff = this.getEffectiveStats(m.id || m.name);
 
-    // 怪物词条加成
+    // 怪物词条加成（旧词条 + 新位置词条）
     const inspireBonus = calcInspireBonus(this.boardCards, gridNum);
     const revengeBonus = calcRevengeBonus(m, this.totalKilledThisNode);
-    // 龙鳞甲减益：所有怪物攻击-1
-    const monsterAtk = Math.max(0, m.attack + inspireBonus + revengeBonus - this.relicBonuses.monsterAtkDebuff);
+    const spadeYoungBonus = calcSpadeYoungBonus(this.boardCards, gridNum);
+    const clubYoungBonus = calcClubYoungBonus(m, gridNum);
+    const diamondYoungBonus = calcDiamondYoungBonus(m, gridNum);
+    const protectAuraBonus = calcProtectAuraBonus(this.boardCards, gridNum);
+    // 战舞加成
+    const danceAtk = m._danceAtk || 0;
+    const danceDef = m._danceDef || 0;
+    // 黑桃皇室累加攻击
+    const royalAtk = m._royalAtk || 0;
+    // 怪物有效防御 = 基础 + 方块幼崽 + 防护光环 + 战舞防
+    const monsterEffDef = m.defense + diamondYoungBonus + protectAuraBonus + danceDef;
+    // 龙鳞甲减益 + 怪物有效攻击
+    const monsterAtk = Math.max(0, m.attack + inspireBonus + revengeBonus + spadeYoungBonus + clubYoungBonus + danceAtk + royalAtk - this.relicBonuses.monsterAtkDebuff);
 
     // 荆棘甲额外伤害
     const thornDmg = this.relicBonuses.thornDmg;
+    // 铁盾伤害减免
+    const dmgReduction = this.relicBonuses.damageReduction || 0;
 
-    // 玩家伤害 = 有效攻击 - 怪物防御
-    let playerDmg = Math.max(0, eff.atk - m.defense) + thornDmg;
+    // 玩家伤害 = 有效攻击 - 怪物有效防御
+    let playerDmg = Math.max(0, eff.atk - monsterEffDef) + thornDmg;
     // 暴力卡翻倍（在有效攻击基础上）
-    if (p.isViolenceActive) playerDmg = Math.max(0, p.attack - m.defense) + thornDmg;
+    if (p.isViolenceActive) playerDmg = Math.max(0, p.attack - monsterEffDef) + thornDmg;
+
+    // 怪物庇佑：下次受伤变为0
+    if (m._hasBlessing && playerDmg > 0) {
+      playerDmg = 0;
+      m._hasBlessing = false;
+      logParts.push("🛡庇佑");
+    }
 
     m.hp -= playerDmg;
     if (m.hp < 0) m.hp = 0;
@@ -1677,9 +1084,13 @@ export class BattleScene extends Phaser.Scene {
     const monPos = getGridCenter(gridNum);
     this.showFloatingText(monPos.x, monPos.y - 20, `-${playerDmg}`, COLOR.TEXT_DAMAGE);
 
-    let logParts = [`⚔ 兵大哥(${eff.atk}攻) → ${m.name}：${playerDmg} 伤害`];
+    let logParts = [`⚔ 小鬼(${eff.atk}攻) → ${m.name}：${playerDmg} 伤害`];
     if (inspireBonus > 0) logParts.push(`📯鼓舞+${inspireBonus}`);
     if (revengeBonus > 0) logParts.push(`💢复仇+${revengeBonus}`);
+    if (spadeYoungBonus > 0) logParts.push(`♠黑桃+${spadeYoungBonus}`);
+    if (clubYoungBonus > 0) logParts.push(`♣梅花+${clubYoungBonus}`);
+    if (diamondYoungBonus > 0) logParts.push(`♦方块防+${diamondYoungBonus}`);
+    if (protectAuraBonus > 0) logParts.push(`🛡防护+${protectAuraBonus}`);
     if (p.isViolenceActive) logParts.push("💪暴力");
     if (thornDmg > 0) logParts.push("🌿荆棘");
     this.setLog(logParts.join(" | "));
@@ -1693,6 +1104,18 @@ export class BattleScene extends Phaser.Scene {
         this.updateDeckUI();
         this.setLog(`💀 散子触发！${scatterSpawns.length} 只骷髅加入战斗卡组`);
       }
+      // 红桃之母：召唤红桃怪物
+      const hmSpawns = checkHeartMotherSpawn(m, playerDmg);
+      if (hmSpawns.length > 0) {
+        for (const hm of hmSpawns) { this.battleDeck.push({ type: "monster", data: hm }); }
+        this.updateDeckUI();
+        this.setLog(`👩 红桃之母触发！${hmSpawns.length} 只红桃加入战斗卡组`);
+      }
+      // 决斗：触发后锁定后续旋转
+      if (m.traits?.includes("决斗")) {
+        m._duelActive = true;
+        this.setLog("⚔️ 决斗生效——卡牌移动被禁止！");
+      }
 
       if (m.hp <= 0) {
         this.killMonster(gridNum, m, card);
@@ -1703,8 +1126,18 @@ export class BattleScene extends Phaser.Scene {
         return;
       }
 
-      // 怪物反击（含词条加成）
-      let monsterDmg = Math.max(0, monsterAtk - eff.def);
+      // 尖盾：处于上排时额外对玩家造成2伤害
+      const sharpDmg = calcSharpShieldDamage(m, gridNum);
+      // 爱之躯：每次战斗恢复2血
+      const loveHeal = calcLoveBodyHeal(m);
+      if (loveHeal > 0) {
+        m.hp = Math.min((m.maxHp || m.hp), m.hp + loveHeal);
+      }
+
+      // 怪物反击（含词条加成 + 尖盾额外伤害）
+      let monsterDmg = Math.max(0, monsterAtk - eff.def) + sharpDmg;
+      // 铁盾伤害减免
+      monsterDmg = Math.max(0, monsterDmg - dmgReduction);
 
       // 庇佑魔法卡
       if (p.shieldActive && monsterDmg > 0) {
@@ -1716,28 +1149,36 @@ export class BattleScene extends Phaser.Scene {
       p.hp -= monsterDmg;
       if (p.hp < 0) p.hp = 0;
 
+      let counterLog = [];
+      if (sharpDmg > 0) counterLog.push(`🛡尖盾+${sharpDmg}`);
+      if (loveHeal > 0) counterLog.push(`💕爱之躯+${loveHeal}`);
+
       // 刺皮反伤
       const thornsDmg = calcThornsDamage(this.learnedSkills, monsterAtk);
       if (thornsDmg > 0 && monsterDmg > 0) {
         m.hp -= thornsDmg;
         if (m.hp < 0) m.hp = 0;
         this.showFloatingText(monPos.x, monPos.y + 10, `刺皮-${thornsDmg}`, "#9b59b6");
-        this.setLog(`${logParts.join(" | ")} | 🦔刺皮反伤 ${thornsDmg}`);
+        counterLog.push(`🦔刺皮反伤 ${thornsDmg}`);
       }
 
-      // 破甲词条
-      if (m.traits?.includes("破甲") && playerDmg > 0) {
-        p.defense = Math.max(0, p.defense - 1);
-        p.baseDefense = Math.max(0, p.baseDefense - 1);
+      // 破甲词条（旧，防-1）+ 破防专家（新，防-2）
+      if ((m.traits?.includes("破甲") || checkDefenseBreaker(m, gridNum)) && playerDmg > 0) {
+        const defLoss = checkDefenseBreaker(m, gridNum) ? 2 : 1;
+        p.defense = Math.max(0, p.defense - defLoss);
+        p.baseDefense = Math.max(0, p.baseDefense - defLoss);
+        if (checkDefenseBreaker(m, gridNum)) counterLog.push(`🔓破防-${defLoss}`);
       }
 
       this.flashCard(5, 0xff0000);
       const playerPos = getGridCenter(5);
       this.showFloatingText(playerPos.x, playerPos.y - 20, `-${monsterDmg}`, COLOR.TEXT_DANGER);
 
-      this.setLog(`${logParts.join(" | ")} | ${m.name}(${monsterAtk}攻) → 兵大哥：${monsterDmg} 反击`);
+      this.setLog(`${logParts.join(" | ")} | ${m.name}(${monsterAtk}攻) → 小鬼：${monsterDmg} 反击${counterLog.length > 0 ? " | " + counterLog.join(" ") : ""}`);
 
       this.resetViolence();
+      // 金剑战损：每次战斗攻击-1
+      this._applyBattleAtkDecay();
       this.refreshCardTexts(gridNum);
       this.refreshCardTexts(5);
       this.updatePlayerUI();
@@ -1799,24 +1240,26 @@ export class BattleScene extends Phaser.Scene {
       log += ` | 🩸+${healAmount}HP`;
     }
 
-    // 精英/层主额外掉落
+    // 精英/层主额外掉落 → 洗入战斗牌组
     if (card.isElite && card.eliteDrop) {
       for (const itemName of card.eliteDrop) {
         const newCard = this.createHelpCard(itemName);
         if (newCard) {
-          this.helpDeck.push(newCard);
-          log += ` | ✨ 掉落「${itemName}」`;
+          this.battleDeck.push({ type: "help", data: newCard, _fromHelpDeck: false });
+          log += ` | ✨ 掉落「${itemName}」→ 战斗牌组`;
         }
       }
+      this.updateDeckUI();
     }
     if (card.isBoss && card.bossDrop) {
       for (const itemName of card.bossDrop) {
         const newCard = this.createHelpCard(itemName);
         if (newCard) {
-          this.helpDeck.push(newCard);
-          log += ` | ✨ 掉落「${itemName}」`;
+          this.battleDeck.push({ type: "help", data: newCard, _fromHelpDeck: false });
+          log += ` | ✨ 掉落「${itemName}」→ 战斗牌组`;
         }
       }
+      this.updateDeckUI();
     }
 
     // 精英击杀 → 导师卡
@@ -1846,8 +1289,26 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** 金剑战损：每次战斗后攻击-1，归零则移除 */
+  _applyBattleAtkDecay() {
+    for (const key of this.equippedRelics) {
+      const relic = RELICS[key];
+      if (relic?.battleAtkDecay && relic._remainingAtk !== undefined) {
+        relic._remainingAtk = Math.max(0, relic._remainingAtk - relic.battleAtkDecay);
+        if (relic._remainingAtk <= 0) {
+          const idx = this.equippedRelics.indexOf(key);
+          if (idx !== -1) this.equippedRelics.splice(idx, 1);
+          this.setLog("⚔️ 金剑破碎！（攻击力耗尽）");
+        }
+        this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
+        this.updateEquipmentUI();
+        break;
+      }
+    }
+  }
+
   gameOver() {
-    this.setLog("💀 兵大哥倒下了...");
+    this.setLog("💀 小鬼倒下了...");
     const overlay = this.add
       .rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.7)
       .setOrigin(0.5).setDepth(50);
@@ -1862,312 +1323,24 @@ export class BattleScene extends Phaser.Scene {
 
   // ============ 静态 UI ============
 
-  createStaticUI() {
-    // 玩家信息面板
-    const piX = 10, piY = 10, piW = 180, piH = 230;
-    this.add.rectangle(piX + piW / 2, piY + piH / 2, piW, piH, COLOR.PANEL_BG)
-      .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER);
-    this.add.text(piX + piW / 2, piY + 8, "👤 玩家信息", {
-      fontFamily: "serif", fontSize: "13px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
-    }).setOrigin(0.5, 0);
-    const lineY = piY + 28;
-    this.add.line(piX + 8, lineY, 0, 0, piW - 16, 0, COLOR.PANEL_BORDER).setOrigin(0);
+  // ============ 静态 UI（委托 HUD） ============
 
-    const infoX = piX + 14, infoStartY = lineY + 12, lineH = 20;
-    const labels = ["姓名: ", "血量: ", "攻击: ", "防御: ", "金币: "];
-    this.playerInfoLabels = [];
-    labels.forEach((l, i) => {
-      this.playerInfoLabels.push(this.add.text(infoX, infoStartY + i * lineH, l, {
-        fontFamily: "monospace", fontSize: "11px", color: COLOR.TEXT_DIM,
-      }).setOrigin(0, 0));
-    });
-    this.playerInfoValues = new Array(labels.length).fill(null);
+  createStaticUI() { this.hud.createAll(); }
+  createEquipmentSlots() { this.hud.createEquipmentSlots(); }
+  createSkillArea() { this.hud.createSkillArea(); }
+  createDeckArea() { this.hud.createDeckArea(); }
 
-    const barX = piX + 14, barY = infoStartY + 5 * lineH + 4;
-    const barW = piW - 28, barH = 12;
-    this.playerHpBarBg = this.add
-      .rectangle(barX + barW / 2, barY + barH / 2, barW, barH, 0x1a0000)
-      .setOrigin(0.5).setStrokeStyle(1, 0x4a2020);
-    this.playerHpBar = this.add
-      .rectangle(barX + barW / 2, barY + barH / 2, barW, barH, 0x27ae60)
-      .setOrigin(0.5);
-    this.playerHpBarParams = { barX, barY, barW, barH };
+  updateAllUI() { this.hud.updateAll(); }
+  updateSkillUI() { this.hud.updateSkillUI(); }
+  updatePlayerUI() { this.hud.updatePlayerUI(); }
+  updateNodeUI() { this.hud.updateNodeUI(); }
+  updateDeckUI() { this.hud.updateDeckUI(); }
+  updateEquipmentUI() { this.hud.updateEquipmentUI(); }
 
-    // 节点信息
-    this.nodeInfoText = this.add
-      .text(piX + piW / 2, barY + barH + 10, "", {
-        fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_GOLD,
-      }).setOrigin(0.5, 0);
+  // ============ 视觉特效（委托 GridRenderer） ============
 
-    // 道具牌格标题
-    this.add.text(GAME_W / 2, ITEM_Y - ITEM_SLOT_H / 2 - 28, "🎒 道具牌格 (上限 5)", {
-      fontFamily: "serif", fontSize: "12px", color: COLOR.TEXT_DIM,
-    }).setOrigin(0.5, 1);
-
-    // 装备栏
-    this.createEquipmentSlots();
-    // 技能栏
-    this.createSkillArea();
-    // 牌组区
-    this.createDeckArea();
-  }
-
-  createEquipmentSlots() {
-    const cols = 4, rows = 3, totalSlots = cols * rows;
-    const slotW = 40, slotH = 40, gap = 4;
-    const totalW = cols * slotW + (cols - 1) * gap;
-    const areaX = 10, areaY = 260, areaW = 190, areaH = 310;
-    this.add.rectangle(areaX + areaW / 2, areaY + areaH / 2, areaW, areaH, COLOR.PANEL_BG)
-      .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER);
-    this.add.text(areaX + areaW / 2, areaY + 8, "⚙ 装备栏 (12格)", {
-      fontFamily: "serif", fontSize: "12px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
-    }).setOrigin(0.5, 0);
-    const lineY = areaY + 26;
-    this.add.line(areaX + 8, lineY, 0, 0, areaW - 16, 0, COLOR.PANEL_BORDER).setOrigin(0);
-    const startX = areaX + (areaW - totalW) / 2;
-    const startY = lineY + 10;
-
-    this.equipSlotObjs = [];
-    for (let i = 0; i < totalSlots; i++) {
-      const row = Math.floor(i / cols), col = i % cols;
-      const x = startX + col * (slotW + gap) + slotW / 2;
-      const y = startY + row * (slotH + gap) + slotH / 2;
-      const bg = this.add.rectangle(x, y, slotW, slotH, COLOR.SLOT_EMPTY)
-        .setOrigin(0.5).setStrokeStyle(1, COLOR.SLOT_BORDER);
-      const txt = this.add.text(x, y, "", { fontSize: "16px" }).setOrigin(0.5);
-      bg.setInteractive();
-      bg.on("pointerdown", (pointer) => {
-        if (pointer.rightButtonDown() && i < this.equippedRelics.length) {
-          const removed = this.equippedRelics.splice(i, 1)[0];
-          this.playerState.gold += 10;
-          this.setLog(`🗑️ 丢弃遗物「${RELICS[removed]?.name || removed}」+10💰`);
-          this.relicBonuses = calcRelicBonuses(this.equippedRelics, this.currentNode, this.totalKilledThisNode);
-          this.updateEquipmentUI();
-          this.updatePlayerUI();
-        }
-      });
-      bg.on("pointerover", () => {
-        if (i < this.equippedRelics.length) {
-          const r = RELICS[this.equippedRelics[i]];
-          bg.setStrokeStyle(2, 0xf5c86a);
-          if (r) txt.setText(r.name.slice(0, 3));
-        }
-      });
-      bg.on("pointerout", () => {
-        if (i < this.equippedRelics.length) {
-          bg.setStrokeStyle(1, COLOR.SLOT_BORDER);
-          txt.setText("🗡️");
-        }
-      });
-      this.equipSlotObjs.push({ bg, txt });
-    }
-  }
-
-  createSkillArea() {
-    const x = 770, areaW = 180;
-    this.add.rectangle(x + areaW / 2, GAME_H - 155, areaW, 290, COLOR.PANEL_BG)
-      .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER);
-    this.add.text(x + areaW / 2, GAME_H - 300, "📜 技能栏", {
-      fontFamily: "serif", fontSize: "12px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
-    }).setOrigin(0.5, 0);
-    const lineY = GAME_H - 282;
-    this.add.line(x + 8, lineY, 0, 0, areaW - 16, 0, COLOR.PANEL_BORDER).setOrigin(0);
-    this.skillText = this.add.text(x + areaW / 2, GAME_H - 260, "暂无技能", {
-      fontFamily: "sans-serif", fontSize: "11px", color: COLOR.TEXT_DIM, align: "center",
-      wordWrap: { width: areaW - 10 },
-    }).setOrigin(0.5, 0);
-  }
-
-  createDeckArea() {
-    const x = 770, y = 10, areaW = 180, areaH = 230;
-    this.add.rectangle(x + areaW / 2, y + areaH / 2, areaW, areaH, COLOR.PANEL_BG)
-      .setOrigin(0.5).setStrokeStyle(1, COLOR.PANEL_BORDER);
-    this.add.text(x + areaW / 2, y + 8, "🂠 牌组区", {
-      fontFamily: "serif", fontSize: "12px", fontStyle: "bold", color: COLOR.TEXT_GOLD,
-    }).setOrigin(0.5, 0);
-    const lineY = y + 26;
-    this.add.line(x + 8, lineY, 0, 0, areaW - 16, 0, COLOR.PANEL_BORDER).setOrigin(0);
-
-    // "下一张抽牌" 标题
-    this.add.text(x + areaW / 2, lineY + 12, "下一张抽牌", {
-      fontFamily: "sans-serif", fontSize: "10px", color: COLOR.TEXT_DIM,
-    }).setOrigin(0.5, 0);
-
-    // 牌组区中心坐标
-    this.deckPreviewX = x + areaW / 2;
-    this.deckPreviewY = lineY + 78;
-
-    // 牌背占位（初始）
-    this.deckPreviewBg = this.add
-      .rectangle(this.deckPreviewX, this.deckPreviewY, 70, 90, 0x2d3035)
-      .setOrigin(0.5).setStrokeStyle(2, COLOR.PANEL_BORDER).setDepth(1);
-
-    // 预览文本（动态更新）
-    this.deckPreviewType = this.add
-      .text(this.deckPreviewX, this.deckPreviewY - 30, "空", {
-        fontFamily: "sans-serif", fontSize: "11px", color: COLOR.TEXT_DIM,
-      }).setOrigin(0.5).setDepth(2);
-
-    this.deckPreviewName = this.add
-      .text(this.deckPreviewX, this.deckPreviewY - 10, "", {
-        fontFamily: "serif", fontSize: "12px", fontStyle: "bold", color: COLOR.TEXT_PRIMARY,
-      }).setOrigin(0.5).setDepth(2);
-
-    this.deckPreviewStat = this.add
-      .text(this.deckPreviewX, this.deckPreviewY + 18, "", {
-        fontFamily: "monospace", fontSize: "9px", color: COLOR.TEXT_DIM,
-      }).setOrigin(0.5).setDepth(2);
-
-    // 数量文本
-    this.deckCountText = this.add.text(x + areaW / 2, lineY + 138, "战斗卡组: 0 张", {
-      fontFamily: "monospace", fontSize: "10px", color: COLOR.TEXT_DIM,
-    }).setOrigin(0.5, 0);
-
-    this.deckHelpCountText = this.add.text(x + areaW / 2, lineY + 158, "", {
-      fontFamily: "monospace", fontSize: "9px", color: COLOR.TEXT_DIM,
-    }).setOrigin(0.5, 0);
-  }
-
-  // ============ UI 更新 ============
-
-  updateAllUI() {
-    this.updatePlayerUI();
-    this.updateNodeUI();
-    this.updateDeckUI();
-    this.updateEquipmentUI();
-    this.updateSkillUI();
-  }
-
-  updateSkillUI() {
-    if (!this.skillText) return;
-    if (this.learnedSkills.length > 0) {
-      this.skillText.setText("技能:\n" + this.learnedSkills.join("\n"));
-      this.skillText.setColor("#9b59b6");
-    } else {
-      this.skillText.setText("暂无技能\n（击败精英后获取）");
-      this.skillText.setColor(COLOR.TEXT_DIM);
-    }
-  }
-
-  updatePlayerUI() {
-    const p = this.playerState;
-    const eff = this.getEffectiveStats();
-    const piX = 10, piY = 10, lineY = piY + 28, lineH = 20, infoX = piX + 14, infoStartY = lineY + 12;
-
-    const values = [
-      { text: p.name, color: COLOR.TEXT_GOLD },
-      { text: `${p.hp}/${p.maxHp}${p.shieldActive ? " 🛡️" : ""}`, color: "#e74c3c" },
-      { text: `${eff.atk}${p.isViolenceActive ? " 💪" : ""}`, color: "#e67e22" },
-      { text: `${eff.def}`, color: "#3498db" },
-      { text: `${p.gold}`, color: "#f5c86a" },
-    ];
-
-    values.forEach((v, i) => {
-      if (this.playerInfoValues[i]) this.playerInfoValues[i].destroy();
-      this.playerInfoValues[i] = this.add.text(infoX + 48, infoStartY + i * lineH, v.text, {
-        fontFamily: "monospace", fontSize: "11px", fontStyle: "bold", color: v.color,
-      }).setOrigin(0, 0);
-    });
-
-    // 血条
-    const { barX, barY, barW, barH } = this.playerHpBarParams;
-    const hpRatio = Math.max(0, p.hp / p.maxHp);
-    if (this.playerHpBar && this.playerHpBar.active) this.playerHpBar.destroy();
-    let barColor = hpRatio > 0.5 ? 0x27ae60 : hpRatio > 0.25 ? 0xe67e22 : 0xc0392b;
-    this.playerHpBar = this.add
-      .rectangle(barX + (barW * hpRatio) / 2, barY + barH / 2, barW * hpRatio, barH, barColor)
-      .setOrigin(0.5);
-  }
-
-  updateNodeUI() {
-    const ec = getNodeConfig(this.currentNode);
-    const isElite = ec.isElite, isBoss = ec.isBoss;
-    let info = `第${this.currentLayer}层 · 节点${this.currentNode}/9`;
-    if (isElite) info += " ⚡精英";
-    if (isBoss) info += " 👑层主";
-    this.nodeInfoText.setText(info);
-  }
-
-  updateDeckUI() {
-    this.deckCountText.setText(`战斗卡组: ${this.battleDeck.length} 张`);
-
-    // 统计帮助卡组种类数
-    const uniqueKeys = new Set(this.helpDeck.map((c) => c.key));
-    this.deckHelpCountText.setText(`帮助卡组: ${uniqueKeys.size} 种 ${this.helpDeck.length} 张`);
-
-    // 更新下一张卡牌预览
-    if (this.battleDeck.length > 0) {
-      const nextCard = this.battleDeck[this.battleDeck.length - 1];
-
-      if (nextCard.type === "monster") {
-        const m = nextCard.data;
-        this.deckPreviewBg.setFillStyle(COLOR.CARD_MONSTER);
-        this.deckPreviewBg.setStrokeStyle(2, COLOR.CARD_MONSTER_BORDER);
-        this.deckPreviewType.setText("👹 怪物卡");
-        this.deckPreviewType.setColor(COLOR.TEXT_DANGER);
-        this.deckPreviewName.setText(m.name);
-        this.deckPreviewName.setColor(COLOR.TEXT_PRIMARY);
-        const lvStr = m.level ? `Lv.${m.level} ` : "";
-        this.deckPreviewStat.setText(`${lvStr}♥${m.hp} ⚔${m.attack} 🛡${m.defense}`);
-        this.deckPreviewStat.setColor(COLOR.TEXT_DIM);
-      } else if (nextCard.type === "help") {
-        const h = nextCard.data;
-        this.deckPreviewBg.setFillStyle(COLOR.CARD_HELP);
-        this.deckPreviewBg.setStrokeStyle(2, COLOR.CARD_HELP_BORDER);
-        this.deckPreviewType.setText("✨ 帮助卡");
-        this.deckPreviewType.setColor(COLOR.TEXT_HEAL);
-        this.deckPreviewName.setText(h.name);
-        this.deckPreviewName.setColor(COLOR.TEXT_PRIMARY);
-        this.deckPreviewStat.setText(`[${h.quality || "?"}] ${h.effectDesc || ""}`);
-        this.deckPreviewStat.setColor(COLOR.QUALITY_COLORS[h.quality] || COLOR.TEXT_DIM);
-      }
-    } else {
-      // 牌组为空
-      this.deckPreviewBg.setFillStyle(0x1a1c20);
-      this.deckPreviewBg.setStrokeStyle(1, COLOR.PANEL_BORDER);
-      this.deckPreviewType.setText("牌组已空");
-      this.deckPreviewType.setColor(COLOR.TEXT_DIM);
-      this.deckPreviewName.setText("");
-      this.deckPreviewStat.setText("");
-    }
-  }
-
-  updateEquipmentUI() {
-    if (!this.equipSlotObjs) return;
-    this.equipSlotObjs.forEach((slot, i) => {
-      if (i < this.equippedRelics.length) {
-        const r = RELICS[this.equippedRelics[i]];
-        slot.bg.setFillStyle(0x2a3520);
-        const shortName = r?.name ? r.name.slice(0, 3) : "🗡️";
-        slot.txt.setText(shortName);
-        slot.txt.setFontSize(10);
-      } else {
-        slot.bg.setFillStyle(COLOR.SLOT_EMPTY);
-        slot.txt.setText("");
-      }
-    });
-  }
-
-  // ============ 视觉特效 ============
-
-  flashCard(gridNum, color) {
-    const d = this.cardDisplays.get(gridNum);
-    if (!d) return;
-    const orig = d.bg.fillColor;
-    d.bg.setFillStyle(color);
-    this.time.delayedCall(150, () => {
-      if (d.bg && d.bg.active) d.bg.setFillStyle(orig);
-    });
-  }
-
-  showFloatingText(x, y, text, color) {
-    const ft = this.add.text(x, y, text, {
-      fontFamily: "monospace", fontSize: "14px", fontStyle: "bold",
-      color, stroke: "#000000", strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(10);
-    this.tweens.add({ targets: ft, y: y - 30, alpha: 0, duration: 800, ease: "Power2",
-      onComplete: () => ft.destroy() });
-  }
+  flashCard(gridNum, color) { this.grid.flashCard(gridNum, color); }
+  showFloatingText(x, y, text, color) { this.grid.showFloatingText(x, y, text, color); }
 
   // ============ 工具 ============
 
