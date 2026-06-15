@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { setupFlowEffect } from "./flowEffect.js";
 import modelUrl from "../res/gyy.glb?url";
 
 const dracoLoader = new DRACOLoader();
@@ -59,6 +60,7 @@ scene.add(floor);
 const clock = new THREE.Clock();
 let mixer = null;
 let modelRoot = null;
+let flowEffect = null;
 
 function removeOuterShell(root) {
   const shell = root.getObjectByName("外壳");
@@ -112,6 +114,12 @@ loader.load(
     );
     controls.update();
 
+    flowEffect = setupFlowEffect({
+      modelRoot,
+      camera,
+      domElement: renderer.domElement
+    });
+
     if (gltf.animations.length > 0) {
       mixer = new THREE.AnimationMixer(modelRoot);
       for (const clip of gltf.animations) {
@@ -139,6 +147,10 @@ function animate() {
 
   if (mixer) {
     mixer.update(delta);
+  }
+
+  if (flowEffect) {
+    flowEffect.update(delta);
   }
 
   controls.update();
