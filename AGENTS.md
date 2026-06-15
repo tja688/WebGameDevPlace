@@ -1,8 +1,11 @@
 # WebGameDevPlace — Agent Guidelines
 
-## 1. Phaser 4 技能查阅
-- 开发前根据任务描述从 `.claude/skills/` 中选取匹配的 Phaser 4 技能加载
-- 可用技能涵盖：场景、动画、音频、相机、曲线路径、数据管理、事件、滤镜、游戏对象组件、几何数学、图形绘制、组/容器、输入(键盘/鼠标/触摸)、资源加载、粒子、弧线物理、Matter物理、渲染纹理、响应式、文本、瓦片地图、时间/定时器、补间、动作工具、v4新特性、v3→v4迁移
+## 1. Three.js 开发
+- 渲染栈为 **Three.js + Vite**，入口 `src/main.js`，挂载点 `#game-root`
+- 场景组织建议：`Scene` → 分组 `Group` → `Mesh` / `Light` / `Camera`
+- 资源加载使用 `THREE.LoadingManager` + `TextureLoader` / `GLTFLoader` 等
+- 动画优先 `requestAnimationFrame` 循环；复杂补间可用 `three/examples/jsm/animation/*` 或轻量 tween 库
+- 响应式：监听 `resize`，同步更新 `camera.aspect` 与 `renderer.setSize`
 
 ## 2. 项目记忆文档
 - 每次开发迭代在 `docs/` 下创建文档，格式：`docs/YYYY-MM-DD-简要描述.md`
@@ -23,3 +26,4 @@
 
 ## 6. 高风险/坑点记录
 - 开发过程中发现的高风险问题、棘手的 Bug、容易误导后续 agent 的事实，按时间顺序追加到本文件末尾
+- `res/gyy.glb` 使用 **Draco 网格压缩**，加载时必须配置 `DRACOLoader`（见 `src/main.js`），否则 GLTFLoader 会静默失败、场景只剩地面
