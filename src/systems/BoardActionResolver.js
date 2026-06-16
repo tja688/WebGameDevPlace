@@ -10,6 +10,7 @@ import {
   processSkillMoveGlobalEffects,
   refreshAuraEffects,
 } from "./SkillRuntime.js";
+import { processHelpMoveEffects, processHelpRefillEffects } from "./HelpCardEffects.js";
 
 // ============================================================
 // BoardActionResolver — 统一结算链
@@ -29,6 +30,16 @@ export class BoardActionResolver {
     this.lastChainLog = [];
     this._chainDepth = 0;
     this._actionActive = false;
+
+    // 捕熊陷阱：在结算链的补牌过程中监听 SLOT_FILLED
+    this._onSlotFilled = (payload) => {
+      if (!this._actionActive) return;
+      const slot = payload?.slot;
+      if (typeof slot !== "number") return;
+      processHelpRefillEffects(this, slot);
+    };
+    EventBus.off(GameEvents.SLOT_FILLED, this._onSlotFilled);
+    EventBus.on(GameEvents.SLOT_FILLED, this._onSlotFilled);
   }
 
   logEvent(type, detail) {
@@ -124,7 +135,7 @@ export class BoardActionResolver {
    * @param {{ shouldRotate: boolean, preDelay?: number }} options
    */
   runSettlementChain(options = {}) {
-    const { shouldRotate, preDelay = 50 } = options;
+    const { shouldRotate, preDelay = 50, onComplete } = options;
 
     if (this._actionActive) {
       console.warn("[BoardActionResolver] 结算链已在执行中");
@@ -143,6 +154,7 @@ export class BoardActionResolver {
         gameState.unlockInput("action");
         this.logEvent("chainEnd", {});
         console.log("[BoardActionResolver] 结算链完成");
+        onComplete?.();
       });
     });
   }
@@ -191,13 +203,34 @@ export class BoardActionResolver {
     let extraMoves = [];
     const autoBattleSlots = [];
 
-    for (const move of moves) {
-      if (!move.card?.cardData || move.card.scene == null) continue;
-      processSkillMoveGlobalEffects(this, move);
+    // 过滤掉已经不在目标格（被先前派生效果移除）的移动记录
+    const validMoves = moves.filter(
+      (m) => m?.card?.cardData && m.card.scene != null && this.grid.slotContents[m.toSlot] === m.card
+    );
+
+    // 1) 先处理“帮助卡移动位置信号”（可能会移除怪物/本卡）
+    validMoves.forEach((move) => {
+      if (move.cardData?.type === "help") {
+        processHelpMoveEffects(this, move);
+      }
+    });
+
+    // 2) 再处理全局移动副作用（灼热观察等）
+    validMoves.forEach((move) => {
+      if (this.grid.slotContents[move.toSlot] === move.card) {
+        processSkillMoveGlobalEffects(this, move);
+      }
+    });
+
+    // 3) 最后处理怪物移动触发（可产生额外移动/派生战斗）
+    for (const move of validMoves) {
+      if (this.grid.slotContents[move.toSlot] !== move.card) continue;
+      if (move.cardData?.type !== "monster") continue;
       const result = processMoveSkillEffects(this, move);
       extraMoves = extraMoves.concat(result.extraMoves);
       autoBattleSlots.push(...result.autoBattleSlots);
     }
+
     refreshAuraEffects(this.grid);
 
     const finishMovePhase = () => {

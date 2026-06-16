@@ -6,6 +6,46 @@ import { refreshMonsterCardDisplay } from "../cards/CardFactory.js";
 // 管理装备/丢弃/属性汇总/上限 12 件
 // ============================================================
 
+// 遗物事件注册式：event -> action -> handler
+const RELIC_EVENT_ACTION_HANDLERS = {
+  onKill: {
+    aoe_damage: (eff, context) => {
+      const { gridManager } = context || {};
+      if (!gridManager) return;
+
+      // 找一只存活且未被销毁的怪物
+      for (let s = 1; s <= 9; s++) {
+        const c = gridManager.slotContents[s];
+        if (c && c.cardData?.type === "monster" && c.cardData.hp > 0 && c.scene) {
+          const dmg = eff.amount || 0;
+          c.cardData.hp = Math.max(0, c.cardData.hp - dmg);
+          refreshMonsterCardDisplay(c);
+          if (c.cardData.hp <= 0) {
+            gridManager.slotContents[s] = null;
+            c.destroy();
+          }
+          break;
+        }
+      }
+    },
+    addArmor: (eff) => gameState.addArmor(eff.amount || 0),
+    gainGold: (eff) => gameState.addGold(eff.amount || 0),
+  },
+
+  onUseHelpCard: {
+    heal: (eff) => gameState.heal(eff.amount || 0),
+  },
+
+  onFatalDamage: {
+    revive: (eff, _context, api) => {
+      if (gameState.hp > 0) return;
+      gameState.hp = Math.ceil(gameState.getEffectiveMaxHp() * (eff.healPercent || 0.5));
+      console.log(`[凤凰羽毛] 复活！恢复至 ${gameState.hp} HP`);
+      if (eff.consumable) api?.consume?.();
+    },
+  },
+};
+
 class RelicManager {
   constructor() {
     /** @type {Array<object|null>} 12 格装备栏 */
@@ -107,47 +147,19 @@ class RelicManager {
       for (const eff of relic.effects) {
         if (eff.event !== event) continue;
         console.log(`[遗物触发] ${relic.name}: ${eff.action}`);
-        switch (eff.action) {
-          case "aoe_damage": {
-            const { scene, gridManager } = context;
-            if (!scene || !gridManager) break;
-            // 找一只存活且未被销毁的怪物
-            for (let s = 1; s <= 9; s++) {
-              const c = gridManager.slotContents[s];
-              if (c && c.cardData?.type === "monster" && c.cardData.hp > 0 && c.scene) {
-                const dmg = eff.amount || 0;
-                c.cardData.hp = Math.max(0, c.cardData.hp - dmg);
-                refreshMonsterCardDisplay(c);
-                if (c.cardData.hp <= 0) {
-                  gridManager.slotContents[s] = null;
-                  c.destroy();
-                }
-                break;
-              }
-            }
-            break;
-          }
-          case "addArmor":
-            gameState.addArmor(eff.amount || 0);
-            break;
-          case "gainGold":
-            gameState.addGold(eff.amount || 0);
-            break;
-          case "heal":
-            gameState.heal(eff.amount || 0);
-            break;
-          case "revive":
-            if (gameState.hp <= 0) {
-              gameState.hp = Math.ceil(gameState.getEffectiveMaxHp() * (eff.healPercent || 0.5));
-              console.log(`[凤凰羽毛] 复活！恢复至 ${gameState.hp} HP`);
-              // 消耗本遗物
-              if (eff.consumable) {
-                this.slots[i] = null;
-                consumed = true;
-              }
-            }
-            break;
+
+        const handler = RELIC_EVENT_ACTION_HANDLERS[event]?.[eff.action];
+        if (!handler) {
+          console.warn(`[RelicManager] 未实现遗物事件处理：event=${event} action=${eff.action}`);
+          continue;
         }
+
+        handler(eff, context, {
+          consume: () => {
+            this.slots[i] = null;
+            consumed = true;
+          },
+        });
       }
     }
     if (consumed && this._onUpdate) this._onUpdate();

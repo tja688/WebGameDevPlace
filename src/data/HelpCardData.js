@@ -13,6 +13,8 @@
  *   full_heal   — 回满血量（食品卡）
  *   blessed     — 下一次伤害变为0（庇佑）
  *   reduce_armor — 降低目标护甲（破击锤）
+ *   dmgPlayer   — 对玩家造成伤害（如烈焰）
+ *   remove_self — 仅移除本卡（位置效果由代码系统处理）
  */
 
 /** 全部帮助卡数据 */
@@ -80,6 +82,64 @@ export const HELP_CARDS = {
     id: "chestWhite", name: "普通宝箱卡", rarity: "blue", price: 100,
     effect: { type: "chest", rarityPool: { white: 0.65, blue: 0.30, gold: 0.05 } },
     desc: "三选一遗物",
+  },
+
+  // ===== 白色（位置效果）=====
+  rollingRock: {
+    id: "rollingRock",
+    name: "滚石",
+    rarity: "white",
+    price: 50,
+    effect: { type: "remove_self" },
+    desc: " [场上] 移动到格3且格6为普通怪物时，移除格6怪物并移除本卡。",
+  },
+
+  bearTrap: {
+    id: "bearTrap",
+    name: "捕熊陷阱",
+    rarity: "white",
+    price: 50,
+    effect: { type: "remove_self" },
+    desc: " [场上] 当正交相邻格补牌且为怪物卡时，造成10点伤害并移除本卡。",
+  },
+
+  // ===== 蓝色（位置效果）=====
+  healingFountain: {
+    id: "healingFountain",
+    name: "治疗泉",
+    rarity: "blue",
+    price: 80,
+    effect: { type: "remove_self" },
+    desc: " [场上] 移动到玩家正交相邻格时为玩家恢复2点血量；[道具牌格] 战斗时恢复1点血量。",
+  },
+
+  // ===== 金色（位置效果）=====
+  lookoutTower: {
+    id: "lookoutTower",
+    name: "瞭望塔",
+    rarity: "gold",
+    price: 150,
+    effect: { type: "remove_self" },
+    desc: " [场上] 移动到格1/3/7/9时对随机怪物造成3点伤害（触发4次后移除）；[道具牌格] 战斗时造成2点随机伤害。",
+  },
+
+  multiplierTower: {
+    id: "multiplierTower",
+    name: "倍增塔",
+    rarity: "gold",
+    price: 150,
+    effect: { type: "remove_self" },
+    desc: " [场上] 位于格1时，对怪物使用的帮助卡触发两次；[道具牌格] 对玩家使用的帮助卡生效两次并永久移除本卡。",
+  },
+
+  // ===== 红色（位置效果）=====
+  flame: {
+    id: "flame",
+    name: "烈焰",
+    rarity: "red",
+    price: 400,
+    effect: { type: "dmgPlayer", amount: 4 },
+    desc: " [场上] 移动到玩家正交相邻格时对玩家造成2点伤害；[使用时] 对玩家造成4点伤害并永久移除；[关卡结束] 若未使用则永久移除。",
   },
 };
 

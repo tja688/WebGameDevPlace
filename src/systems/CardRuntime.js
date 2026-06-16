@@ -39,6 +39,11 @@ export function clearTempBonuses(cardData) {
   const rt = ensureCardRuntime(cardData);
   rt.tempAtkBonus = 0;
   rt.tempArmorBonus = 0;
+
+  // 临时修正回滚到“基础值 + 0”。
+  // 否则当光环离开相邻格后，atk/armor 仍会残留旧的临时数值。
+  if ("atk" in cardData) cardData.atk = Math.max(0, rt.baseAtk || 0);
+  if ("armor" in cardData) cardData.armor = Math.max(0, rt.baseArmor || 0);
 }
 
 /** 添加临时攻击修正 */

@@ -161,8 +161,14 @@ export function createHelpCard(scene, cardData, x, y) {
   container.add(typeLabel);
 
   // 效果简述
+  const effectRaw = cardData.effect;
+  const effectTextValue = typeof effectRaw === "string"
+    ? effectRaw
+    : (effectRaw && typeof effectRaw === "object")
+      ? `${effectRaw.type || ""}${effectRaw.amount !== undefined ? `:${effectRaw.amount}` : ""}`
+      : "";
   const effectText = scene.add
-    .text(0, CELL_HEIGHT / 2 - 30, cardData.effect || "", {
+    .text(0, CELL_HEIGHT / 2 - 30, effectTextValue, {
       fontFamily: FONTS.FAMILY,
       fontSize: "9px",
       color: COLORS.TEXT_ACCENT,

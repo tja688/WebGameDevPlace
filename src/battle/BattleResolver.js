@@ -42,6 +42,19 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer,
   monsterData.atk = monsterAtk;
   refreshMonsterCardDisplay(monsterContainer);
 
+  // 道具牌格持续效果：战斗时触发
+  const endedByItemEffects = applyItemSlotBattleEffects(
+    scene,
+    gridManager,
+    boardResolver,
+    monsterSlot,
+    monsterContainer,
+    monsterData,
+    isDerived,
+    onComplete
+  );
+  if (endedByItemEffects) return;
+
   scene.time.delayedCall(30, () => {
     if (playerFirst) {
       applyDamage(monsterData, playerAtk, monsterArmor);
@@ -83,6 +96,55 @@ function applyDamage(targetData, attackerAtk, targetArmor) {
   const hpLoss = rawDmg - armorLoss;
   targetData.armor = Math.max(0, targetArmor - armorLoss);
   targetData.hp = Math.max(0, targetData.hp - hpLoss);
+}
+
+function applyItemSlotBattleEffects(scene, gridManager, boardResolver, monsterSlot, monsterContainer, monsterData, isDerived, onComplete) {
+  const itemSlots = scene?._itemSlots;
+  if (!Array.isArray(itemSlots) || !gridManager) return false;
+  if (!boardResolver) return false;
+
+  // 治疗泉：[道具牌格] 战斗时恢复1点血量
+  const healingFountains = itemSlots.reduce((acc, it) => {
+    if (!it?.cardData || it.cardData.type !== "help") return acc;
+    return acc + (it.cardData.id === "healingFountain" ? 1 : 0);
+  }, 0);
+  if (healingFountains > 0) gameState.heal(healingFountains * 1);
+
+  // 瞭望塔：[道具牌格] 战斗时对随机怪物造成2点伤害
+  const lookoutTowers = itemSlots.reduce((acc, it) => {
+    if (!it?.cardData || it.cardData.type !== "help") return acc;
+    return acc + (it.cardData.id === "lookoutTower" ? 1 : 0);
+  }, 0);
+
+  for (let k = 0; k < lookoutTowers; k++) {
+    const candidates = [];
+    for (let s = 1; s <= 9; s++) {
+      const c = gridManager.slotContents[s];
+      if (c?.cardData?.type === "monster" && c.cardData.hp > 0) candidates.push({ slot: s, container: c });
+    }
+    if (candidates.length === 0) continue;
+
+    const picked = candidates[Math.floor(Math.random() * candidates.length)];
+    const dmg = 2;
+
+    if (picked.slot === monsterSlot) {
+      applyDamage(monsterData, dmg, monsterData.armor);
+      refreshMonsterCardDisplay(monsterContainer);
+      if (monsterData.hp <= 0) {
+        handleMonsterDeath(scene, gridManager, boardResolver, monsterSlot, monsterContainer, monsterData, true, isDerived, onComplete);
+        return true;
+      }
+    } else {
+      const target = picked.container;
+      applyDamage(target.cardData, dmg, target.cardData.armor);
+      refreshMonsterCardDisplay(target);
+      if (target.cardData.hp <= 0) {
+        boardResolver.killMonster(picked.slot, target, { reason: "help_lookoutTower_item_battle" });
+      }
+    }
+  }
+
+  return false;
 }
 
 function handleMonsterDeath(scene, gridManager, boardResolver, slot, container, monsterData, shouldRotate, isDerived, onComplete) {

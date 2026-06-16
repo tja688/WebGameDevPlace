@@ -87,6 +87,26 @@ export default class GameScene extends Phaser.Scene {
           }
           console.log("[修改器] 清空所有怪物");
           break;
+        case "4": {
+          const monsterId = window.prompt("dev：输入要生成的怪物 id（例如 spikeStone）") || "";
+          const slotStr = window.prompt("dev：输入目标格子（1-9，不能为5）") || "";
+          const slot = parseInt(slotStr, 10);
+          if (!monsterId) break;
+          this.devSpawnMonsterToSlot(monsterId, slot);
+          break;
+        }
+        case "5":
+          this.devTriggerRotationOnce();
+          break;
+        case "6":
+          this.devDumpLastChainLog();
+          break;
+        case "7":
+          this.devPrintCardRuntime();
+          break;
+        case "8":
+          this.devRunThirdPhaseValidation();
+          break;
       }
     });
 
@@ -128,7 +148,10 @@ export default class GameScene extends Phaser.Scene {
       // 执行帮助卡效果
       const { cardData, itemIdx } = this._targetingMode;
       const effectCard = HELP_CARDS[cardData.id] || cardData;
-      const result = executeHelpCardEffect(this, effectCard, container);
+      const hasGridMultiplierTower = this.gridManager.slotContents[1]?.cardData?.id === "multiplierTower";
+      const result = hasGridMultiplierTower
+        ? `${executeHelpCardEffect(this, effectCard, container, { triggerRelics: true })}\n${executeHelpCardEffect(this, effectCard, container, { triggerRelics: false })}`
+        : executeHelpCardEffect(this, effectCard, container, { triggerRelics: true });
       console.log(`[帮助卡] ${result}`);
 
       // 更新 UI
@@ -423,7 +446,16 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // 无需瞄准 → 立即执行
-    const result = executeHelpCardEffect(this, effectCard, null);
+    const effectType = effect?.type;
+    const isPlayerTargetHelp = ["heal", "full_heal", "shield", "gold", "blessed"].includes(effectType);
+    const itemMultiplierTowerIdx = this._itemSlots.findIndex((it, i) => (
+      i !== index && it?.cardData?.type === "help" && it.cardData.id === "multiplierTower"
+    ));
+
+    const result = (itemMultiplierTowerIdx >= 0 && isPlayerTargetHelp)
+      ? `${executeHelpCardEffect(this, effectCard, null, { triggerRelics: true })}\n${executeHelpCardEffect(this, effectCard, null, { triggerRelics: false })}`
+      : executeHelpCardEffect(this, effectCard, null, { triggerRelics: true });
+
     console.log(`[帮助卡] ${result}`);
     this.gridManager.updatePlayerCardStats();
     this.updatePlayerInfoPanel();
@@ -431,6 +463,12 @@ export default class GameScene extends Phaser.Scene {
     // 移除道具槽
     this.removeItemCardVisual(index);
     this._itemSlots[index] = null;
+
+    // 倍增塔：[道具牌格] 对玩家目标帮助卡生效两次后，永久移除本卡
+    if (itemMultiplierTowerIdx >= 0 && isPlayerTargetHelp) {
+      this.removeItemCardVisual(itemMultiplierTowerIdx);
+      this._itemSlots[itemMultiplierTowerIdx] = null;
+    }
   }
 
   /** 进入瞄准模式 */
@@ -570,6 +608,292 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ============================================================
+  // 第三段开发验证工具（dev）
+  // ============================================================
+
+  devSpawnMonsterToSlot(monsterId, slot) {
+    if (!this.gridManager) return;
+    const s = parseInt(slot, 10);
+    if (!Number.isFinite(s) || s < 1 || s > 9 || s === 5) {
+      console.log(`[devSpawn] 无效 slot=${slot}`);
+      return;
+    }
+
+    // 优先从战斗卡组/怪物侧卡组找同 id
+    let found =
+      gameState.battleDeck.find((c) => c?.type === "monster" && c.id === monsterId) ||
+      gameState.monsterDeck.find((c) => c?.type === "monster" && c.id === monsterId);
+
+    if (found) {
+      // 从对应数组移除一份用于生成
+      const idx = gameState.battleDeck.indexOf(found);
+      if (idx >= 0) gameState.battleDeck.splice(idx, 1);
+      const idx2 = gameState.monsterDeck.indexOf(found);
+      if (idx2 >= 0) gameState.monsterDeck.splice(idx2, 1);
+      found = { ...found };
+    } else {
+      found = { id: monsterId, name: monsterId, hp: 8, atk: 2, armor: 0, type: "monster" };
+    }
+
+    found.uid = found.uid || `dev_${monsterId}_${Date.now()}`;
+    found.atk = found.atk ?? 2;
+    found.hp = found.hp ?? 8;
+    found.armor = found.armor ?? 0;
+
+    // 替换目标格已有卡
+    const existing = this.gridManager.slotContents[s];
+    if (existing) {
+      existing.destroy();
+      this.gridManager.slotContents[s] = null;
+    }
+
+    const pos = this.gridManager.getSlotXY(s);
+    const card = createMonsterCard(this, found, pos.x, pos.y);
+    this.gridManager.slotContents[s] = card;
+    this.gridManager.updatePlayerCardStats();
+    this.updateDeckPreview();
+    console.log(`[devSpawn] ${found.name} → 格${s}`);
+  }
+
+  devTriggerRotationOnce() {
+    if (gameState.isInputLocked()) return;
+    if (!this.boardResolver) return;
+    gameState.interactionCount++;
+    this.boardResolver.runSettlementChain({ shouldRotate: true, preDelay: 0 });
+  }
+
+  devDumpLastChainLog() {
+    const log = this.boardResolver?.lastChainLog || [];
+    console.log("[dev] 最近一次结算链事件日志：", log);
+  }
+
+  devPrintCardRuntime() {
+    if (!this.gridManager) return;
+    const rows = [];
+    for (let i = 1; i <= 9; i++) {
+      const c = this.gridManager.slotContents[i];
+      const d = c?.cardData;
+      if (!d) continue;
+      const rt = d._runtime || {};
+      rows.push({
+        slot: i,
+        type: d.type,
+        id: d.id,
+        name: d.name,
+        moveCount: rt.moveCount || 0,
+        combatCount: rt.combatCount || 0,
+        tempAtkBonus: rt.tempAtkBonus || 0,
+        tempArmorBonus: rt.tempArmorBonus || 0,
+        atk: d.atk,
+        armor: d.armor,
+        hp: d.hp,
+      });
+    }
+    console.log("[dev] 卡牌移动计数/临时修正：");
+    console.table?.(rows);
+  }
+
+  devRunThirdPhaseValidation() {
+    if (!this.boardResolver || !this.gridManager) return;
+    console.log("[devValidate] 第三段最小自动验证开始…");
+
+    // 去除外部变量：清空遗物/导师技能（避免干扰断言）
+    relicManager.slots = new Array(12).fill(null);
+    skillManager.reset();
+    gameState.hp = 10;
+    gameState.currentArmor = 0;
+    this.gridManager.updatePlayerCardStats();
+    this.updatePlayerInfoPanel();
+
+    const clearNonPlayerSlots = () => {
+      for (let i = 1; i <= 9; i++) {
+        if (i === 5) continue;
+        const c = this.gridManager.slotContents[i];
+        if (c) c.destroy();
+        this.gridManager.slotContents[i] = null;
+      }
+    };
+
+    const fillDummyMonsters = () => {
+      for (let i = 1; i <= 9; i++) {
+        if (i === 5) continue;
+        const dummy = { id: `dummy_${i}_${Date.now()}`, name: `Dummy${i}`, hp: 10, atk: 1, armor: 0, type: "monster" };
+        const pos = this.gridManager.getSlotXY(i);
+        this.gridManager.slotContents[i] = createMonsterCard(this, dummy, pos.x, pos.y);
+      }
+    };
+
+    const runTest1 = () => {
+      // 战斗卡组清空：避免第二次补牌把空位再填满
+      gameState.battleDeck = [];
+      clearNonPlayerSlots();
+      fillDummyMonsters();
+
+      // slot2：滚石
+      const rolling = { ...HELP_CARDS.rollingRock, type: "help", uid: `dev_roll_${Date.now()}` };
+      {
+        const pos = this.gridManager.getSlotXY(2);
+        this.gridManager.slotContents[2] = createHelpCard(this, rolling, pos.x, pos.y);
+      }
+
+      // slot3：尖石（移除时触发 dmgPlayer，且 armor=0 满足条件）
+      const spike = {
+        id: "dev_spike",
+        name: "尖石(验证)",
+        hp: 10,
+        atk: 1,
+        armor: 0,
+        type: "monster",
+        skill: {
+          id: "dev_spikeSkill",
+          name: "尖石(验证)",
+          desc: "",
+          effects: [
+            { event: "onRemove", action: "dmgPlayer", amount: 1, condition: "armorZero" },
+          ],
+        },
+      };
+      {
+        const pos = this.gridManager.getSlotXY(3);
+        this.gridManager.slotContents[3] = createMonsterCard(this, spike, pos.x, pos.y);
+      }
+
+      // slot4：移动计数 + 邻接目标（最终落到 slot1，会吃到光环）
+      const auraTarget = { id: "dev_auraTarget", name: "AuraTarget", hp: 10, atk: 1, armor: 0, type: "monster" };
+      {
+        const pos = this.gridManager.getSlotXY(4);
+        this.gridManager.slotContents[4] = createMonsterCard(this, auraTarget, pos.x, pos.y);
+      }
+
+      // slot7：光环怪物（最终落到 slot4，给 slot1 的目标+2临时攻击）
+      const auraOwner = {
+        id: "dev_auraOwner",
+        name: "AuraOwner",
+        hp: 10,
+        atk: 1,
+        armor: 0,
+        type: "monster",
+        skill: {
+          id: "dev_auraOwnerSkill",
+          name: "devAura",
+          desc: "",
+          effects: [{ event: "auraAdjacentAtk", amount: 2, condition: "always" }],
+        },
+      };
+      {
+        const pos = this.gridManager.getSlotXY(7);
+        this.gridManager.slotContents[7] = createMonsterCard(this, auraOwner, pos.x, pos.y);
+      }
+
+      const startHp = gameState.hp;
+      const startArmor = gameState.currentArmor;
+
+      this.boardResolver.runSettlementChain({
+        shouldRotate: true,
+        preDelay: 0,
+        onComplete: () => {
+          const rollingRemoved = this.gridManager.slotContents[3] == null;
+          const spikeRemoved = this.gridManager.slotContents[6] == null;
+          const hpOk = gameState.hp === startHp - 1; // onRemove dmgPlayer(1)，且玩家护甲=0
+          const moveCountOk = (auraTarget._runtime?.moveCount || 0) > 0;
+          const auraOk = (auraTarget._runtime?.tempAtkBonus || 0) === 2 && auraTarget.atk === 3;
+
+          console.log("[devValidate][Test1] rollingRemoved=", rollingRemoved,
+            " spikeRemoved=", spikeRemoved,
+            " hpOk=", hpOk,
+            " moveCountOk=", moveCountOk,
+            " auraOk=", auraOk,
+          );
+
+          runTest2(hpOk && rollingRemoved && spikeRemoved);
+        },
+      });
+    };
+
+    const runTest2 = (t1Ok) => {
+      if (!t1Ok) console.log("[devValidate][Test2] Test1 未通过，仍继续跑以便观察日志。");
+
+      gameState.battleDeck = [];
+      clearNonPlayerSlots();
+      fillDummyMonsters();
+
+      // slot1：捕熊陷阱
+      const trap = { ...HELP_CARDS.bearTrap, type: "help", uid: `dev_trap_${Date.now()}` };
+      {
+        const pos = this.gridManager.getSlotXY(1);
+        this.gridManager.slotContents[1] = createHelpCard(this, trap, pos.x, pos.y);
+      }
+
+      // slot2：留空，准备补牌
+      const old2 = this.gridManager.slotContents[2];
+      if (old2) old2.destroy();
+      this.gridManager.slotContents[2] = null;
+
+      // 补牌时放入一个 hp<10 的普通怪物，保证陷阱能击杀
+      gameState.battleDeck = [
+        { id: "dev_trapTarget", name: "TrapTarget", hp: 5, atk: 1, armor: 0, type: "monster", uid: `dev_tt_${Date.now()}` },
+      ];
+
+      this.boardResolver.runSettlementChain({
+        shouldRotate: false,
+        preDelay: 0,
+        onComplete: () => {
+          const trapRemoved = this.gridManager.slotContents[1] == null;
+          const targetEmpty = this.gridManager.slotContents[2] == null;
+          console.log("[devValidate][Test2] trapRemoved=", trapRemoved, " targetEmpty=", targetEmpty);
+          runTest3();
+        },
+      });
+    };
+
+    // Test3：自动战斗派生战斗 + 二次补牌不递归死循环
+    const runTest3 = () => {
+      gameState.battleDeck = [];
+      clearNonPlayerSlots();
+      fillDummyMonsters();
+
+      // slot1：派生自动战斗怪物（旋转后到 slot2）
+      const autoMonster = {
+        id: "dev_autoBattle",
+        name: "AutoBattle(验证)",
+        hp: 1,
+        atk: 0,
+        armor: 0,
+        type: "monster",
+        skill: {
+          id: "dev_autoSkill",
+          name: "devAutoSkill",
+          desc: "",
+          effects: [{ event: "onMoveToPlayerAdjacent", action: "autoBattle" }],
+        },
+      };
+      {
+        const pos = this.gridManager.getSlotXY(1);
+        this.gridManager.slotContents[1] = createMonsterCard(this, autoMonster, pos.x, pos.y);
+      }
+
+      // 作为派生战斗后补牌目标：slot2 需要被补上
+      gameState.battleDeck = [
+        { id: "dev_autoRefillTarget", name: "AutoRefillTarget", hp: 6, atk: 1, armor: 0, type: "monster", uid: `dev_art_${Date.now()}` },
+      ];
+
+      this.boardResolver.runSettlementChain({
+        shouldRotate: true,
+        preDelay: 0,
+        onComplete: () => {
+          const killed = this.boardResolver.lastChainLog.some((e) => e.type === "killMonster");
+          const refilled = this.gridManager.slotContents[2]?.cardData?.id === "dev_autoRefillTarget";
+          const deckEmpty = gameState.battleDeck.length === 0;
+          console.log("[devValidate][Test3] killed=", killed, " refilled=", refilled, " deckEmpty=", deckEmpty);
+          console.log("[devValidate] 第三段最小自动验证结束。");
+        },
+      });
+    };
+
+    runTest1();
+  }
+
+  // ============================================================
   // 事件监听
   // ============================================================
 
@@ -690,23 +1014,30 @@ export default class GameScene extends Phaser.Scene {
     // 道具牌格中的帮助卡（回收时走直接 push，不计上限检查）
     for (const item of this._itemSlots) {
       if (item && item.cardData && item.cardData.type === "help") {
-        levelManager.playerCards.push(item.cardData);
-        recycled++;
+        // 烈焰：若本回合未使用，在关卡结束时永久移除
+        if (item.cardData.id !== "flame") {
+          levelManager.playerCards.push(item.cardData);
+          recycled++;
+        }
       }
     }
     // 九宫格上未拾取的帮助卡
     for (let i = 1; i <= 9; i++) {
       const c = this.gridManager.slotContents[i];
       if (c && c.cardData && c.cardData.type === "help" && i !== 5) {
-        levelManager.playerCards.push(c.cardData);
-        recycled++;
+        if (c.cardData.id !== "flame") {
+          levelManager.playerCards.push(c.cardData);
+          recycled++;
+        }
       }
     }
     // 战斗卡组中未被抽到的帮助卡也回收（不计上限，是玩家自己本来的卡）
     for (const card of gameState.battleDeck) {
       if (card && card.type === "help") {
-        levelManager.playerCards.push(card);
-        recycled++;
+        if (card.id !== "flame") {
+          levelManager.playerCards.push(card);
+          recycled++;
+        }
       }
     }
     if (recycled > 0) {
