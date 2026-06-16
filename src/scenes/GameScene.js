@@ -15,6 +15,7 @@ import skillManager from "../systems/SkillManager.js";
 import { rollRelics } from "../data/RelicData.js";
 import levelManager from "../systems/LevelManager.js";
 import { initBoardResolver } from "../systems/BoardActionResolver.js";
+import { processEnterSkillEffects } from "../systems/SkillRuntime.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -557,14 +558,7 @@ export default class GameScene extends Phaser.Scene {
 
     // 处理怪物登场技能
     if (cardData.type === "monster" && cardData.skill && cardData.skill.effects) {
-      for (const eff of cardData.skill.effects) {
-        if (eff.event === "onEnter" && eff.action === "dmgPlayer") {
-          if (eff.condition === "evenSlot" && [2, 4, 6, 8].includes(slot)) {
-            gameState.takeDamage(eff.amount || 1);
-            console.log(`[登场技能] ${cardData.skill.name}: 格${slot}登场，对玩家造成${eff.amount}伤害`);
-          }
-        }
-      }
+      processEnterSkillEffects(this.boardResolver, slot, card);
     }
   }
 

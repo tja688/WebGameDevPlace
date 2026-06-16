@@ -1,8 +1,16 @@
 import GridManager from "../grid/GridManager.js";
 import gameState from "../core/GameState.js";
 import { MoveReason } from "../core/MoveReason.js";
-import { incrementMoveCount, nextCardUid } from "./CardRuntime.js";
+import {
+  incrementMoveCount,
+  nextCardUid,
+  addPermanentArmor,
+  addPermanentAtk,
+  clearTempBonuses,
+  addTempAtkBonus,
+} from "./CardRuntime.js";
 import { resolveBattle } from "../battle/BattleResolver.js";
+import { createHelpCard, createMonsterCard, refreshMonsterCardDisplay } from "../cards/CardFactory.js";
 
 // ============================================================
 // SkillRuntime — 怪物技能事件分发（第一段代表性技能）
@@ -38,12 +46,20 @@ export function processMoveSkillEffects(ctx, move) {
 
     // 每移动 N 次
     if (eff.event === "onMoveEveryN" && eff.n > 0 && moveCount % eff.n === 0) {
-      if (eff.action === "swapRandomMonster") {
-        const swaps = swapWithRandomMonster(grid, move.toSlot, MoveReason.SKILL_SWAP);
-        extraMoves.push(...swaps);
-        console.log(`[技能] ${cardData.skill.name}: 第${moveCount}次移动，与随机怪物换位`);
-        ctx.logEvent("onMoveEveryN", { card: cardData.name, n: eff.n, action: "swapRandomMonster" });
-      }
+      if (eff.action === "swapRandomMonster") extraMoves.push(...swapWithRandomMonster(grid, move.toSlot, MoveReason.SKILL_SWAP));
+      if (eff.action === "rotateBoard") ctx.grid.rotateGrid({ reason: MoveReason.SKILL_MOVE, onComplete: (moves) => extraMoves.push(...moves) });
+      if (eff.action === "swapRandomHelp") extraMoves.push(...swapWithRandomHelp(grid, move.toSlot));
+      if (eff.action === "buffRandomOtherMonster") buffRandomOtherMonster(grid, move.toSlot, eff);
+      if (eff.action === "stealAdjacentArmor") stealAdjacentArmor(grid, move.toSlot, eff.amount || 1, cardData);
+      if (eff.action === "selfArmorToPlayerDamage") armorToPlayerDamage(cardData, eff.amount || 2);
+      if (eff.action === "spawnToDeck" && eff.cards?.length) spawnCardsToDeck(eff.cards);
+      if (eff.action === "sacrificeById") sacrificeById(ctx, eff.targetId || "dragonFollower");
+      if (eff.action === "removeAdjacentHelp") removeAdjacentHelp(ctx, move.toSlot, 1);
+      if (eff.action === "moveAdjacentHelpToDeckAndReplace") moveAdjacentHelpToDeckAndReplace(ctx, move.toSlot);
+      if (eff.action === "gainAtk") addPermanentAtk(cardData, eff.amount || 1);
+      if (eff.action === "selfArmorUp") addPermanentArmor(cardData, eff.amount || 1);
+      ctx.logEvent("onMoveEveryN", { card: cardData.name, n: eff.n, action: eff.action });
+      refreshMonsterCardDisplay(move.card);
     }
 
     // 移动到玩家正交相邻格
@@ -95,6 +111,84 @@ export function processRemoveSkillEffects(ctx, slot, container, meta) {
   }
 }
 
+/** 怪物登场触发 */
+export function processEnterSkillEffects(ctx, slot, container) {
+  const cardData = container?.cardData;
+  if (!cardData?.skill?.effects) return;
+
+  for (const eff of cardData.skill.effects) {
+    if (eff.event !== "onEnter") continue;
+    if (eff.action === "dmgPlayer") {
+      const ok = !eff.condition || (eff.condition === "evenSlot" && [2, 4, 6, 8].includes(slot));
+      if (ok) gameState.takeDamage(eff.amount || 1);
+    }
+    if (eff.action === "rotateBoard") {
+      ctx.grid.rotateGrid({ reason: MoveReason.SKILL_MOVE, onComplete: () => {} });
+    }
+  }
+}
+
+/** 处理战斗技能，返回战斗临时结果 */
+export function processCombatSkillEffects(monsterData, slot) {
+  const result = { atkDelta: 0, firstStrike: false, reflectDmg: 0, heal: 0 };
+  const skill = monsterData.skill;
+  if (!skill?.effects) return result;
+
+  for (const eff of skill.effects) {
+    if (eff.event !== "onCombat") continue;
+    if (eff.action === "atkUp") result.atkDelta += eff.amount || 0;
+    if (eff.action === "conditionalAtkUp") {
+      const hitSlot6 = eff.condition === "slot6" && slot === 6;
+      const hitEven = eff.condition === "evenSlot" && [2, 4, 6, 8].includes(slot);
+      if (hitSlot6 || hitEven) {
+        result.atkDelta += eff.amount || 0;
+        if (eff.extra === "firstStrike") result.firstStrike = true;
+      }
+    }
+    if (eff.action === "firstStrike") result.firstStrike = true;
+    if (eff.action === "reflectDmg") result.reflectDmg += eff.amount || 0;
+    if (eff.action === "healOnCombat") result.heal += eff.amount || 0;
+  }
+  return result;
+}
+
+/** 刷新光环（离开相邻格后失效） */
+export function refreshAuraEffects(grid) {
+  const monsters = [];
+  for (let i = 1; i <= 9; i++) {
+    const c = grid.slotContents[i];
+    if (c?.cardData?.type === "monster") monsters.push({ slot: i, container: c, card: c.cardData });
+  }
+
+  monsters.forEach(({ card }) => clearTempBonuses(card));
+  monsters.forEach(({ slot, card }) => {
+    const effects = card.skill?.effects || [];
+    for (const eff of effects) {
+      if (eff.event === "auraAdjacentAtk" && (eff.condition === "always" || isOnLeftCol(slot))) {
+        for (const target of monsters) {
+          if (target.card === card) continue;
+          if (GridManager.isOrthogonalAdjacent(slot, target.slot)) addTempAtkBonus(target.card, eff.amount || 1);
+        }
+      }
+    }
+  });
+
+  monsters.forEach(({ container }) => refreshMonsterCardDisplay(container));
+}
+
+/** 技能位移导致位置变化时（灼热观察） */
+export function processSkillMoveGlobalEffects(ctx, move) {
+  if (![MoveReason.SKILL_MOVE, MoveReason.SKILL_SWAP].includes(move.reason)) return;
+  for (let i = 1; i <= 9; i++) {
+    const c = ctx.grid.slotContents[i];
+    const skillName = c?.cardData?.skill?.name;
+    if (skillName === "灼热观察") {
+      gameState.takeDamage(1);
+      ctx.logEvent("hotObserve", { observerSlot: i, dmg: 1 });
+    }
+  }
+}
+
 /** 与随机怪物换位，返回产生的移动记录 */
 function swapWithRandomMonster(grid, selfSlot, reason) {
   const candidates = [];
@@ -107,6 +201,102 @@ function swapWithRandomMonster(grid, selfSlot, reason) {
 
   const targetSlot = candidates[Math.floor(Math.random() * candidates.length)];
   return grid.swapSlotsInstant(selfSlot, targetSlot, reason);
+}
+
+function swapWithRandomHelp(grid, selfSlot) {
+  const candidates = [];
+  for (let i = 1; i <= 9; i++) {
+    if (i === 5 || i === selfSlot) continue;
+    const c = grid.slotContents[i];
+    if (c?.cardData?.type === "help") candidates.push(i);
+  }
+  if (candidates.length === 0) return [];
+  const targetSlot = candidates[Math.floor(Math.random() * candidates.length)];
+  return grid.swapSlotsInstant(selfSlot, targetSlot, MoveReason.SKILL_SWAP);
+}
+
+function buffRandomOtherMonster(grid, selfSlot, eff) {
+  const others = [];
+  for (let i = 1; i <= 9; i++) {
+    if (i === 5 || i === selfSlot) continue;
+    const c = grid.slotContents[i];
+    if (c?.cardData?.type === "monster") others.push(c);
+  }
+  if (others.length === 0) return;
+  const target = others[Math.floor(Math.random() * others.length)];
+  if (Math.random() < 0.5) addPermanentAtk(target.cardData, eff.atkAmount || 1);
+  else addPermanentArmor(target.cardData, eff.armorAmount || 2);
+  refreshMonsterCardDisplay(target);
+}
+
+function stealAdjacentArmor(grid, selfSlot, amount, selfCard) {
+  let total = 0;
+  for (let i = 1; i <= 9; i++) {
+    if (!GridManager.isOrthogonalAdjacent(selfSlot, i)) continue;
+    const c = grid.slotContents[i];
+    if (!c?.cardData || c.cardData.type !== "monster") continue;
+    const take = Math.min(c.cardData.armor || 0, amount);
+    if (take <= 0) continue;
+    c.cardData.armor -= take;
+    total += take;
+    refreshMonsterCardDisplay(c);
+  }
+  if (total > 0) addPermanentArmor(selfCard, total);
+}
+
+function armorToPlayerDamage(cardData, cost) {
+  if ((cardData.armor || 0) < cost) return;
+  cardData.armor -= cost;
+  gameState.takeDamage(cost);
+}
+
+function spawnCardsToDeck(cards) {
+  for (const template of cards) {
+    const spawned = { ...template, uid: nextCardUid(template.id || "spawn") };
+    gameState.shuffleCardToDeck(spawned);
+  }
+}
+
+function sacrificeById(ctx, targetId) {
+  for (let i = 1; i <= 9; i++) {
+    const c = ctx.grid.slotContents[i];
+    if (!c?.cardData || c.cardData.id !== targetId) continue;
+    ctx.removeCard(i, c, { reason: "skill_sacrifice", animate: true });
+  }
+}
+
+function removeAdjacentHelp(ctx, slot, maxCount = 1) {
+  let removed = 0;
+  for (let i = 1; i <= 9; i++) {
+    if (removed >= maxCount) break;
+    if (!GridManager.isOrthogonalAdjacent(slot, i)) continue;
+    const c = ctx.grid.slotContents[i];
+    if (!c?.cardData || c.cardData.type !== "help") continue;
+    ctx.removeCard(i, c, { reason: "skill_remove_adj_help", animate: true });
+    removed++;
+  }
+}
+
+function moveAdjacentHelpToDeckAndReplace(ctx, slot) {
+  for (let i = 1; i <= 9; i++) {
+    if (!GridManager.isOrthogonalAdjacent(slot, i)) continue;
+    const c = ctx.grid.slotContents[i];
+    if (!c?.cardData || c.cardData.type !== "help") continue;
+    gameState.shuffleCardToDeck(c.cardData);
+    ctx.removeCard(i, c, { reason: "skill_express_help_to_deck", animate: false });
+    const deckCard = gameState.drawFromBattleDeck();
+    if (!deckCard) return;
+    const pos = ctx.grid.getSlotXY(i);
+    const created = deckCard.type === "monster"
+      ? createMonsterCard(ctx.scene, deckCard, pos.x, pos.y)
+      : createHelpCard(ctx.scene, deckCard, pos.x, pos.y);
+    ctx.grid.slotContents[i] = created;
+    return;
+  }
+}
+
+function isOnLeftCol(slot) {
+  return slot === 1 || slot === 4 || slot === 7;
 }
 
 /**

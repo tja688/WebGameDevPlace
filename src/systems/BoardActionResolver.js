@@ -7,6 +7,8 @@ import {
   processMoveSkillEffects,
   processRemoveSkillEffects,
   runDerivedAutoBattles,
+  processSkillMoveGlobalEffects,
+  refreshAuraEffects,
 } from "./SkillRuntime.js";
 
 // ============================================================
@@ -191,10 +193,12 @@ export class BoardActionResolver {
 
     for (const move of moves) {
       if (!move.card?.cardData || move.card.scene == null) continue;
+      processSkillMoveGlobalEffects(this, move);
       const result = processMoveSkillEffects(this, move);
       extraMoves = extraMoves.concat(result.extraMoves);
       autoBattleSlots.push(...result.autoBattleSlots);
     }
+    refreshAuraEffects(this.grid);
 
     const finishMovePhase = () => {
       if (extraMoves.length > 0) {

@@ -3,6 +3,7 @@ import gameState from "../core/GameState.js";
 import { refreshMonsterCardDisplay } from "../cards/CardFactory.js";
 import { getBoardResolver } from "../systems/BoardActionResolver.js";
 import { incrementCombatCount } from "../systems/CardRuntime.js";
+import { processCombatSkillEffects, refreshAuraEffects } from "../systems/SkillRuntime.js";
 
 // ============================================================
 // BattleResolver — 战斗结算器
@@ -33,53 +34,12 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer,
   let monsterAtk = monsterData.atk;
   const monsterArmor = monsterData.armor;
   let playerFirst = true;
-  const origAtk = monsterData.atk;
-
-  const skill = monsterData.skill;
-  if (skill?.effects) {
-    for (const eff of skill.effects) {
-      if (eff.event === "onCombat") {
-        switch (eff.action) {
-          case "atkUp":
-            monsterAtk += eff.amount || 0;
-            console.log(`[技能] ${skill.name}: 攻击+${eff.amount} → ${monsterAtk}`);
-            break;
-          case "conditionalAtkUp":
-            if ((eff.condition === "slot6" && monsterSlot === 6) ||
-                (eff.condition === "evenSlot" && [2, 4, 6, 8].includes(monsterSlot))) {
-              monsterAtk += eff.amount || 0;
-              if (eff.extra === "firstStrike") playerFirst = false;
-              console.log(`[技能] ${skill.name}: ${eff.condition}触发，攻击+${eff.amount}`);
-            }
-            break;
-          case "armorLossDmg":
-            if (eff.condition === "leftCol" && (monsterSlot === 1 || monsterSlot === 4 || monsterSlot === 7)) {
-              const lost = monsterData.armor || 0;
-              if (lost > 0) { monsterAtk += lost; console.log(`[技能] ${skill.name}: 左列护甲损失${lost}追加伤害`); }
-            }
-            break;
-          case "firstStrike":
-            playerFirst = false;
-            console.log(`[技能] ${skill.name}: 先攻`);
-            break;
-          case "atkPerDamage":
-            monsterAtk += Math.floor(monsterAtk / (eff.amount || 2));
-            console.log(`[技能] ${skill.name}: 嗜血，攻击→${monsterAtk}`);
-            break;
-          case "healOnCombat":
-            monsterData.hp = Math.min(monsterData.hp + (eff.amount || 1), monsterData.hp + (eff.amount || 1));
-            console.log(`[技能] ${skill.name}: 战斗恢复+${eff.amount}`);
-            break;
-          case "reflectDmg":
-            gameState.takeDamage(eff.amount || monsterAtk);
-            console.log(`[技能] ${skill.name}: 反伤${eff.amount || monsterAtk}`);
-            break;
-        }
-      }
-    }
-  }
-
-  if (monsterAtk !== origAtk) monsterData.atk = monsterAtk;
+  const combatEffects = processCombatSkillEffects(monsterData, monsterSlot);
+  monsterAtk += combatEffects.atkDelta || 0;
+  if (combatEffects.firstStrike) playerFirst = false;
+  if (combatEffects.heal > 0) monsterData.hp += combatEffects.heal;
+  if (combatEffects.reflectDmg > 0) gameState.takeDamage(combatEffects.reflectDmg);
+  monsterData.atk = monsterAtk;
   refreshMonsterCardDisplay(monsterContainer);
 
   scene.time.delayedCall(30, () => {
@@ -146,6 +106,7 @@ function handlePlayerDeath(scene, isDerived) {
 
 function finishBattle(scene, gridManager, boardResolver, shouldRotate, isDerived, onComplete) {
   EventBus.emit(GameEvents.BATTLE_END);
+  refreshAuraEffects(gridManager);
   if (!isDerived) gameState.unlockInput("combat");
 
   if (isDerived) {
