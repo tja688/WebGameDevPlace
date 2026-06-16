@@ -24,3 +24,7 @@
 ## 6. 高风险/坑点记录
 - 开发过程中发现的高风险问题、棘手的 Bug、容易误导后续 agent 的事实，按时间顺序追加到本文件末尾
 
+- 2026-06-16：`rotateBoard` 基于 `rotateGrid` 的异步 `onComplete` 回调收集 `moveRecords`，导致 `_processMoveChain` 提前结束、派生移动丢失。修复：让 `processMoveSkillEffects` 变为 `async` 并在 `rotateBoard` 分支 `await` 旋转完成后再把 moveRecords 追加到 `extraMoves`。
+- 2026-06-16：正常补牌路径（`GridManager._refillStep`）未触发怪物 `onEnter`，导致“登场技能”只在测试关卡放置时生效。修复：在补牌填充 `slotContents` 后、发出 `SLOT_FILLED` 前调用 `boardResolver.processEnterSkillEffects`。
+- 2026-06-16：帮助卡 `damage/aoe_damage` 与遗物 `onKill.aoe_damage` 的死亡分支直改 `HP + destroy`，绕过 `boardResolver.killMonster/removeCard/processRemoveSkillEffects`，造成 `onRemove` 漏触发与金币规则不一致。修复：两处死亡分支统一改为调用 `boardResolver.killMonster(..., { animate:false })`。
+

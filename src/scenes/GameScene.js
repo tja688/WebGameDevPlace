@@ -203,6 +203,17 @@ export default class GameScene extends Phaser.Scene {
     if (cardData.type === "monster") {
       console.log(`[点击] 怪物: 格${slot} — ${cardData.name}`);
       EventBus.emit(GameEvents.CARD_CLICKED, { type: "monster", slot, card: cardData });
+      // 嘲讽：若相邻格存在“嘲讽怪物”，则玩家手动点其它怪物无效（只能开战嘲讽怪物）
+      let tauntSlot = null;
+      for (let s = 1; s <= 9; s++) {
+        if (!GridManager.isOrthogonalAdjacent(playerSlot, s)) continue;
+        const c = this.gridManager.slotContents[s];
+        if (c?.cardData?.type === "monster" && c.cardData.hp > 0 && c.cardData.skill?.id === "taunt") {
+          tauntSlot = s;
+          break;
+        }
+      }
+      if (tauntSlot !== null && tauntSlot !== slot) return;
       resolveBattle(this, this.gridManager, slot, container);
     } else if (cardData.type === "help") {
       console.log(`[点击] 帮助卡: 格${slot} — ${cardData.name}`);

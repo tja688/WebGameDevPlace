@@ -57,7 +57,16 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer,
 
   scene.time.delayedCall(30, () => {
     if (playerFirst) {
-      applyDamage(monsterData, playerAtk, monsterArmor);
+      const { armorLoss } = applyDamage(monsterData, playerAtk, monsterArmor);
+      // 护甲损失等量伤害：玩家打掉怪物护甲的“护甲损失”，会额外对玩家造成同等伤害
+      if (combatEffects.armorLossDmg && armorLoss > 0) {
+        gameState.takeDamage(armorLoss);
+        if (gameState.hp <= 0) {
+          handlePlayerDeath(scene, isDerived);
+          if (onComplete) onComplete();
+          return;
+        }
+      }
       refreshMonsterCardDisplay(monsterContainer);
       flashDamage(scene, monsterContainer, playerAtk);
 
@@ -67,16 +76,40 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer,
       }
 
       scene.time.delayedCall(50, () => {
-        gameState.takeDamage(monsterAtk);
+        const dealt = gameState.takeDamage(monsterAtk);
+        // 嗜血：按本次实际造成给玩家的伤害量，折算攻击增量
+        if (combatEffects.atkPerDamageAmount > 0 && dealt > 0) {
+          const bonus = Math.floor(dealt / combatEffects.atkPerDamageAmount);
+          if (bonus > 0) {
+            monsterData.atk += bonus;
+            refreshMonsterCardDisplay(monsterContainer);
+          }
+        }
         if (gameState.hp <= 0) { handlePlayerDeath(scene, isDerived); if (onComplete) onComplete(); return; }
         finishBattle(scene, gridManager, boardResolver, false, isDerived, onComplete);
       });
     } else {
-      gameState.takeDamage(monsterAtk);
+      const dealt = gameState.takeDamage(monsterAtk);
+      // 嗜血：按实际造成给玩家的伤害量，折算攻击增量
+      if (combatEffects.atkPerDamageAmount > 0 && dealt > 0) {
+        const bonus = Math.floor(dealt / combatEffects.atkPerDamageAmount);
+        if (bonus > 0) {
+          monsterData.atk += bonus;
+          refreshMonsterCardDisplay(monsterContainer);
+        }
+      }
       if (gameState.hp <= 0) { handlePlayerDeath(scene, isDerived); if (onComplete) onComplete(); return; }
 
       scene.time.delayedCall(50, () => {
-        applyDamage(monsterData, playerAtk, monsterArmor);
+        const { armorLoss } = applyDamage(monsterData, playerAtk, monsterArmor);
+        if (combatEffects.armorLossDmg && armorLoss > 0) {
+          gameState.takeDamage(armorLoss);
+          if (gameState.hp <= 0) {
+            handlePlayerDeath(scene, isDerived);
+            if (onComplete) onComplete();
+            return;
+          }
+        }
         refreshMonsterCardDisplay(monsterContainer);
         flashDamage(scene, monsterContainer, playerAtk);
 
@@ -96,6 +129,7 @@ function applyDamage(targetData, attackerAtk, targetArmor) {
   const hpLoss = rawDmg - armorLoss;
   targetData.armor = Math.max(0, targetArmor - armorLoss);
   targetData.hp = Math.max(0, targetData.hp - hpLoss);
+  return { armorLoss, hpLoss, rawDmg };
 }
 
 function applyItemSlotBattleEffects(scene, gridManager, boardResolver, monsterSlot, monsterContainer, monsterData, isDerived, onComplete) {

@@ -440,6 +440,8 @@ export default class GridManager {
     }
 
     this.slotContents[slotIndex] = card;
+    // 补牌时怪物“登场”必须触发 onEnter（不依赖测试关卡的 _placeCardOnGrid）
+    this.scene?.boardResolver?.processEnterSkillEffects?.(slotIndex, card);
     EventBus.emit(GameEvents.SLOT_FILLED, { slot: slotIndex, card: cardData });
 
     // 飞入动画（200ms）

@@ -53,26 +53,24 @@ export function executeHelpCardEffect(scene, cardData, targetContainer, options 
       showFloatText(scene, targetContainer, dmg);
 
       if (monster.hp <= 0) {
-        // 怪物死亡
-        EventBus.emit(GameEvents.MONSTER_KILLED, { monster, slot: -1 });
-        gameState.addGold(5);
-        EventBus.emit(GameEvents.MONSTER_REMOVED, { monster, slot: -1 });
-        // 找到怪物所在格子并清空
+        // 怪物死亡：必须走 boardResolver.killMonster，确保 onKill/onRemove/金币规则一致
+        const boardResolver = scene.boardResolver;
         const grid = scene.gridManager;
-        if (grid) {
-          const slot = grid.getCurrentSlot(targetContainer);
-          if (slot > 0) grid.slotContents[slot] = null;
+        const slot = grid?.getCurrentSlot?.(targetContainer);
+        if (boardResolver && typeof slot === "number" && slot > 0) {
+          boardResolver.killMonster(slot, targetContainer, {
+            reason: "help_card_damage",
+            wasKilledBy: "help_card_damage",
+            animate: false,
+          });
+        } else {
+          // 兜底：找不到格子时直接销毁（不走技能/遗物语义）
+          if (grid && typeof slot === "number" && slot > 0) grid.slotContents[slot] = null;
+          targetContainer.destroy();
         }
-        // 移除视觉 + 补牌
-        scene.tweens.add({
-          targets: targetContainer,
-          scaleX: 0.1, scaleY: 0.1, alpha: 0,
-          duration: 150,
-          onComplete: () => {
-            targetContainer.destroy();
-            if (grid) grid.refillEmptySlots();
-          },
-        });
+
+        // 补牌（不旋转：帮助卡使用是“直接效果”）
+        grid?.refillEmptySlots();
         return `${cardData.name}：对 ${monster.name} 造成 ${dmg} 点伤害，击杀！+5💰`;
       }
       return `${cardData.name}：对 ${monster.name} 造成 ${dmg} 点伤害`;
@@ -92,11 +90,17 @@ export function executeHelpCardEffect(scene, cardData, targetContainer, options 
           refreshMonsterCardDisplay(container);
           showFloatText(scene, container, dmg);
           if (monster.hp <= 0) {
-            EventBus.emit(GameEvents.MONSTER_KILLED, { monster, slot: i });
-            gameState.addGold(5);
-            EventBus.emit(GameEvents.MONSTER_REMOVED, { monster, slot: i });
-            scene.gridManager.slotContents[i] = null;
-            container.destroy();
+            const boardResolver = scene.boardResolver;
+            if (boardResolver) {
+              boardResolver.killMonster(i, container, {
+                reason: "help_card_aoe_damage",
+                wasKilledBy: "help_card_aoe_damage",
+                animate: false,
+              });
+            } else {
+              scene.gridManager.slotContents[i] = null;
+              container.destroy();
+            }
           }
           count++;
         }

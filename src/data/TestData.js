@@ -127,7 +127,9 @@ const STRONG_ELITE_DECKS = [
     t3: [
       { id: "orcBig", name: "兽人大只佬", hp: 21, atk: 4, armor: 0, type: "monster",
         skill: { id: "fightMe", name: "和我打！", desc: "战斗时先攻", effects: [
-          { event: "onCombat", action: "firstStrike" }
+          { event: "onCombat", action: "firstStrike" },
+          // 强制战斗：进入玩家正交相邻格时自动开战
+          { event: "onMoveToPlayerAdjacent", action: "autoBattle" }
         ] } },
       { id: "orcCommander", name: "兽人指挥官", hp: 15, atk: 2, armor: 3, type: "monster",
         skill: { id: "orcTactics", name: "兽人战术", desc: "相邻怪物攻击+1（离开失效）", effects: [

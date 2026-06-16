@@ -10,19 +10,32 @@ import { refreshMonsterCardDisplay } from "../cards/CardFactory.js";
 const RELIC_EVENT_ACTION_HANDLERS = {
   onKill: {
     aoe_damage: (eff, context) => {
-      const { gridManager } = context || {};
+      const { gridManager, scene } = context || {};
       if (!gridManager) return;
+      const boardResolver = scene?.boardResolver;
 
       // 找一只存活且未被销毁的怪物
       for (let s = 1; s <= 9; s++) {
         const c = gridManager.slotContents[s];
         if (c && c.cardData?.type === "monster" && c.cardData.hp > 0 && c.scene) {
           const dmg = eff.amount || 0;
-          c.cardData.hp = Math.max(0, c.cardData.hp - dmg);
+          const monster = c.cardData;
+          const armorLoss = Math.min(monster.armor || 0, dmg);
+          const hpLoss = dmg - armorLoss;
+          monster.armor = Math.max(0, monster.armor - armorLoss);
+          monster.hp = Math.max(0, monster.hp - hpLoss);
           refreshMonsterCardDisplay(c);
-          if (c.cardData.hp <= 0) {
-            gridManager.slotContents[s] = null;
-            c.destroy();
+          if (monster.hp <= 0) {
+            if (boardResolver) {
+              boardResolver.killMonster(s, c, {
+                reason: "relic_aoe_damage",
+                wasKilledBy: "relic_aoe_damage",
+                animate: false,
+              });
+            } else {
+              gridManager.slotContents[s] = null;
+              c.destroy();
+            }
           }
           break;
         }

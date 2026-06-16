@@ -6,6 +6,7 @@ import levelManager from "./LevelManager.js";
 import {
   processMoveSkillEffects,
   processRemoveSkillEffects,
+  processEnterSkillEffects,
   runDerivedAutoBattles,
   processSkillMoveGlobalEffects,
   refreshAuraEffects,
@@ -126,6 +127,15 @@ export class BoardActionResolver {
     }
   }
 
+  /**
+   * 怪物登场（补牌后）触发 onEnter
+   * @param {number} slot
+   * @param {Phaser.GameObjects.Container} container
+   */
+  processEnterSkillEffects(slot, container) {
+    processEnterSkillEffects(this, slot, container);
+  }
+
   // ============================================================
   // 玩家九宫格互动 → 统一结算链
   // ============================================================
@@ -188,7 +198,7 @@ export class BoardActionResolver {
   /**
    * 递归处理移动触发（含技能换位产生的额外移动）
    */
-  _processMoveChain(moves, depth, onDone) {
+  async _processMoveChain(moves, depth, onDone) {
     if (depth >= MAX_CHAIN_DEPTH) {
       console.warn(`[BoardActionResolver] 结算链深度超过 ${MAX_CHAIN_DEPTH}，强制停止`);
       onDone();
@@ -226,7 +236,7 @@ export class BoardActionResolver {
     for (const move of validMoves) {
       if (this.grid.slotContents[move.toSlot] !== move.card) continue;
       if (move.cardData?.type !== "monster") continue;
-      const result = processMoveSkillEffects(this, move);
+      const result = await processMoveSkillEffects(this, move);
       extraMoves = extraMoves.concat(result.extraMoves);
       autoBattleSlots.push(...result.autoBattleSlots);
     }

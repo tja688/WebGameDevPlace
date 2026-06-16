@@ -22,7 +22,7 @@ import { createHelpCard, createMonsterCard, refreshMonsterCardDisplay } from "..
  * @param {{ card: object, cardData: object, fromSlot: number, toSlot: number, reason: string }} move
  * @returns {{ extraMoves: Array, autoBattleSlots: number[] }}
  */
-export function processMoveSkillEffects(ctx, move) {
+export async function processMoveSkillEffects(ctx, move) {
   const { grid } = ctx;
   const cardData = move.cardData;
   if (!cardData || cardData.type !== "monster" || !cardData.skill?.effects) {
@@ -47,7 +47,16 @@ export function processMoveSkillEffects(ctx, move) {
     // 每移动 N 次
     if (eff.event === "onMoveEveryN" && eff.n > 0 && moveCount % eff.n === 0) {
       if (eff.action === "swapRandomMonster") extraMoves.push(...swapWithRandomMonster(grid, move.toSlot, MoveReason.SKILL_SWAP));
-      if (eff.action === "rotateBoard") ctx.grid.rotateGrid({ reason: MoveReason.SKILL_MOVE, onComplete: (moves) => extraMoves.push(...moves) });
+      // rotateGrid 是异步动画，因此必须等待其 moveRecords 再进入“下一轮派生移动”
+      if (eff.action === "rotateBoard") {
+        const rotateMoves = await new Promise((resolve) => {
+          ctx.grid.rotateGrid({
+            reason: MoveReason.SKILL_MOVE,
+            onComplete: (moves) => resolve(moves || []),
+          });
+        });
+        extraMoves.push(...rotateMoves);
+      }
       if (eff.action === "swapRandomHelp") extraMoves.push(...swapWithRandomHelp(grid, move.toSlot));
       if (eff.action === "buffRandomOtherMonster") buffRandomOtherMonster(grid, move.toSlot, eff);
       if (eff.action === "stealAdjacentArmor") stealAdjacentArmor(grid, move.toSlot, eff.amount || 1, cardData);
@@ -130,7 +139,15 @@ export function processEnterSkillEffects(ctx, slot, container) {
 
 /** 处理战斗技能，返回战斗临时结果 */
 export function processCombatSkillEffects(monsterData, slot) {
-  const result = { atkDelta: 0, firstStrike: false, reflectDmg: 0, heal: 0 };
+  const result = {
+    atkDelta: 0,
+    firstStrike: false,
+    reflectDmg: 0,
+    heal: 0,
+    // 在战斗中根据“护甲损失/造成伤害”动态产生的后置效果（BattleResolver 负责真正落地）
+    armorLossDmg: false,
+    atkPerDamageAmount: 0,
+  };
   const skill = monsterData.skill;
   if (!skill?.effects) return result;
 
@@ -148,6 +165,17 @@ export function processCombatSkillEffects(monsterData, slot) {
     if (eff.action === "firstStrike") result.firstStrike = true;
     if (eff.action === "reflectDmg") result.reflectDmg += eff.amount || 0;
     if (eff.action === "healOnCombat") result.heal += eff.amount || 0;
+
+    // 护甲损失等量伤害：把“护甲被打掉的量”转为对玩家的伤害（由 BattleResolver 在计算 applyDamage 后落地）
+    if (eff.action === "armorLossDmg") {
+      if (!eff.condition) result.armorLossDmg = true;
+      if (eff.condition === "leftCol" && isOnLeftCol(slot)) result.armorLossDmg = true;
+    }
+
+    // 嗜血：按造成给玩家的实际伤害，获得攻击增量（由 BattleResolver 在 takeDamage 后落地）
+    if (eff.action === "atkPerDamage") {
+      result.atkPerDamageAmount = Math.max(0, eff.amount || 0);
+    }
   }
   return result;
 }
@@ -306,7 +334,20 @@ function isOnLeftCol(slot) {
  * @param {Function} onAllDone
  */
 export function runDerivedAutoBattles(ctx, slots, onAllDone) {
-  const unique = [...new Set(slots)].filter((s) => s > 0 && s !== 5);
+  const playerSlot = ctx.grid.getPlayerSlot?.() ?? 5;
+  // 嘲讽：若存在处于正交相邻格的“嘲讽怪物”，派生自动战斗只能打它
+  const tauntSlots = [];
+  for (let s = 1; s <= 9; s++) {
+    if (!GridManager.isOrthogonalAdjacent(playerSlot, s)) continue;
+    const c = ctx.grid.slotContents[s];
+    if (c?.cardData?.type === "monster" && c.cardData.hp > 0 && c.cardData.skill?.id === "taunt") {
+      tauntSlots.push(s);
+    }
+  }
+
+  const unique = (tauntSlots.length > 0)
+    ? [tauntSlots.sort((a, b) => a - b)[0]]
+    : [...new Set(slots)].filter((s) => s > 0 && s !== 5);
   if (unique.length === 0) {
     onAllDone();
     return;
