@@ -770,9 +770,24 @@ export default class GameScene extends Phaser.Scene {
   showPlayerDeathMessage() {
     const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2;
     this.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(DEPTH.OVERLAY);
-    this.add.text(cx, cy, "💀 玩家死亡\n游戏结束", {
+    this.add.text(cx, cy - 30, "💀 玩家死亡\n游戏结束", {
       fontFamily: FONTS.FAMILY, fontSize: "36px", fontStyle: "bold", color: "#ff4444", align: "center",
     }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+
+    // 重新开始按钮
+    const btnW = 180, btnH = 42, btnY = cy + 70;
+    const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, 0xcc4444, 0.9)
+      .setDepth(DEPTH.OVERLAY + 1).setStrokeStyle(2, 0xff8888)
+      .setInteractive({ useHandCursor: true });
+    const btnText = this.add.text(cx, btnY, "重新开始", {
+      fontFamily: FONTS.FAMILY, fontSize: "18px", fontStyle: "bold", color: "#ffffff",
+    }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 2);
+
+    btnBg.on("pointerover", () => btnBg.setFillStyle(0xee5555));
+    btnBg.on("pointerout", () => btnBg.setFillStyle(0xcc4444));
+    btnBg.on("pointerdown", () => {
+      this.scene.restart();
+    });
   }
 
   // ============================================================
