@@ -3,6 +3,7 @@ import { GRID, COLORS, DEPTH, FONTS } from "../config/GameConfig.js";
 import EventBus, { GameEvents } from "../core/EventBus.js";
 import gameState from "../core/GameState.js";
 import { createMonsterCard, createHelpCard } from "../cards/CardFactory.js";
+import { MoveReason } from "../core/MoveReason.js";
 
 // ============================================================
 // GridManager — 九宫格战场管理器
@@ -254,19 +255,62 @@ export default class GridManager {
     return card;
   }
 
+  /**
+   * 逻辑换位（即时，无动画）— 技能用
+   * @returns {Array<{ card, cardData, fromSlot, toSlot, reason }>}
+   */
+  swapSlotsInstant(slotA, slotB, reason = MoveReason.SKILL_SWAP) {
+    const cardA = this.slotContents[slotA];
+    const cardB = this.slotContents[slotB];
+    const moves = [];
+
+    this.slotContents[slotA] = cardB ?? null;
+    this.slotContents[slotB] = cardA ?? null;
+
+    if (cardA) {
+      const pos = this.slotPositions[slotB];
+      cardA.setPosition(pos.x, pos.y);
+      moves.push({ card: cardA, cardData: cardA.cardData, fromSlot: slotA, toSlot: slotB, reason });
+    }
+    if (cardB) {
+      const pos = this.slotPositions[slotA];
+      cardB.setPosition(pos.x, pos.y);
+      moves.push({ card: cardB, cardData: cardB.cardData, fromSlot: slotB, toSlot: slotA, reason });
+    }
+
+    return moves;
+  }
+
+  /**
+   * 逻辑移动单卡（即时）
+   * @returns {{ card, cardData, fromSlot, toSlot, reason }|null}
+   */
+  moveCardInstant(fromSlot, toSlot, reason = MoveReason.SKILL_MOVE) {
+    const card = this.slotContents[fromSlot];
+    if (!card || fromSlot === toSlot) return null;
+
+    this.slotContents[fromSlot] = null;
+    this.slotContents[toSlot] = card;
+    const pos = this.slotPositions[toSlot];
+    card.setPosition(pos.x, pos.y);
+
+    return { card, cardData: card.cardData, fromSlot, toSlot, reason };
+  }
+
   // ============================================================
   // 九宫格旋转（顺时针）
   // ============================================================
 
   /**
    * 除格5外，其余8格按顺时针路径旋转
-   * @param {Function} [onComplete] — 旋转完成回调
+   * @param {{ onComplete?: (moves: Array) => void, reason?: string }} [options]
    */
-  rotateGrid(onComplete) {
-    const { CELL_WIDTH, CELL_HEIGHT } = GRID;
+  rotateGrid(options = {}) {
+    const onComplete = typeof options === "function" ? options : options.onComplete;
+    const reason = (typeof options === "object" && options.reason) || MoveReason.SYSTEM_ROTATE;
+
     const movingCards = [];
 
-    // 按旋转顺序收集非空格子上的卡牌和目标位置
     for (let i = 0; i < ROTATION_ORDER.length; i++) {
       const fromSlot = ROTATION_ORDER[i];
       const toSlot = ROTATION_ORDER[(i + 1) % ROTATION_ORDER.length];
@@ -274,27 +318,36 @@ export default class GridManager {
       if (!this.isEmpty(fromSlot)) {
         const card = this.slotContents[fromSlot];
         const targetPos = this.slotPositions[toSlot];
-        movingCards.push({ card, fromSlot, toSlot, targetX: targetPos.x, targetY: targetPos.y });
+        movingCards.push({
+          card, cardData: card.cardData, fromSlot, toSlot, reason,
+          targetX: targetPos.x, targetY: targetPos.y,
+        });
       }
     }
 
     this._isRotating = true;
     console.log(`[GridManager] 旋转开始 — ${movingCards.length} 张卡牌移动`);
 
-    // 暂时清空所有参与旋转的格子（视觉上卡牌正在移动中）
     const srcSlots = new Set(movingCards.map((m) => m.fromSlot));
     srcSlots.forEach((s) => {
       this.slotContents[s] = null;
     });
 
-    // 并发 tween 所有卡牌
     let completed = 0;
     const total = movingCards.length;
 
-    if (total === 0) {
+    const finish = () => {
       this._isRotating = false;
-      if (onComplete) onComplete();
+      console.log("[GridManager] 旋转完成");
       EventBus.emit(GameEvents.GRID_ROTATED);
+      const moveRecords = movingCards.map(({ card, cardData, fromSlot, toSlot }) => ({
+        card, cardData, fromSlot, toSlot, reason,
+      }));
+      if (onComplete) onComplete(moveRecords);
+    };
+
+    if (total === 0) {
+      finish();
       return;
     }
 
@@ -308,12 +361,7 @@ export default class GridManager {
         onComplete: () => {
           this.slotContents[toSlot] = card;
           completed++;
-          if (completed >= total) {
-            this._isRotating = false;
-            console.log("[GridManager] 旋转完成");
-            EventBus.emit(GameEvents.GRID_ROTATED);
-            if (onComplete) onComplete();
-          }
+          if (completed >= total) finish();
         },
       });
     });

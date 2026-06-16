@@ -15,6 +15,7 @@ class GameState {
     this.isCombatResolving = false;
     this.isBoardRefilling = false;
     this.isOverlayOpen = false;
+    this.isActionResolving = false;
 
     // ---- 玩家基础属性 ----
     this.maxHp = 10;
@@ -46,13 +47,14 @@ class GameState {
 
   /** 任一锁定状态存在时返回 true */
   isInputLocked() {
-    return this.isCombatResolving || this.isBoardRefilling || this.isOverlayOpen;
+    return this.isCombatResolving || this.isBoardRefilling || this.isOverlayOpen || this.isActionResolving;
   }
 
   lockInput(reason = "combat") {
     if (reason === "combat") this.isCombatResolving = true;
     if (reason === "refill") this.isBoardRefilling = true;
     if (reason === "overlay") this.isOverlayOpen = true;
+    if (reason === "action") this.isActionResolving = true;
     EventBus.emit(GameEvents.INPUT_LOCKED, reason);
   }
 
@@ -60,6 +62,7 @@ class GameState {
     if (reason === "combat") this.isCombatResolving = false;
     if (reason === "refill") this.isBoardRefilling = false;
     if (reason === "overlay") this.isOverlayOpen = false;
+    if (reason === "action") this.isActionResolving = false;
     if (!this.isInputLocked()) {
       EventBus.emit(GameEvents.INPUT_UNLOCKED);
     }
@@ -243,9 +246,10 @@ class GameState {
     return this.battleDeck.shift();
   }
 
-  /** 将卡牌洗入战斗卡组 */
+  /** 将卡牌随机洗入战斗卡组（非置顶） */
   shuffleCardToDeck(cardData) {
-    this.battleDeck.unshift(cardData);
+    const idx = Math.floor(Math.random() * (this.battleDeck.length + 1));
+    this.battleDeck.splice(idx, 0, cardData);
   }
 
   /** 获取战斗卡组剩余数量 */
@@ -270,6 +274,7 @@ class GameState {
     this.isCombatResolving = false;
     this.isBoardRefilling = false;
     this.isOverlayOpen = false;
+    this.isActionResolving = false;
     this.interactionCount = 0;
   }
 

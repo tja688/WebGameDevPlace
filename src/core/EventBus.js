@@ -12,6 +12,7 @@ export const GameEvents = {
   BATTLE_END: "battle-end",
   MONSTER_KILLED: "monster-killed",
   MONSTER_REMOVED: "monster-removed",
+  CARD_REMOVED: "card-removed",
   PLAYER_DAMAGED: "player-damaged",
   PLAYER_DIED: "player-died",
 

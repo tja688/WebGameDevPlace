@@ -14,6 +14,7 @@ import relicManager from "../systems/RelicManager.js";
 import skillManager from "../systems/SkillManager.js";
 import { rollRelics } from "../data/RelicData.js";
 import levelManager from "../systems/LevelManager.js";
+import { initBoardResolver } from "../systems/BoardActionResolver.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -166,11 +167,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.gridManager.isEmpty(slot)) {
       console.log(`[点击] 空格: 格${slot} → 旋转`);
       gameState.interactionCount++;
-      this.time.delayedCall(250, () => {
-        this.gridManager.refillEmptySlots(() => {
-          this.gridManager.rotateGrid();
-        });
-      });
+      this.boardResolver.runSettlementChain({ shouldRotate: true, preDelay: 250 });
       return;
     }
 
@@ -284,21 +281,16 @@ export default class GameScene extends Phaser.Scene {
     // 存入道具槽数据
     this._itemSlots[emptyIdx] = { cardData, slot: slotIndex };
 
-    // 从九宫格移除
-    this.gridManager.slotContents[slotIndex] = null;
+    // 从九宫格移除（走 removeCard，不触发击杀金币）
+    this.boardResolver.removeCard(slotIndex, container, { reason: "pickup_help", animate: false });
 
     // 视觉：创建小卡牌放入道具牌格
     this.renderItemSlotCard(emptyIdx, cardData);
 
-    // 销毁原容器
-    container.destroy();
-
-    // 补牌 + 旋转
+    // 补牌 + 旋转（统一结算链）
     gameState.interactionCount++;
     this.time.delayedCall(80, () => {
-      this.gridManager.refillEmptySlots(() => {
-        this.gridManager.rotateGrid();
-      });
+      this.boardResolver.runSettlementChain({ shouldRotate: true });
     });
   }
 
@@ -883,6 +875,7 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this.gridManager = new GridManager(this);
     this.gridManager.render();
+    initBoardResolver(this);
   }
 
   buildItemSlots() {

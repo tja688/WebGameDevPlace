@@ -103,6 +103,10 @@ const STRONG_ELITE_DECKS = [
     t3: [
       { id: "orcBig", name: "兽人大只佬", hp: 21, atk: 4, armor: 0, type: "monster" },
       { id: "orcCommander", name: "兽人指挥官", hp: 15, atk: 2, armor: 3, type: "monster" },
+      { id: "chaser", name: "追猎兽人", hp: 12, atk: 3, armor: 0, type: "monster",
+        skill: { id: "relentless", name: "不休追击", desc: "[场上] 每次移动到玩家正交相邻格时，与玩家战斗一次", effects: [
+          { event: "onMoveToPlayerAdjacent", action: "autoBattle" },
+        ] } },
     ],
     elite: { id: "orcBoss", name: "兽人老大", hp: 30, atk: 5, armor: 5, type: "monster", isElite: true,
       skill: { id: "violence", name: "暴力狂+暴力即养分", desc: "攻击+5，先攻", effects: [
@@ -122,7 +126,16 @@ const STRONG_ELITE_DECKS = [
     ],
     t2: [
       { id: "bigBone", name: "大骷髅", hp: 10, atk: 3, armor: 0, type: "monster",
-        skill: { id: "collapse", name: "散架", desc: "被移除时生成骷髅头和无头骷髅", effects: [] } },
+        skill: { id: "collapse", name: "散架", desc: "[场上] 被移除时，将骷髅头和无头骷髅洗入战斗卡组", effects: [
+          { event: "onRemove", action: "spawnToDeck", cards: [
+            { id: "skull", name: "骷髅头", hp: 4, atk: 2, armor: 4, type: "monster" },
+            { id: "headlessBone", name: "无头骷髅", hp: 8, atk: 2, armor: 0, type: "monster" },
+          ] },
+        ] } },
+      { id: "unstableBone", name: "摇晃骷髅", hp: 6, atk: 2, armor: 0, type: "monster",
+        skill: { id: "unstable", name: "不稳定", desc: "每移动3次，与九宫格上随机一张怪物卡交换位置", effects: [
+          { event: "onMoveEveryN", n: 3, action: "swapRandomMonster" },
+        ] } },
       { id: "multiBone", name: "多骨虫", hp: 3, atk: 3, armor: 9, type: "monster" },
       { id: "boneExpress", name: "骨头快递员", hp: 10, atk: 2, armor: 2, type: "monster" },
     ],
@@ -181,9 +194,8 @@ const BOSS_DECKS = [
     ],
     t2: [
       { id: "skyEye", name: "空中巨眼", hp: 25, atk: 3, armor: 2, type: "monster",
-        skill: { id: "airStrike", name: "空中打击", desc: "战斗时攻击+2，先攻", effects: [
-          { event: "onCombat", action: "atkUp", amount: 2 },
-          { event: "onCombat", action: "firstStrike" }
+        skill: { id: "airStrike", name: "空中打击", desc: "[场上] 每次移动到格1/3/7/9时，对玩家造成2点伤害", effects: [
+          { event: "onMoveToSlot", slots: [1, 3, 7, 9], action: "dmgPlayer", amount: 2 },
         ] } },
       { id: "observer", name: "观察者", hp: 10, atk: 3, armor: 5, type: "monster" },
       { id: "worldSpinner", name: "转动世界的手", hp: 20, atk: 5, armor: 0, type: "monster",
