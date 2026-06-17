@@ -252,6 +252,7 @@ function killMonster(scene, container, monsterData) {
 }
 
 /** 伤害飘字 */
+function showFloatText(scene, container, dmg) {
   const txt = scene.add.text(0, -30, `-${dmg}`, {
     fontFamily: "Arial, sans-serif",
     fontSize: "18px",
