@@ -44,6 +44,90 @@ export const HELP_CARDS = {
     desc: "对所有怪物造成4点伤害",
   },
 
+  spinWheel: {
+    id: "spinWheel", name: "旋转轮", rarity: "white", price: 20,
+    effect: { type: "reverse_rotate" },
+    desc: "逆时针旋转一次",
+  },
+
+  violenceCard: {
+    id: "violenceCard", name: "暴力卡", rarity: "white", price: 30,
+    effect: { type: "double_atk_temp" },
+    desc: "攻击翻倍，互动一次后复原",
+  },
+
+  teleportCard: {
+    id: "teleportCard", name: "传送卡", rarity: "white", price: 30,
+    effect: { type: "shuffle_back", target: "any_non_player" },
+    desc: "选择一张非玩家卡洗回战斗卡组",
+  },
+
+  swapCard: {
+    id: "swapCard", name: "交换卡", rarity: "white", price: 50,
+    effect: { type: "swap_two_cards", target: "two_non_player" },
+    desc: "选择两张非玩家卡互换位置",
+  },
+
+  kidnapCard: {
+    id: "kidnapCard", name: "绑票", rarity: "blue", price: 100,
+    effect: { type: "kidnap", target: "non_elite_monster" },
+    desc: "移除一张普通怪物并获得其护甲值",
+  },
+
+  bloodConvert: {
+    id: "bloodConvert", name: "血液转换", rarity: "white", price: 50,
+    effect: { type: "blood_convert" },
+    desc: "扣除5点血量上限，随机获得一种奖励",
+  },
+
+  healSpring: {
+    id: "healSpring", name: "治疗泉", rarity: "blue", price: 80,
+    effect: { type: "heal", amount: 3 },
+    desc: "恢复3点血量（场上移动至相邻时恢复2）",
+    onFieldSkill: { id: "healSpring", name: "治疗泉涌", desc: "", effects: [
+      { event: "onMoveToAdjacent", action: "healPlayer", amount: 2 }
+    ] },
+  },
+
+  ramTutorial: {
+    id: "ramTutorial", name: "撞击教程", rarity: "blue", price: 80,
+    effect: { type: "damage_hp_based", target: "monster" },
+    desc: "对目标造成等同于玩家当前血量的伤害",
+  },
+
+  shieldTutorial: {
+    id: "shieldTutorial", name: "盾击教程", rarity: "blue", price: 80,
+    effect: { type: "damage_armor_based", target: "monster" },
+    desc: "对目标造成等同于玩家当前护甲的伤害",
+  },
+
+  rollingStone: {
+    id: "rollingStone", name: "滚石", rarity: "white", price: 50,
+    effect: { type: "remove_self" },
+    desc: "移动到格3时移除格6普通怪物，后移除本卡",
+    onFieldSkill: { id: "rollingStone", name: "滚石碾压", desc: "", effects: [
+      { event: "onMoveToSlot", action: "killSlot6Monster", slot: 3 }
+    ] },
+  },
+
+  bearTrap: {
+    id: "bearTrap", name: "捕熊陷阱", rarity: "white", price: 50,
+    effect: { type: "remove_self" },
+    desc: "正交相邻格补牌时若为怪物造成10伤害后移除",
+  },
+
+  watchTower: {
+    id: "watchTower", name: "瞭望塔", rarity: "gold", price: 150,
+    effect: { type: "remove_self" },
+    desc: "移动到角落格时对随机怪物造成3伤害（4次后移除）",
+  },
+
+  doubleTower: {
+    id: "doubleTower", name: "倍增塔", rarity: "gold", price: 150,
+    effect: { type: "remove_self" },
+    desc: "在格1时对怪物使用的帮助卡触发两次",
+  },
+
   blessing: {
     id: "blessing", name: "庇佑魔法卡", rarity: "white", price: 20,
     effect: { type: "blessed" },
@@ -80,6 +164,12 @@ export const HELP_CARDS = {
     id: "chestWhite", name: "普通宝箱卡", rarity: "blue", price: 100,
     effect: { type: "chest", rarityPool: { white: 0.65, blue: 0.30, gold: 0.05 } },
     desc: "三选一遗物",
+  },
+
+  flame: {
+    id: "flame", name: "烈焰", rarity: "red", price: 400,
+    effect: { type: "damage_to_player", amount: 4 },
+    desc: "使用时对玩家造成4点伤害并永久移除",
   },
 };
 

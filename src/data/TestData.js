@@ -5,6 +5,31 @@
 import { HELP_CARDS } from "./HelpCardData.js";
 
 // ============================================================
+// 怪物模板池（供技能生成用）
+// ============================================================
+export const MONSTER_TEMPLATES = {
+  beggar: { id: "beggar", name: "乞丐", hp: 4, atk: 2, armor: 0, type: "monster",
+    skill: { id: "beggarGang", name: "丐帮同心", desc: "每移动5次将一只乞丐洗入战斗卡组", effects: [
+      { event: "onMoveCount", action: "shuffleMonster", every: 5, monsterId: "beggar" }
+    ] } },
+  skullHead: { id: "skull", name: "骷髅头", hp: 4, atk: 2, armor: 4, type: "monster" },
+  headlessBone: { id: "headlessBone", name: "无头骷髅", hp: 8, atk: 2, armor: 0, type: "monster" },
+  bigBone: { id: "bigBone", name: "大骷髅", hp: 10, atk: 3, armor: 0, type: "monster" },
+  multiBone: { id: "multiBone", name: "多骨虫", hp: 3, atk: 3, armor: 9, type: "monster" },
+  hugeBone: { id: "hugeBone", name: "巨大骷髅", hp: 12, atk: 4, armor: 0, type: "monster" },
+  dragonFollower: { id: "dragonFollower", name: "龙信徒", hp: 10, atk: 2, armor: 0, type: "monster",
+    skill: { id: "devotion", name: "献身", desc: "被移除时烈焰洗入卡组", effects: [
+      { event: "onRemove", action: "shuffleMonster", monsterId: "flame" }
+    ] } },
+  flame: { id: "flame", name: "烈焰", type: "help", rarity: "red", price: 400, effect: { type: "damage_to_player", amount: 4 }, desc: "使用时对玩家造成4点伤害",
+    // 场上效果：移动到玩家正交相邻格时对玩家造成2伤害
+    onFieldSkill: { id: "flameTouch", name: "烈焰灼烧", desc: "移动到玩家相邻格时对玩家造成2伤害", effects: [
+      { event: "onMoveToAdjacent", action: "dmgPlayer", amount: 2 }
+    ] } },
+  randomTier2: { id: "randomTier2", name: "随机T2", hp: 10, atk: 3, armor: 2, type: "monster" },
+};
+
+// ============================================================
 // 怪物牌组
 // ============================================================
 
@@ -12,18 +37,24 @@ import { HELP_CARDS } from "./HelpCardData.js";
 const WEAK_ELITE_DECKS = [
   { // 流浪军团
     t1: [
-      { id: "beggar", name: "乞丐", hp: 4, atk: 2, armor: 0, type: "monster" },
+      { id: "beggar", name: "乞丐", hp: 4, atk: 2, armor: 0, type: "monster",
+        skill: { id: "beggarGang", name: "丐帮同心", desc: "每移动5次将一只乞丐洗入战斗卡组", effects: [
+          { event: "onMoveCount", action: "shuffleMonster", every: 5, monsterId: "beggar" }
+        ] } },
       { id: "vagrantKid", name: "流浪孩童", hp: 1, atk: 1, armor: 3, type: "monster",
         skill: { id: "wanderKid", name: "流浪幼崽", desc: "处于格6时攻击+2并获得先攻", effects: [
           { event: "onCombat", action: "conditionalAtkUp", condition: "slot6", amount: 2, extra: "firstStrike" }
         ] } },
-      { id: "pickpocket", name: "扒手", hp: 4, atk: 2, armor: 0, type: "monster" },
+      { id: "pickpocket", name: "扒手", hp: 4, atk: 2, armor: 0, type: "monster",
+        skill: { id: "steal", name: "东西归我了", desc: "每移动3次移除正交相邻帮助卡", effects: [
+          { event: "onMoveCount", action: "removeAdjacentHelp", every: 3 }
+        ] } },
       { id: "vagrant", name: "流浪汉", hp: 6, atk: 2, armor: 0, type: "monster" },
     ],
     t2: [
       { id: "thug", name: "混混", hp: 8, atk: 2, armor: 0, type: "monster",
-        skill: { id: "thugLife", name: "混的人", desc: "处于格2/4/6/8时攻击+2", effects: [
-          { event: "onCombat", action: "conditionalAtkUp", condition: "evenSlot", amount: 2 }
+        skill: { id: "thugLife", name: "混的人", desc: "每次移动到格1时对玩家造成2伤害", effects: [
+          { event: "onMoveToSlot", action: "dmgPlayer", slot: 1, amount: 2 }
         ] } },
       { id: "rogue", name: "流氓", hp: 2, atk: 2, armor: 6, type: "monster",
         skill: { id: "rogue", name: "痞气", desc: "战斗时攻击+1", effects: [
@@ -35,8 +66,14 @@ const WEAK_ELITE_DECKS = [
         ] } },
     ],
     t3: [
-      { id: "hitman", name: "杀手", hp: 12, atk: 3, armor: 0, type: "monster" },
-      { id: "smuggler", name: "走私者", hp: 4, atk: 3, armor: 8, type: "monster" },
+      { id: "hitman", name: "杀手", hp: 12, atk: 3, armor: 0, type: "monster",
+        skill: { id: "relentless", name: "不休追击", desc: "移动到玩家正交相邻格时自动战斗一次", effects: [
+          { event: "onMoveToAdjacent", action: "autoBattle" }
+        ] } },
+      { id: "smuggler", name: "走私者", hp: 4, atk: 3, armor: 8, type: "monster",
+        skill: { id: "sideStrike", name: "侧方打击", desc: "移动到角落格时对玩家造成3伤害", effects: [
+          { event: "onMoveToCorner", action: "dmgPlayer", amount: 3 }
+        ] } },
     ],
     elite: { id: "leader", name: "领头人", hp: 20, atk: 5, armor: 5, type: "monster", isElite: true,
       skill: { id: "guide", name: "引路+发现弱点", desc: "攻击+3，先攻", effects: [
@@ -54,20 +91,37 @@ const WEAK_ELITE_DECKS = [
         skill: { id: "tough", name: "坚硬", desc: "处于左列时造成护甲损失等量伤害", effects: [
           { event: "onCombat", action: "armorLossDmg", condition: "leftCol" }
         ] } },
-      { id: "stoneEater", name: "吞石者", hp: 1, atk: 2, armor: 3, type: "monster" },
+      { id: "stoneEater", name: "吞石者", hp: 1, atk: 2, armor: 3, type: "monster",
+        skill: { id: "eatStone", name: "吞石", desc: "每移动2次扣除相邻怪物1护甲并自增等量护甲", effects: [
+          { event: "onMoveCount", action: "drainArmor", every: 2, amount: 1 }
+        ] } },
       { id: "stoneMan", name: "石头人", hp: 1, atk: 2, armor: 5, type: "monster" },
     ],
     t2: [
-      { id: "rollingStone", name: "滚石人", hp: 4, atk: 2, armor: 4, type: "monster" },
-      { id: "stoneShrimp", name: "石虾", hp: 2, atk: 2, armor: 6, type: "monster" },
+      { id: "rollingStone", name: "滚石人", hp: 4, atk: 2, armor: 4, type: "monster",
+        skill: { id: "rollCrush", name: "滚动碾压", desc: "移动到格3时移除格6帮助卡", effects: [
+          { event: "onMoveToSlot", action: "removeAdjacentHelp", slot: 3 }
+        ] } },
+      { id: "stoneShrimp", name: "石虾", hp: 2, atk: 2, armor: 6, type: "monster",
+        skill: { id: "stoneLover", name: "石头爱好者", desc: "护甲损失时攻击+1；每移动3次滚动碾压", effects: [
+          { event: "onCombat", action: "armorLossAtk" },
+          { event: "onMoveCount", action: "dmgPlayer", every: 3, amount: 0 }
+        ] } },
       { id: "stoneThrower", name: "丢石人", hp: 4, atk: 2, armor: 4, type: "monster",
-        skill: { id: "stoneThrow", name: "丢石头", desc: "战斗时攻击+2", effects: [
-          { event: "onCombat", action: "atkUp", amount: 2 }
+        skill: { id: "stoneThrow", name: "丢石头", desc: "每移动2次扣2护甲对玩家2伤害", effects: [
+          { event: "onMoveCount", action: "dmgPlayer", every: 2, amount: 2 },
+          { event: "onMoveCount", action: "reduceArmor", every: 2, amount: 2 }
         ] } },
     ],
     t3: [
-      { id: "growStone", name: "增生石块", hp: 16, atk: 4, armor: 0, type: "monster" },
-      { id: "shelterStone", name: "庇护石", hp: 8, atk: 4, armor: 8, type: "monster" },
+      { id: "growStone", name: "增生石块", hp: 16, atk: 4, armor: 0, type: "monster",
+        skill: { id: "stoneGrowth", name: "石增长", desc: "移动到左列时其他怪物护甲+2", effects: [
+          { event: "onMoveToSlot", action: "buffOtherMonsters", amount: 2, slot: 1 },
+          { event: "onMoveToSlot", action: "buffOtherMonsters", amount: 2, slot: 4 },
+          { event: "onMoveToSlot", action: "buffOtherMonsters", amount: 2, slot: 7 }
+        ] } },
+      { id: "shelterStone", name: "庇护石", hp: 8, atk: 4, armor: 8, type: "monster",
+        skill: { id: "stoneShelter", name: "石庇护", desc: "场上其他怪物受到伤害-1", effects: [] } },
     ],
     elite: { id: "bigStoneMan", name: "巨石人", hp: 10, atk: 2, armor: 20, type: "monster", isElite: true,
       skill: { id: "absorbStone", name: "吸石+落石", desc: "左列时造成护甲损失等量伤害", effects: [
@@ -97,17 +151,30 @@ const STRONG_ELITE_DECKS = [
         skill: { id: "bloodthirst", name: "嗜血", desc: "每造成2点伤害攻击+1", effects: [
           { event: "onCombat", action: "atkPerDamage", amount: 2 }
         ] } },
-      { id: "smartOrc", name: "聪明兽人", hp: 15, atk: 3, armor: 0, type: "monster" },
-      { id: "orcQuarter", name: "兽人军需官", hp: 12, atk: 2, armor: 4, type: "monster" },
+      { id: "smartOrc", name: "聪明兽人", hp: 15, atk: 3, armor: 0, type: "monster",
+        skill: { id: "bigBrain", name: "大聪明", desc: "每次获得攻击时额外+1", effects: [
+          { event: "onCombat", action: "chainAtk", amount: 1 }
+        ] } },
+      { id: "orcQuarter", name: "兽人军需官", hp: 12, atk: 2, armor: 4, type: "monster",
+        skill: { id: "giveGear", name: "发装备了", desc: "每移动2次随机怪物攻击+1或护甲+2", effects: [
+          { event: "onMoveCount", action: "buffOtherMonsters", amount: 1, every: 2 }
+        ] } },
     ],
     t3: [
-      { id: "orcBig", name: "兽人大只佬", hp: 21, atk: 4, armor: 0, type: "monster" },
-      { id: "orcCommander", name: "兽人指挥官", hp: 15, atk: 2, armor: 3, type: "monster" },
+      { id: "orcBig", name: "兽人大只佬", hp: 21, atk: 4, armor: 0, type: "monster",
+        skill: { id: "fightMe", name: "和我打", desc: "相邻时玩家战斗后自动触发本卡战斗", effects: [
+          { event: "onAllyFight", action: "autoBattle" }
+        ] } },
+      { id: "orcCommander", name: "兽人指挥官", hp: 15, atk: 2, armor: 3, type: "monster",
+        skill: { id: "orcTactic", name: "兽人战术", desc: "每移动1次相邻怪物攻击+1", effects: [
+          { event: "onMoveCount", action: "buffAdjacentMonsters", amount: 1, every: 1 }
+        ] } },
     ],
     elite: { id: "orcBoss", name: "兽人老大", hp: 30, atk: 5, armor: 5, type: "monster", isElite: true,
-      skill: { id: "violence", name: "暴力狂+暴力即养分", desc: "攻击+5，先攻", effects: [
+      skill: { id: "violence", name: "暴力狂+暴力即养分", desc: "攻击+5先攻；每2移移除相邻卡", effects: [
         { event: "onCombat", action: "atkUp", amount: 5 },
-        { event: "onCombat", action: "firstStrike" }
+        { event: "onCombat", action: "firstStrike" },
+        { event: "onMoveCount", action: "removeAdjacent", every: 2 }
       ] } },
   },
   { // 骷髅军团
@@ -122,14 +189,18 @@ const STRONG_ELITE_DECKS = [
     ],
     t2: [
       { id: "bigBone", name: "大骷髅", hp: 10, atk: 3, armor: 0, type: "monster",
-        skill: { id: "collapse", name: "散架", desc: "被移除时生成骷髅头和无头骷髅", effects: [] } },
+        skill: { id: "collapse", name: "散架", desc: "被移除时生成骷髅头和无头骷髅洗入卡组", effects: [
+          { event: "onRemove", action: "shuffleMonster", monsterId: "skullHead" },
+          { event: "onRemove", action: "shuffleMonster", monsterId: "headlessBone" }
+        ] } },
       { id: "multiBone", name: "多骨虫", hp: 3, atk: 3, armor: 9, type: "monster" },
       { id: "boneExpress", name: "骨头快递员", hp: 10, atk: 2, armor: 2, type: "monster" },
     ],
     t3: [
       { id: "hugeBone", name: "巨大骷髅", hp: 12, atk: 4, armor: 0, type: "monster",
-        skill: { id: "atkUp3", name: "巨大化", desc: "战斗时攻击+2", effects: [
-          { event: "onCombat", action: "atkUp", amount: 2 }
+        skill: { id: "brokenCollapse", name: "折损散架", desc: "被移除时生成多骨虫+随机T2洗入卡组", effects: [
+          { event: "onRemove", action: "shuffleMonster", monsterId: "multiBone" },
+          { event: "onRemove", action: "shuffleMonster", monsterId: "randomTier2" }
         ] } },
       { id: "boneMage", name: "骷髅法师", hp: 8, atk: 4, armor: 8, type: "monster",
         skill: { id: "firstStrike", name: "先攻", desc: "战斗中优先造成伤害", effects: [
@@ -148,22 +219,46 @@ const STRONG_ELITE_DECKS = [
 const BOSS_DECKS = [
   { // 巨龙
     t1: [
-      { id: "dragonFollower", name: "龙信徒", hp: 10, atk: 2, armor: 0, type: "monster" },
-      { id: "fireBather", name: "浴火者", hp: 18, atk: 2, armor: 0, type: "monster" },
-      { id: "fireLizard", name: "火蜥蜴", hp: 16, atk: 4, armor: 0, type: "monster" },
+      { id: "dragonFollower", name: "龙信徒", hp: 10, atk: 2, armor: 0, type: "monster",
+        skill: { id: "devotion", name: "献身", desc: "被移除时烈焰洗入卡组", effects: [
+          { event: "onRemove", action: "shuffleMonster", monsterId: "flame" }
+        ] } },
+      { id: "fireBather", name: "浴火者", hp: 18, atk: 2, armor: 0, type: "monster",
+        skill: { id: "loveFire", name: "恋火", desc: "场上有烈焰时攻击+4（被动常驻）", effects: [
+          { event: "onCombat", action: "conditionalAtkUp", condition: "hasFlame", amount: 4 }
+        ] },
+        // 被动标记：需要持续检测的被动技能
+        _passive: true, _passiveCheck: "hasFlame", _passiveAtk: 4, _passiveBaseAtk: 2 },
+
+      { id: "fireLizard", name: "火蜥蜴", hp: 16, atk: 4, armor: 0, type: "monster",
+        skill: { id: "spitFire", name: "喷火", desc: "每移动3次烈焰放入道具牌格", effects: [
+          { event: "onMoveCount", action: "giftItem", every: 3, itemId: "flame" }
+        ] } },
       { id: "stoneGolem", name: "石傀儡", hp: 10, atk: 3, armor: 10, type: "monster" },
     ],
     t2: [
       { id: "firePriest", name: "火焰祭司", hp: 25, atk: 0, armor: 5, type: "monster",
-        skill: { id: "firePower", name: "火之力", desc: "战斗时攻击+3", effects: [
-          { event: "onCombat", action: "atkUp", amount: 3 }
+        skill: { id: "firePower", name: "火之力", desc: "场上每有一张烈焰攻击+2", effects: [
+          { event: "onCombat", action: "countFlameAtk", amount: 2 }
         ] } },
-      { id: "fireEater", name: "吞火者", hp: 25, atk: 3, armor: 2, type: "monster" },
-      { id: "executioner", name: "刽子手", hp: 25, atk: 5, armor: 0, type: "monster" },
+      { id: "fireEater", name: "吞火者", hp: 25, atk: 3, armor: 2, type: "monster",
+        skill: { id: "spikeShield", name: "尖盾", desc: "左列时护甲损失追加伤害", effects: [
+          { event: "onCombat", action: "armorLossDmg", condition: "leftCol" }
+        ] } },
+      { id: "executioner", name: "刽子手", hp: 25, atk: 5, armor: 0, type: "monster",
+        skill: { id: "sacrifice", name: "献祭", desc: "每移动2次移除所有龙信徒", effects: [
+          { event: "onMoveCount", action: "removeAllMonsters", every: 2, monsterId: "dragonFollower" }
+        ] } },
     ],
     t3: [
-      { id: "dragonLeader", name: "龙教主", hp: 30, atk: 5, armor: 5, type: "monster" },
-      { id: "fireLeader", name: "火教主", hp: 30, atk: 5, armor: 5, type: "monster" },
+      { id: "dragonLeader", name: "龙教主", hp: 30, atk: 5, armor: 5, type: "monster",
+        skill: { id: "callFollowers", name: "呼唤信徒", desc: "每移动3次将龙信徒洗入战斗卡组", effects: [
+          { event: "onMoveCount", action: "shuffleMonster", every: 3, monsterId: "dragonFollower" }
+        ] } },
+      { id: "fireLeader", name: "火教主", hp: 30, atk: 5, armor: 5, type: "monster",
+        skill: { id: "medic", name: "医疗兵", desc: "移动到下排时全体怪物恢复4HP", effects: [
+          { event: "onMoveToBotRow", action: "healAllMonsters", amount: 4 }
+        ] } },
     ],
     boss: { id: "fireDragon", name: "火龙", hp: 100, atk: 10, armor: 10, type: "monster", isBoss: true,
       skill: { id: "fireBreath", name: "烈焰吐息+烈焰沸腾", desc: "攻击+5，先攻，每回合恢复2HP", effects: [
@@ -174,32 +269,56 @@ const BOSS_DECKS = [
   },
   { // 虚空
     t1: [
-      { id: "voidKid", name: "虚空幼崽", hp: 18, atk: 2, armor: 0, type: "monster" },
-      { id: "spinKid", name: "旋转幼崽", hp: 18, atk: 2, armor: 0, type: "monster" },
-      { id: "walker", name: "踏步行者", hp: 18, atk: 2, armor: 0, type: "monster" },
+      { id: "voidKid", name: "虚空幼崽", hp: 18, atk: 2, armor: 0, type: "monster",
+        skill: { id: "unstable", name: "不稳定", desc: "每移动3次随机与怪物换位", effects: [
+          { event: "onMoveCount", action: "swapWithRandom", every: 3 }
+        ] } },
+      { id: "spinKid", name: "旋转幼崽", hp: 18, atk: 2, armor: 0, type: "monster",
+        skill: { id: "loveSpin", name: "爱好旋转", desc: "每移动3次旋转一次", effects: [
+          { event: "onMoveCount", action: "rotateBoard", every: 3 }
+        ] } },
+      { id: "walker", name: "踏步行者", hp: 18, atk: 2, armor: 0, type: "monster",
+        skill: { id: "randomWalk", name: "乱步", desc: "每移动3次与随机帮助卡换位", effects: [
+          { event: "onMoveCount", action: "swapWithHelp", every: 3 }
+        ] } },
       { id: "lostVoid", name: "误入虚空者", hp: 18, atk: 3, armor: 0, type: "monster" },
     ],
     t2: [
       { id: "skyEye", name: "空中巨眼", hp: 25, atk: 3, armor: 2, type: "monster",
-        skill: { id: "airStrike", name: "空中打击", desc: "战斗时攻击+2，先攻", effects: [
-          { event: "onCombat", action: "atkUp", amount: 2 },
+        skill: { id: "airStrike", name: "空中打击", desc: "移动到角落格时对玩家造成2伤害，先攻", effects: [
+          { event: "onMoveToCorner", action: "dmgPlayer", amount: 2 },
           { event: "onCombat", action: "firstStrike" }
         ] } },
-      { id: "observer", name: "观察者", hp: 10, atk: 3, armor: 5, type: "monster" },
+      { id: "observer", name: "观察者", hp: 10, atk: 3, armor: 5, type: "monster",
+        skill: { id: "armorBreak", name: "破防专家", desc: "移动到上排时减少玩家护甲2点", effects: [
+          { event: "onMoveToTopRow", action: "reducePlayerArmor", amount: 2 }
+        ] } },
+      { id: "hotWatcher", name: "灼热观察者", hp: 10, atk: 3, armor: 5, type: "monster",
+        skill: { id: "hotWatch", name: "灼热观察", desc: "怪物技能换位时对玩家造成1伤害", effects: [
+          { event: "onSkillSwap", action: "dmgPlayer", amount: 1 }
+        ] } },
       { id: "worldSpinner", name: "转动世界的手", hp: 20, atk: 5, armor: 0, type: "monster",
-        skill: { id: "spin", name: "转动", desc: "战斗时攻击+1", effects: [
+        skill: { id: "spin", name: "转动", desc: "登场时旋转一次；战斗攻击+1", effects: [
+          { event: "onEnter", action: "rotateBoard" },
           { event: "onCombat", action: "atkUp", amount: 1 }
         ] } },
     ],
     t3: [
-      { id: "mist", name: "迷雾", hp: 15, atk: 1, armor: 0, type: "monster" },
-      { id: "friendlyAncient", name: "友好的远古生物", hp: 30, atk: 3, armor: 10, type: "monster" },
+      { id: "mist", name: "迷雾", hp: 15, atk: 1, armor: 0, type: "monster",
+        skill: { id: "wander", name: "漫步", desc: "每移动1次攻击+2", effects: [
+          { event: "onMoveCount", action: "atkUp", every: 1, amount: 2 }
+        ] } },
+      { id: "friendlyAncient", name: "友好的远古生物", hp: 30, atk: 3, armor: 10, type: "monster",
+        skill: { id: "gift", name: "礼物", desc: "每移动3次旋转轮放入道具牌格", effects: [
+          { event: "onMoveCount", action: "giftItem", every: 3, itemId: "spinWheel" }
+        ] } },
     ],
     boss: { id: "spaceMaster", name: "空间大师", hp: 80, atk: 5, armor: 20, type: "monster", isBoss: true,
-      skill: { id: "spaceControl", name: "空间掌握+异界帮助", desc: "攻击+3，先攻，反伤3", effects: [
+      skill: { id: "spaceControl", name: "空间掌握+异界帮助", desc: "攻击+3先攻反伤3，战斗后旋转", effects: [
         { event: "onCombat", action: "atkUp", amount: 3 },
         { event: "onCombat", action: "firstStrike" },
-        { event: "onCombat", action: "reflectDmg", amount: 3 }
+        { event: "onCombat", action: "reflectDmg", amount: 3 },
+        { event: "postCombat", action: "rotateBoard" }
       ] } },
   },
 ];
@@ -258,10 +377,28 @@ export function buildMonsterDeckByNode(layer, node) {
       monsters.push({ ...m, uid: `md_${monsters.length + 1}` });
     }
   };
+  // 确保每种怪物至少出现一次（如果配额够）
+  const addWithVariety = (pool, count) => {
+    if (count < pool.length) {
+      // 配额不足，随机选
+      for (let i = 0; i < count; i++) {
+        const m = pool[Math.floor(Math.random() * pool.length)];
+        monsters.push({ ...m, uid: `md_${monsters.length + 1}` });
+      }
+    } else {
+      // 每种至少一只
+      pool.forEach((m) => monsters.push({ ...m, uid: `md_${monsters.length + 1}` }));
+      const extra = count - pool.length;
+      for (let i = 0; i < extra && pool.length > 0; i++) {
+        const m = pool[Math.floor(Math.random() * pool.length)];
+        monsters.push({ ...m, uid: `md_${monsters.length + 1}` });
+      }
+    }
+  };
 
-  add(deck.t1 || [], t1);
-  add(deck.t2 || [], t2);
-  add(deck.t3 || [], t3);
+  addWithVariety(deck.t1 || [], t1);
+  addWithVariety(deck.t2 || [], t2);
+  addWithVariety(deck.t3 || [], t3);
 
   // 精英/层主额外加入（不计入常规配额）
   if (addElite && deck.elite) {

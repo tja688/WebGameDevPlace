@@ -100,11 +100,13 @@ class LevelManager {
   _showHelpCardChoice(onDone) {
     const cards = [];
     const used = new Set();
-    for (let i = 0; i < 3; i++) {
+    const allPool = Object.values(HELP_CARDS).filter((c) => c.rarity !== "red");
+    for (let i = 0; i < 3 && used.size < allPool.length; i++) {
       const r = Math.random();
       const rarity = r < 0.65 ? "white" : r < 0.95 ? "blue" : "gold";
-      const pool = Object.values(HELP_CARDS).filter((c) => c.rarity === rarity && !used.has(c.id));
-      if (pool.length === 0) continue;
+      let pool = allPool.filter((c) => c.rarity === rarity && !used.has(c.id));
+      if (pool.length === 0) pool = allPool.filter((c) => !used.has(c.id)); // 回退到任意可用
+      if (pool.length === 0) break;
       const c = pool[Math.floor(Math.random() * pool.length)];
       used.add(c.id);
       cards.push({ ...c, type: "help", uid: `pick_${Date.now()}_${i}` });
@@ -142,9 +144,9 @@ class LevelManager {
     const picked = [];
     const used = new Set();
     for (let i = 0; i < 3 && used.size < whiteCards.length; i++) {
-      let c;
-      do { c = whiteCards[Math.floor(Math.random() * whiteCards.length)]; }
-      while (used.has(c.id));
+      const pool = whiteCards.filter((c) => !used.has(c.id));
+      if (pool.length === 0) break;
+      const c = pool[Math.floor(Math.random() * pool.length)];
       used.add(c.id);
       picked.push({ ...c, type: "help", uid: `wht_${Date.now()}_${i}` });
     }
@@ -246,7 +248,7 @@ class LevelManager {
   _openShop(boughtUids = []) {
     // 首次进入时生成 6 张卡（缓存，不重复生成）
     if (!this._shopCards) {
-      const pool = Object.values(HELP_CARDS).filter((c) => c.price > 0);
+      const pool = Object.values(HELP_CARDS).filter((c) => c.price > 0 && c.rarity !== "red");
       this._shopCards = [];
       const used = new Set();
       for (let i = 0; i < 6 && used.size < pool.length; i++) {

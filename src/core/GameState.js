@@ -133,12 +133,15 @@ class GameState {
     remaining -= hpLoss;
 
     const totalTaken = armorLoss + hpLoss;
+    // 金属血液：损失血量后获得等量护甲
+    if (hpLoss > 0 && relicManager.hasRelic("metalBlood")) {
+      this.currentArmor += hpLoss;
+      console.log(`[金属血液] 损失${hpLoss}HP，获得${hpLoss}护甲`);
+    }
+
     EventBus.emit(GameEvents.PLAYER_DAMAGED, {
-      total: totalTaken,
-      armorLoss,
-      hpLoss,
-      currentHp: this.hp,
-      currentArmor: this.currentArmor,
+      total: totalTaken, armorLoss, hpLoss,
+      currentHp: this.hp, currentArmor: this.currentArmor,
     });
     EventBus.emit(GameEvents.PLAYER_HP_CHANGED, this.hp, this.maxHp);
     EventBus.emit(GameEvents.PLAYER_ARMOR_CHANGED, this.currentArmor);
@@ -156,6 +159,8 @@ class GameState {
   /** 恢复玩家血量（上限含遗物加成） */
   heal(amount) {
     const oldHp = this.hp;
+    // 渴望遗物：恢复翻倍
+    if (relicManager.hasRelic("crave")) amount *= 2;
     const effectiveMax = this.getEffectiveMaxHp();
     this.hp = Math.min(effectiveMax, this.hp + amount);
     const healed = this.hp - oldHp;
@@ -179,8 +184,9 @@ class GameState {
 
   /** 修改血量上限 */
   addMaxHp(amount) {
-    this.maxHp += amount;
-    this.hp += amount; // 设计文档：获得血量上限时立刻获得等量的血量
+    this.maxHp = Math.max(1, this.maxHp + amount);
+    if (amount > 0) this.hp += amount;
+    if (amount < 0) this.hp = Math.min(this.hp, this.maxHp);
     EventBus.emit(GameEvents.PLAYER_HP_CHANGED, this.hp, this.maxHp);
   }
 
@@ -223,7 +229,6 @@ class GameState {
 
   /** 生成怪物侧卡组（按设计文档节点规则） */
   buildMonsterDeck(layer, node) {
-    // 使用新规则生成怪物列表（纯怪物，不含帮助卡）
     this.monsterDeck = buildMonsterDeckByNode(layer, node);
     this._shuffle(this.monsterDeck);
     console.log(`[怪物侧] 第${layer}层节点${node}: ${this.monsterDeck.length}张怪物`);

@@ -84,6 +84,27 @@ export const RELICS = {
     effects: [{ event: "onFatalDamage", action: "revive", healPercent: 0.5, consumable: true }],
     desc: "受到致命伤害时，恢复50%血量并永久移除（一次性免死）",
   },
+
+  crave: {
+    id: "crave", name: "渴望", rarity: "gold",
+    attr: { maxHp: 10 },
+    effects: [],
+    desc: "所有恢复血量效果翻倍",
+  },
+
+  metalBlood: {
+    id: "metalBlood", name: "金属血液", rarity: "gold",
+    attr: {},
+    effects: [{ event: "onDamage", action: "armorFromHpLoss" }],
+    desc: "损失血量后获得等量的当前护甲",
+  },
+
+  trader: {
+    id: "trader", name: "操盘手", rarity: "blue",
+    attr: {},
+    effects: [],
+    desc: "互动距离不再受限制",
+  },
 };
 
 /** 按品质随机获取遗物列表 */

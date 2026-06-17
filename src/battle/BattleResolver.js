@@ -4,6 +4,8 @@ import { refreshMonsterCardDisplay } from "../cards/CardFactory.js";
 import relicManager from "../systems/RelicManager.js";
 import { HELP_CARDS } from "../data/HelpCardData.js";
 import levelManager from "../systems/LevelManager.js";
+import skillManager from "../systems/SkillManager.js";
+import { MONSTER_TEMPLATES } from "../data/TestData.js";
 
 // ============================================================
 // BattleResolver — 战斗结算器（快速版）
@@ -23,7 +25,26 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer)
   let monsterAtk = monsterData.atk;
   const monsterArmor = monsterData.armor;
   let playerFirst = true;
-  const origAtk = monsterData.atk; // 记录原始攻击力
+  const origAtk = monsterData.atk;
+  let shouldRotate = false;
+
+  // ---- 处理玩家技能 ----
+  // 历战：攻击+2
+  if (skillManager.hasSkill("veteran")) {
+    playerAtk += 2;
+    console.log(`[玩家技能] 历战：攻击+2 → ${playerAtk}`);
+  }
+
+  // 石庇护：场上有庇护石时，其他怪物受到伤害-1
+  let stoneShelterActive = false;
+  for (let s = 1; s <= 9; s++) {
+    const c = gridManager.slotContents[s];
+    if (c && c.cardData?.skill?.id === "stoneShelter") { stoneShelterActive = true; break; }
+  }
+  if (stoneShelterActive && !monsterData.skill?.id?.includes("stoneShelter")) {
+    playerAtk = Math.max(0, playerAtk - 1);
+    console.log(`[石庇护] 玩家攻击-1（→${playerAtk}）`);
+  }
 
   // ---- 处理怪物技能 ----
   const skill = monsterData.skill;
@@ -41,6 +62,22 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer)
               monsterAtk += eff.amount || 0;
               if (eff.extra === "firstStrike") playerFirst = false;
               console.log(`[技能] ${skill.name}: ${eff.condition}触发，攻击+${eff.amount}`);
+            }
+            if (eff.condition === "hasFlame") {
+              let hasFlame = false;
+              // 检查场上
+              for (let s = 1; s <= 9; s++) {
+                const c = gridManager.slotContents[s];
+                const cd = c && c.cardData;
+                if (cd && (cd.id === "flame" || cd.name === "烈焰")) { hasFlame = true; break; }
+              }
+              // 检查道具牌格
+              if (!hasFlame && scene._itemSlots) {
+                for (const item of scene._itemSlots) {
+                  if (item && item.cardData && (item.cardData.id === "flame" || item.cardData.name === "烈焰")) { hasFlame = true; break; }
+                }
+              }
+              if (hasFlame) { monsterAtk += eff.amount || 0; console.log(`[技能-恋火] 发现烈焰，攻击+${eff.amount}`); }
             }
             break;
           case "armorLossDmg":
@@ -65,14 +102,56 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer)
             gameState.takeDamage(eff.amount || monsterAtk);
             console.log(`[技能] ${skill.name}: 反伤${eff.amount || monsterAtk}`);
             break;
+          case "countFlameAtk":
+            // 火之力：数烈焰数量（场上 + 道具牌格）×2
+            let flameCount = 0;
+            for (let s = 1; s <= 9; s++) {
+              const c = gridManager.slotContents[s];
+              if (c && c.cardData && (c.cardData.id === "flame" || c.cardData.name === "烈焰")) flameCount++;
+            }
+            // 道具牌格中的烈焰
+            if (scene._itemSlots) {
+              for (const item of scene._itemSlots) {
+                if (item && item.cardData && (item.cardData.id === "flame" || item.cardData.name === "烈焰")) flameCount++;
+              }
+            }
+            if (flameCount > 0) { monsterAtk += flameCount * (eff.amount || 2); console.log(`[技能] ${skill.name}: ${flameCount}张烈焰(含道具牌格)，攻击+${flameCount * 2}`); }
+            break;
+          case "armorLossAtk":
+            // 石头爱好者：护甲损失时攻击+1（简化：战斗中攻击+1）
+            if (monsterData.armor > 0) { monsterAtk += 1; console.log(`[技能] ${skill.name}: 护甲尚存，攻击+1`); }
+            break;
+          case "chainAtk":
+            // 大聪明/学习成长：简化实现(攻击+1)
+            monsterAtk += eff.amount || 1;
+            console.log(`[技能] ${skill.name}: 连锁增长，攻击+${eff.amount || 1}`);
+            break;
         }
       }
     }
   }
 
+  // 刺皮：对怪物造成等同于其攻击的额外伤害
+  if (skillManager.hasSkill("thornSkin")) {
+    const thornDmg = monsterAtk;
+    monsterData.hp = Math.max(0, monsterData.hp - thornDmg);
+    console.log(`[玩家技能] 刺皮：反伤${thornDmg} → 怪物HP:${monsterData.hp}`);
+  }
+
   // 技能改变的攻击力/血量同步到卡面
   if (monsterAtk !== origAtk) monsterData.atk = monsterAtk;
   refreshMonsterCardDisplay(monsterContainer);
+
+  // 空间掌握：战斗后强制旋转
+  if (skill && skill.effects) {
+    for (const eff of skill.effects) {
+      if (eff.event === "postCombat" && eff.action === "rotateBoard") {
+        shouldRotate = true;
+        console.log(`[空间掌握] 战斗后将触发旋转`);
+        break;
+      }
+    }
+  }
 
   // 阶段 1：立即结算伤害（近乎瞬时）
   scene.time.delayedCall(30, () => {
@@ -90,7 +169,7 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer)
       scene.time.delayedCall(50, () => {
         gameState.takeDamage(monsterAtk);
         if (gameState.hp <= 0) { handlePlayerDeath(scene); return; }
-        finishBattle(scene, gridManager, false);
+        finishBattle(scene, gridManager, shouldRotate);
       });
     } else {
       gameState.takeDamage(monsterAtk);
@@ -105,7 +184,7 @@ export function resolveBattle(scene, gridManager, monsterSlot, monsterContainer)
           handleMonsterDeath(scene, gridManager, monsterSlot, monsterContainer, monsterData, true);
           return;
         }
-        finishBattle(scene, gridManager, false);
+        finishBattle(scene, gridManager, shouldRotate);
       });
     }
   });
@@ -130,13 +209,22 @@ function applyDamage(targetData, attackerAtk, targetArmor) {
 function handleMonsterDeath(scene, gridManager, slot, container, monsterData, shouldRotate) {
   console.log(`[战斗] ${monsterData.name} 被击杀！+5💰`);
   EventBus.emit(GameEvents.MONSTER_KILLED, { monster: monsterData, slot });
-  // 处理怪物 onRemove 技能（护甲归零时等）
+  // 处理怪物 onRemove 技能
   if (monsterData.skill && monsterData.skill.effects) {
     for (const eff of monsterData.skill.effects) {
-      if (eff.event === "onRemove" && eff.action === "dmgPlayer") {
-        if (eff.condition === "armorZero" || !eff.condition) {
-          gameState.takeDamage(eff.amount || 1);
-          console.log(`[技能] ${monsterData.skill.name}: 被移除，对玩家造成${eff.amount}伤害`);
+      if (eff.event === "onRemove") {
+        if (eff.action === "dmgPlayer") {
+          if (eff.condition === "armorZero" || !eff.condition) {
+            gameState.takeDamage(eff.amount || 1);
+            console.log(`[技能] ${monsterData.skill.name}: 被移除，对玩家造成${eff.amount}伤害`);
+          }
+        }
+        if (eff.action === "shuffleMonster") {
+          const template = MONSTER_TEMPLATES[eff.monsterId];
+          if (template) {
+            gameState.shuffleCardToDeck({ ...template, uid: `gen_${Date.now()}_${Math.random().toString(36).slice(2,6)}` });
+            console.log(`[技能] ${monsterData.skill.name}: ${template.name} 洗入战斗卡组`);
+          }
         }
       }
     }
@@ -196,8 +284,33 @@ function handlePlayerDeath(scene) {
 // ============================================================
 
 function finishBattle(scene, gridManager, shouldRotate) {
+  // 暴力卡：攻击翻倍后复原
+  if (gameState._doubleAtkActive) {
+    gameState.atk = Math.ceil(gameState.atk / 2);
+    gameState._doubleAtkActive = false;
+    console.log(`[暴力卡] 攻击复原 → ${gameState.atk}`);
+  }
+
   EventBus.emit(GameEvents.BATTLE_END);
   gameState.unlockInput("combat");
+
+  // 和我打：相邻怪物有该技能时自动触发战斗
+  const adjTo5 = [2, 4, 6, 8];
+  for (const a of adjTo5) {
+    const c = gridManager.slotContents[a];
+    if (c && c.cardData?.type === "monster" && c.cardData.hp > 0 && c.scene) {
+      const sk = c.cardData.skill;
+      if (sk && sk.effects) {
+        for (const eff of sk.effects) {
+          if (eff.event === "onAllyFight" && eff.action === "autoBattle") {
+            console.log(`[和我打] ${sk.name}: 格${a}自动战斗`);
+            scene.time.delayedCall(400, () => resolveBattle(scene, gridManager, a, c));
+            return; // 只触发一次，先打完这个再说
+          }
+        }
+      }
+    }
+  }
 
   // 立即补牌（极短延迟）
   scene.time.delayedCall(50, () => {

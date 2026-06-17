@@ -116,9 +116,107 @@ export function executeHelpCardEffect(scene, cardData, targetContainer) {
     }
 
     case "blessed": {
-      // 庇佑：标记玩家下一次受伤免疫
       gameState._blessed = true;
       return `${cardData.name}：下一次受到伤害变为0`;
+    }
+
+    case "damage_to_player": {
+      const dmg = resolveAmount(effect.amount);
+      gameState.takeDamage(dmg);
+      return `${cardData.name}：对玩家造成 ${dmg} 点伤害`;
+    }
+
+    case "reverse_rotate": {
+      // 逆时针旋转 = 连续7次顺时针旋转
+      if (scene.gridManager) {
+        for (let i = 0; i < 7; i++) {
+          scene.time.delayedCall(i * 50, () => scene.gridManager.rotateGrid());
+        }
+      }
+      return `${cardData.name}：逆时针旋转一次`;
+    }
+
+    case "double_atk_temp": {
+      gameState.atk *= 2;
+      gameState._doubleAtkActive = true;
+      return `${cardData.name}：攻击翻倍，战斗一次后复原`;
+    }
+
+    case "shuffle_back": {
+      if (!targetContainer) return "需要选择目标";
+      const target = targetContainer.cardData;
+      gameState.shuffleCardToDeck(target);
+      if (scene.gridManager) {
+        const slot = scene.gridManager.getCurrentSlot(targetContainer);
+        if (slot > 0) scene.gridManager.slotContents[slot] = null;
+        targetContainer.destroy();
+        scene.gridManager.refillEmptySlots();
+      }
+      return `${cardData.name}：${target.name} 洗回战斗卡组`;
+    }
+
+    case "swap_two_cards": {
+      // 由 GameScene 处理两次瞄准
+      return `${cardData.name}：已互换两张卡牌位置`;
+    }
+
+    case "kidnap": {
+      if (!targetContainer) return "需要选择目标怪物";
+      const target = targetContainer.cardData;
+      if (target.isElite || target.isBoss) return "无法对精英/层主使用";
+      const armorGain = target.armor || 0;
+      if (scene.gridManager) {
+        const slot = scene.gridManager.getCurrentSlot(targetContainer);
+        if (slot > 0) scene.gridManager.slotContents[slot] = null;
+        targetContainer.destroy();
+        scene.gridManager.refillEmptySlots();
+      }
+      gameState.addArmor(armorGain);
+      gameState.addGold(5);
+      return `${cardData.name}：移除 ${target.name}，获得 ${armorGain} 护甲，+5💰`;
+    }
+
+    case "blood_convert": {
+      gameState.addMaxHp(-5);
+      const roll = Math.random();
+      if (roll < 0.25) { gameState.addAttack(1); return `${cardData.name}：血量上限-5，攻击+1`; }
+      if (roll < 0.5) { gameState.baseArmor += 1; return `${cardData.name}：血量上限-5，基础护甲+1`; }
+      if (roll < 0.75) { gameState.addGold(50); return `${cardData.name}：血量上限-5，+50💰`; }
+      // 随机遗物（简化：+2血量上限）
+      gameState.addMaxHp(2);
+      return `${cardData.name}：血量上限-5，+2血量上限`;
+    }
+
+    case "damage_hp_based": {
+      if (!targetContainer) return "需要选择目标怪物";
+      const dmg = gameState.hp;
+      const monster = targetContainer.cardData;
+      const armorLoss = Math.min(monster.armor, dmg);
+      const hpLoss = dmg - armorLoss;
+      monster.armor = Math.max(0, monster.armor - armorLoss);
+      monster.hp = Math.max(0, monster.hp - hpLoss);
+      refreshMonsterCardDisplay(targetContainer);
+      showFloatText(scene, targetContainer, dmg);
+      if (monster.hp <= 0) {
+        killMonster(scene, targetContainer, monster);
+      }
+      return `${cardData.name}：造成 ${dmg} 点伤害（基于当前血量）`;
+    }
+
+    case "damage_armor_based": {
+      if (!targetContainer) return "需要选择目标怪物";
+      const dmg = gameState.getEffectiveArmor();
+      const monster = targetContainer.cardData;
+      const armorLoss = Math.min(monster.armor, dmg);
+      const hpLoss = dmg - armorLoss;
+      monster.armor = Math.max(0, monster.armor - armorLoss);
+      monster.hp = Math.max(0, monster.hp - hpLoss);
+      refreshMonsterCardDisplay(targetContainer);
+      showFloatText(scene, targetContainer, dmg);
+      if (monster.hp <= 0) {
+        killMonster(scene, targetContainer, monster);
+      }
+      return `${cardData.name}：造成 ${dmg} 点伤害（基于当前护甲）`;
     }
 
     case "reduce_armor": {
@@ -140,8 +238,20 @@ function resolveAmount(amount) {
   return amount || 0;
 }
 
+/** 帮助卡击杀怪物 */
+function killMonster(scene, container, monsterData) {
+  EventBus.emit(GameEvents.MONSTER_KILLED, { monster: monsterData, slot: -1 });
+  gameState.addGold(5);
+  EventBus.emit(GameEvents.MONSTER_REMOVED, { monster: monsterData, slot: -1 });
+  if (scene.gridManager) {
+    const slot = scene.gridManager.getCurrentSlot(container);
+    if (slot > 0) scene.gridManager.slotContents[slot] = null;
+    scene.gridManager.refillEmptySlots();
+  }
+  container.destroy();
+}
+
 /** 伤害飘字 */
-function showFloatText(scene, container, dmg) {
   const txt = scene.add.text(0, -30, `-${dmg}`, {
     fontFamily: "Arial, sans-serif",
     fontSize: "18px",

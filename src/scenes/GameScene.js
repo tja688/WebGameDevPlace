@@ -7,6 +7,7 @@ import EventBus, { GameEvents } from "../core/EventBus.js";
 import gameState from "../core/GameState.js";
 import { createMonsterCard, createHelpCard, refreshMonsterCardDisplay } from "../cards/CardFactory.js";
 import { resolveBattle } from "../battle/BattleResolver.js";
+import { buildMonsterDeckByNode } from "../data/TestData.js";
 import { HELP_CARDS, rollHelpCards } from "../data/HelpCardData.js";
 import { executeHelpCardEffect } from "../systems/HelpCardEffects.js";
 import { showSelectionOverlay } from "../ui/overlays/SelectionOverlay.js";
@@ -33,6 +34,20 @@ export default class GameScene extends Phaser.Scene {
     // 监听节点推进事件
     this.events.on("advance-node", () => {
       this.rebuildLevel();
+    });
+
+    // 技能赠送物品到道具牌格
+    this.events.on("skill-gift-item", (data) => {
+      const itemId = data.itemId || "flame";
+      const emptyIdx = this._itemSlots.findIndex((s) => s === null);
+      if (emptyIdx >= 0) {
+        const item = HELP_CARDS[itemId] || { id: itemId, name: itemId === "flame" ? "烈焰" : "旋转轮", type: "help", rarity: "red" };
+        this._itemSlots[emptyIdx] = { cardData: item, slot: -1 };
+        this.renderItemSlotCard(emptyIdx, item);
+        console.log(`[技能礼物] ${item.name || itemId} → 道具槽${emptyIdx + 1}`);
+      } else {
+        console.log(`[技能礼物] 道具牌格已满`);
+      }
     });
 
     // 监听房间按钮显示事件
@@ -75,6 +90,19 @@ export default class GameScene extends Phaser.Scene {
         case "1": gameState.atk = 99; this.gridManager.updatePlayerCardStats(); this.updatePlayerInfoPanel(); console.log("[修改器] 攻击设为99"); break;
         case "2": gameState.addGold(999); console.log("[修改器] +999💰"); break;
         case "3": gameState.heal(999); gameState.addArmor(99); this.gridManager.updatePlayerCardStats(); this.updatePlayerInfoPanel(); console.log("[修改器] 满血+99护甲"); break;
+        case "7": case "8": case "9": {
+          const n = parseInt(event.key);
+          levelManager.currentLayer = 1;
+          levelManager.currentNode = n;
+          levelManager._levelCleared = false;
+          levelManager._roomChosen = false;
+          levelManager._shopCards = null;
+          // 清除牌组缓存以重新随机选牌组
+          buildMonsterDeckByNode._cache = {};
+          this.rebuildLevel();
+          console.log(`[修改器] 跳到第1层节点${n}`);
+          break;
+        }
         case "0": // 清空场上所有怪物
           for (let i = 1; i <= 9; i++) {
             const c = this.gridManager.slotContents[i];
@@ -115,25 +143,60 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // ---- 瞄准模式下：只响应怪物点击 ----
+    // ---- 瞄准模式下：根据效果类型响应点击 ----
     if (this._targetingMode) {
       if (gameState.isInputLocked()) return;
       const slot = this.gridManager.getSlotAt(wx, wy);
       if (slot < 1 || slot > 9) return;
       const container = this.gridManager.slotContents[slot];
-      if (!container || container.cardData?.type !== "monster") return;
+      if (!container) return;
 
-      // 执行帮助卡效果
       const { cardData, itemIdx } = this._targetingMode;
       const effectCard = HELP_CARDS[cardData.id] || cardData;
+      const effect = effectCard.effect;
+
+      // 交换卡：需要两次选择
+      if (effect && effect.type === "swap_two_cards") {
+        if (!this._swapTarget1) {
+          // 第一次选择
+          if (slot === 5) return; // 不能选玩家
+          this._swapTarget1 = { slot, container };
+          container._swapHighlight = this.add.rectangle(container.x, container.y, GRID.CELL_WIDTH + 4, GRID.CELL_HEIGHT + 4)
+            .setStrokeStyle(3, 0x44ff44, 0.8).setDepth(DEPTH.CARDS + 5).setOrigin(0.5);
+          console.log(`[交换卡] 第一目标：格${slot}`);
+          return;
+        } else {
+          // 第二次选择 → 执行交换
+          if (slot === 5 || (slot === this._swapTarget1.slot)) return;
+          const t1 = this._swapTarget1;
+          this.gridManager.swapCards(t1.slot, slot);
+          if (t1.container._swapHighlight) t1.container._swapHighlight.destroy();
+          this._swapTarget1 = null;
+          console.log(`[交换卡] 交换格${t1.slot}↔格${slot}`);
+          this.gridManager.updatePlayerCardStats();
+          this.updatePlayerInfoPanel();
+          this.removeItemCardVisual(itemIdx);
+          this._itemSlots[itemIdx] = null;
+          this.exitTargetingMode();
+          return;
+        }
+      }
+
+      // 其他效果：检查目标类型
+      let validTarget = false;
+      if (effect && (effect.type === "damage" || effect.type === "reduce_armor" || effect.type === "damage_hp_based" || effect.type === "damage_armor_based")) {
+        validTarget = container.cardData?.type === "monster";
+      } else if (effect && effect.type === "shuffle_back") {
+        validTarget = slot !== 5; // 任何非玩家卡
+      } else if (effect && effect.type === "kidnap") {
+        validTarget = container.cardData?.type === "monster" && !container.cardData.isElite && !container.cardData.isBoss;
+      }
+      if (!validTarget) return;
+
       const result = executeHelpCardEffect(this, effectCard, container);
       console.log(`[帮助卡] ${result}`);
-
-      // 更新 UI
       this.gridManager.updatePlayerCardStats();
       this.updatePlayerInfoPanel();
-
-      // 移除道具槽中的卡
       this.removeItemCardVisual(itemIdx);
       this._itemSlots[itemIdx] = null;
       this.exitTargetingMode();
@@ -157,7 +220,7 @@ export default class GameScene extends Phaser.Scene {
     console.log(`[点击] 格${slot}`);
 
     const playerSlot = this.gridManager.getPlayerSlot();
-    if (!GridManager.isOrthogonalAdjacent(playerSlot, slot)) {
+    if (!relicManager.hasRelic("trader") && !GridManager.isOrthogonalAdjacent(playerSlot, slot)) {
       console.log(`[点击] 格${slot} 不与玩家相邻`);
       return;
     }
@@ -179,6 +242,15 @@ export default class GameScene extends Phaser.Scene {
     if (!container || !container.cardData) return;
 
     const cardData = container.cardData;
+    // 嘲讽：正交相邻有嘲讽怪物时，只能攻击嘲讽怪物
+    if (cardData.type === "monster") {
+      const tauntSlot = this._findAdjacentTaunt();
+      if (tauntSlot > 0 && slot !== tauntSlot) {
+        console.log(`[嘲讽] 必须攻击格${tauntSlot}的嘲讽怪物`);
+        return;
+      }
+    }
+
     if (cardData.type === "monster") {
       console.log(`[点击] 怪物: 格${slot} — ${cardData.name}`);
       EventBus.emit(GameEvents.CARD_CLICKED, { type: "monster", slot, card: cardData });
@@ -237,6 +309,16 @@ export default class GameScene extends Phaser.Scene {
         fontFamily: FONTS.FAMILY, fontSize: "11px", color: COLORS.TEXT_SECONDARY, align: "center",
       }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     }
+  }
+
+  /** 检测玩家正交相邻是否有嘲讽怪物 */
+  _findAdjacentTaunt() {
+    const adj = [2, 4, 6, 8]; // 格5的相邻格
+    for (const a of adj) {
+      const c = this.gridManager.slotContents[a];
+      if (c && c.cardData?.skill?.id === "taunt") return a;
+    }
+    return -1;
   }
 
   /** 检测装备栏坐标 */
@@ -423,8 +505,8 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    // 需要瞄准目标怪物的效果 → 进瞄准模式
-    if (effect && (effect.type === "damage" || effect.type === "reduce_armor")) {
+    // 需要瞄准目标的效果 → 进瞄准模式
+    if (effect && (effect.type === "damage" || effect.type === "reduce_armor" || effect.type === "shuffle_back" || effect.type === "kidnap" || effect.type === "swap_two_cards" || effect.type === "damage_hp_based" || effect.type === "damage_armor_based")) {
       this.enterTargetingMode(effectCard, index);
       return;
     }
@@ -443,22 +525,29 @@ export default class GameScene extends Phaser.Scene {
   /** 进入瞄准模式 */
   enterTargetingMode(cardData, itemIdx) {
     this._targetingMode = { cardData, itemIdx, highlights: [] };
-    console.log(`[瞄准] 进入瞄准模式 — 选择 ${cardData.name} 的目标`);
+    const effect = (HELP_CARDS[cardData.id] || cardData).effect;
+    console.log(`[瞄准] 进入瞄准模式 — 选择 ${cardData.name} 的目标 (${effect?.type})`);
 
-    // 高亮所有怪物
+    // 根据效果类型高亮有效目标
     for (let i = 1; i <= 9; i++) {
       const c = this.gridManager.slotContents[i];
-      if (c && c.cardData?.type === "monster") {
+      if (!c || i === 5) continue;
+      let highlight = false;
+      if (effect.type === "damage" || effect.type === "reduce_armor" || effect.type === "damage_hp_based" || effect.type === "damage_armor_based") {
+        highlight = c.cardData?.type === "monster";
+      } else if (effect.type === "shuffle_back" || effect.type === "swap_two_cards") {
+        highlight = true; // 任何非玩家卡
+      } else if (effect.type === "kidnap") {
+        highlight = c.cardData?.type === "monster" && !c.cardData.isElite && !c.cardData.isBoss;
+      }
+      if (highlight) {
+        const color = effect.type === "swap_two_cards" ? 0x44ff44 : 0xffdd44;
         const hl = this.add.rectangle(c.x, c.y, GRID.CELL_WIDTH + 4, GRID.CELL_HEIGHT + 4)
-          .setStrokeStyle(3, 0xffdd44, 0.8)
+          .setStrokeStyle(3, color, 0.8)
           .setDepth(DEPTH.CARDS + 5)
           .setOrigin(0.5);
         this._targetingMode.highlights.push(hl);
-
-        // 脉冲动画
-        this.tweens.add({
-          targets: hl, alpha: 0.4, duration: 400, yoyo: true, repeat: -1,
-        });
+        this.tweens.add({ targets: hl, alpha: 0.4, duration: 400, yoyo: true, repeat: -1 });
       }
     }
   }
@@ -483,6 +572,11 @@ export default class GameScene extends Phaser.Scene {
     if (!this._targetingMode) return;
     this._targetingMode.highlights.forEach((hl) => hl.destroy());
     this._targetingMode = null;
+    // 清理交换卡临时状态
+    if (this._swapTarget1) {
+      if (this._swapTarget1.container._swapHighlight) this._swapTarget1.container._swapHighlight.destroy();
+      this._swapTarget1 = null;
+    }
     console.log("[瞄准] 退出瞄准模式");
   }
 
@@ -566,10 +660,16 @@ export default class GameScene extends Phaser.Scene {
     // 处理怪物登场技能
     if (cardData.type === "monster" && cardData.skill && cardData.skill.effects) {
       for (const eff of cardData.skill.effects) {
-        if (eff.event === "onEnter" && eff.action === "dmgPlayer") {
-          if (eff.condition === "evenSlot" && [2, 4, 6, 8].includes(slot)) {
-            gameState.takeDamage(eff.amount || 1);
-            console.log(`[登场技能] ${cardData.skill.name}: 格${slot}登场，对玩家造成${eff.amount}伤害`);
+        if (eff.event === "onEnter") {
+          if (eff.action === "dmgPlayer") {
+            if (eff.condition === "evenSlot" && [2, 4, 6, 8].includes(slot)) {
+              gameState.takeDamage(eff.amount || 1);
+              console.log(`[登场技能] ${cardData.skill.name}: 格${slot}登场，对玩家造成${eff.amount}伤害`);
+            }
+          }
+          if (eff.action === "rotateBoard") {
+            console.log(`[登场技能] ${cardData.skill.name}: 登场触发旋转`);
+            this.time.delayedCall(300, () => this.gridManager.rotateGrid());
           }
         }
       }
@@ -728,8 +828,15 @@ export default class GameScene extends Phaser.Scene {
       console.log(`[关卡结束] 回收${recycled}张帮助卡，+${recycled * 10}💰`);
     }
 
-    // 关卡结束，清除本关卡牌计数
+    // 关卡结束，清除本关卡牌计数 + 移除未使用的烈焰
     levelManager._cardsInPlay = 0;
+    levelManager.playerCards = levelManager.playerCards.filter((c) => {
+      if (c.id === "flame" || c.name === "烈焰") {
+        console.log(`[关卡结束] 烈焰永久移除`);
+        return false;
+      }
+      return true;
+    });
 
     // 玩家侧卡组总数
     const total = levelManager.playerCards.length;
