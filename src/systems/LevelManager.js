@@ -4,6 +4,7 @@ import skillManager from "./SkillManager.js";
 import { HELP_CARDS } from "../data/HelpCardData.js";
 import { rollRelics } from "../data/RelicData.js";
 import { MENTOR_SKILLS, getSkill } from "../data/SkillData.js";
+import { COLORS, FONTS } from "../config/GameConfig.js";
 
 // ============================================================
 // LevelManager — 层级/节点管理器 + 房间事件执行
@@ -59,7 +60,7 @@ class LevelManager {
     // 总数 = 已积累的 + 当前关卡中的
     const total = this.playerCards.length + (this._cardsInPlay || 0);
     if (total >= limit) {
-      this._showToast(`卡组已满！(${total}/${limit})，无法再获取帮助卡`);
+      this._showToast(`DECK FULL (${total}/${limit}) / ITEM REJECTED`);
       return true;
     }
     return false;
@@ -112,20 +113,20 @@ class LevelManager {
       cards.push({ ...c, type: "help", uid: `pick_${Date.now()}_${i}` });
     }
 
-    const rarityColor = { white: 0x6b7280, blue: 0x4a8fc9, gold: 0xd4a830 };
+    const rarityColor = { white: COLORS.HELP_WHITE, blue: COLORS.HELP_BLUE, gold: COLORS.HELP_GOLD };
     const options = cards.map((c) => ({
       key: c.id,
       label: c.name,
       subLabel: c.desc || "",
-      color: rarityColor[c.rarity] || 0x6b7280,
+      color: rarityColor[c.rarity] || COLORS.HELP_WHITE,
       _card: c,
     }));
 
     import("../ui/overlays/SelectionOverlay.js").then(({ showSelectionOverlay }) => {
       showSelectionOverlay(this.scene, {
-        title: `🎉 第${this.currentLayer}层-节点${this.currentNode} 通关！\n选择一张帮助卡`,
+        title: `GATE BLOCK ${this.currentLayer}-${this.currentNode} CLEAR\nSELECT CARGO CARD`,
         options,
-        skipLabel: "跳过 → +10💰",
+        skipLabel: "SKIP / +000010",
         onSelect: (key, opt) => {
           if (opt._card) this._addToPlayerDeck(opt._card);
           if (onDone) this.scene?.time.delayedCall(200, onDone);
@@ -155,15 +156,15 @@ class LevelManager {
       key: c.id,
       label: c.name,
       subLabel: c.desc || "",
-      color: 0x6b7280,
+      color: COLORS.HELP_WHITE,
       _card: c,
     }));
 
     import("../ui/overlays/SelectionOverlay.js").then(({ showSelectionOverlay }) => {
       showSelectionOverlay(this.scene, {
-        title: `🃏 轻车熟路\n选择一张白色帮助卡`,
+        title: `FAMILIAR ROUTE\nSELECT WHITE CARGO`,
         options,
-        skipLabel: "跳过 → +10💰",
+        skipLabel: "SKIP / +000010",
         onSelect: (key, opt) => {
           if (opt._card) this._addToPlayerDeck(opt._card);
           if (onDone) this.scene?.time.delayedCall(200, onDone);
@@ -191,11 +192,11 @@ class LevelManager {
     this._pendingRooms = shuffled.slice(0, 2);
 
     const roomLabels = {
-      shop: { name: "商店", desc: "购买帮助卡 / 删除卡牌", color: 0x4a8fc9 },
-      gold: { name: "金币房", desc: "获得 50 💰", color: 0xd4a830 },
-      treasure: { name: "宝箱房", desc: "三选一遗物", color: 0xc9a02e },
-      hotspring: { name: "温泉房", desc: "血量上限+4 并回满血", color: 0x66cc88 },
-      tavern: { name: "酒馆", desc: "多种消费选择", color: 0xcc8844 },
+      shop: { name: "> SHOP", desc: "购买帮助卡 / 删除卡牌", color: COLORS.HELP_BLUE },
+      gold: { name: "> VALUE", desc: "获得 50", color: COLORS.HELP_GOLD },
+      treasure: { name: "> RELIC", desc: "三选一遗物", color: COLORS.HELP_GOLD },
+      hotspring: { name: "> REPAIR", desc: "血量上限+4 并回满血", color: COLORS.HELP_WHITE },
+      tavern: { name: "> TAVERN", desc: "多种消费选择", color: COLORS.HELP_RED },
     };
 
     if (!this.scene) return;
@@ -273,8 +274,8 @@ class LevelManager {
     const options = available.map((c) => ({
       key: c.uid,
       label: `${c.name}`,
-      subLabel: `${c.desc}\n💰${c.price}`,
-      color: { white: 0x6b7280, blue: 0x4a8fc9, gold: 0xd4a830, red: 0xc94a3b }[c.rarity] || 0x6b7280,
+      subLabel: `${c.desc}\nVALUE ${String(c.price).padStart(6, "0")}`,
+      color: { white: COLORS.HELP_WHITE, blue: COLORS.HELP_BLUE, gold: COLORS.HELP_GOLD, red: COLORS.HELP_RED }[c.rarity] || COLORS.HELP_WHITE,
       _card: c,
     }));
 
@@ -282,14 +283,14 @@ class LevelManager {
 
     import("../ui/overlays/SelectionOverlay.js").then(({ showSelectionOverlay }) => {
       showSelectionOverlay(this.scene, {
-        title: `🛒 商店（余额: ${gameState.gold}💰）`,
+        title: `SHOP TERMINAL / VALUE ${String(gameState.gold).padStart(6, "0")}`,
         options,
-        skipLabel: "离开商店",
+        skipLabel: "EXIT SHOP",
         onSelect: (key, opt) => {
           if (!opt._card) return;
           const card = opt._card;
           if (gameState.gold < card.price) {
-            this._showToast(`金币不足！需要 ${card.price}💰`);
+            this._showToast(`VALUE LOW / NEED ${String(card.price).padStart(6, "0")}`);
             this.scene?.time.delayedCall(500, () => this._openShop(boughtUids));
             return;
           }
@@ -319,7 +320,7 @@ class LevelManager {
       key: r.id,
       label: r.name,
       subLabel: r.desc,
-      color: { white: 0x6b7280, blue: 0x4a8fc9, gold: 0xd4a830 }[r.rarity] || 0x6b7280,
+      color: { white: COLORS.HELP_WHITE, blue: COLORS.HELP_BLUE, gold: COLORS.HELP_GOLD }[r.rarity] || COLORS.HELP_WHITE,
       _relic: r,
     }));
 
@@ -327,9 +328,9 @@ class LevelManager {
 
     import("../ui/overlays/SelectionOverlay.js").then(({ showSelectionOverlay }) => {
       showSelectionOverlay(this.scene, {
-        title: "🎁 宝箱房 — 选择一件遗物",
+        title: "RELIC ROOM / SELECT ONE",
         options,
-        skipLabel: "跳过 → +20💰",
+        skipLabel: "SKIP / +000020",
         onSelect: (key, opt) => {
           if (opt._relic && relicManager.hasFreeSlot()) {
             relicManager.equip(opt._relic);
@@ -347,10 +348,10 @@ class LevelManager {
   // ===== 酒馆 =====
   _openTavern(usedKeys = []) {
     const allOptions = [
-      { key: "drink", label: "狂饮", subLabel: "恢复10点血量\n💰20", color: 0xcc6644, cost: 20 },
-      { key: "forge", label: "打铁", subLabel: "基础护甲+1\n💰30", color: 0x6688cc, cost: 30 },
-      { key: "shop2", label: "购物", subLabel: "随机获得一张帮助卡\n💰50", color: 0x88aa44, cost: 50 },
-      { key: "leave", label: "离开", subLabel: "进入下一节点", color: 0x666666, cost: 0 },
+      { key: "drink", label: "REPAIR", subLabel: "恢复10点血量\nVALUE 000020", color: COLORS.HELP_RED, cost: 20 },
+      { key: "forge", label: "FORGE", subLabel: "基础护甲+1\nVALUE 000030", color: COLORS.HELP_BLUE, cost: 30 },
+      { key: "shop2", label: "DRAW", subLabel: "随机获得一张帮助卡\nVALUE 000050", color: COLORS.HELP_GOLD, cost: 50 },
+      { key: "leave", label: "EXIT", subLabel: "进入下一节点", color: COLORS.HELP_WHITE, cost: 0 },
     ];
 
     // 过滤掉已使用的选项（离开除外）
@@ -368,7 +369,7 @@ class LevelManager {
 
     import("../ui/overlays/SelectionOverlay.js").then(({ showSelectionOverlay }) => {
       showSelectionOverlay(this.scene, {
-        title: `🍺 酒馆（余额: ${gameState.gold}💰）`,
+        title: `TAVERN TERMINAL / VALUE ${String(gameState.gold).padStart(6, "0")}`,
         options,
         skipLabel: "",
         onSelect: (key, opt) => {
@@ -381,7 +382,7 @@ class LevelManager {
 
           if (cost > 0 && !gameState.spendGold(cost)) {
             // 金币不足 → 弹提示后重新打开
-            this._showToast(`金币不足！需要 ${cost}💰，当前 ${gameState.gold}💰`);
+            this._showToast(`VALUE LOW / NEED ${String(cost).padStart(6, "0")} / HAVE ${String(gameState.gold).padStart(6, "0")}`);
             this.scene?.time.delayedCall(800, () => this._openTavern(usedKeys));
             return;
           }
@@ -421,13 +422,13 @@ class LevelManager {
       key: s.id,
       label: s.name,
       subLabel: s.desc || "",
-      color: 0xd4a830,
+      color: COLORS.HELP_GOLD,
       _skill: s,
     }));
 
     import("../ui/overlays/SelectionOverlay.js").then(({ showSelectionOverlay }) => {
       showSelectionOverlay(this.scene, {
-        title: "📜 导师卡 — 选择永久技能",
+        title: "MENTOR SIGNAL / SELECT PROTOCOL",
         options,
         skipLabel: "",
         onSelect: (key, opt) => {
@@ -445,12 +446,14 @@ class LevelManager {
   /** 简单 toast 提示 */
   _showToast(msg) {
     if (!this.scene) return;
+    this.scene.terminalAudio?.error();
+    this.scene.crt?.glitch(120);
     const cx = this.scene.scale.width / 2;
     const cy = this.scene.scale.height / 2;
-    const bg = this.scene.add.rectangle(cx, cy + 80, 300, 40, 0x000000, 0.85)
-      .setDepth(200).setStrokeStyle(1, 0xff4444);
+    const bg = this.scene.add.rectangle(cx, cy + 80, 320, 40, COLORS.BG_DARK, 0.9)
+      .setDepth(200).setStrokeStyle(1, COLORS.HELP_RED);
     const txt = this.scene.add.text(cx, cy + 80, msg, {
-      fontFamily: "Arial, sans-serif", fontSize: "14px", color: "#ff6666",
+      fontFamily: FONTS.FAMILY, fontSize: "14px", color: COLORS.TEXT_ACCENT,
     }).setOrigin(0.5).setDepth(201);
     this.scene.tweens.add({
       targets: [bg, txt], alpha: 0, y: cy + 60, duration: 600, delay: 1200,

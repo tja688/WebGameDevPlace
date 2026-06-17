@@ -151,7 +151,7 @@ export default class GridManager {
       this.slotBgs[i] = bg;
 
       const label = this.scene.add
-        .text(pos.x - CELL_WIDTH / 2 + 4, pos.y - CELL_HEIGHT / 2 + 2, `格${i}`, {
+        .text(pos.x - CELL_WIDTH / 2 + 4, pos.y - CELL_HEIGHT / 2 + 2, `S${String(i).padStart(2, "0")}`, {
           fontFamily: FONTS.FAMILY,
           fontSize: "9px",
           color: COLORS.TEXT_SECONDARY,
@@ -175,15 +175,15 @@ export default class GridManager {
       .setDepth(DEPTH.CARDS);
 
     const nameBar = this.scene.add
-      .rectangle(0, -CELL_HEIGHT / 2 + 11, CELL_WIDTH - 4, 18, 0x000000, 0.4)
+        .rectangle(0, -CELL_HEIGHT / 2 + 11, CELL_WIDTH - 4, 18, COLORS.BG_DARK, 0.55)
       .setOrigin(0.5);
 
     const nameText = this.scene.add
-      .text(0, -CELL_HEIGHT / 2 + 11, "玩家", {
+      .text(0, -CELL_HEIGHT / 2 + 11, "UNIT 05", {
         fontFamily: FONTS.FAMILY,
         fontSize: "13px",
         fontStyle: "bold",
-        color: "#ffffff",
+        color: COLORS.TEXT_ACCENT,
       })
       .setOrigin(0.5);
 
@@ -199,9 +199,9 @@ export default class GridManager {
 
   createPlayerStatTexts(statY) {
     const stats = [
-      { key: "hp", icon: "❤️", value: `${gameState.hp}/${gameState.getEffectiveMaxHp()}`, x: -20, color: "#ff7777" },
-      { key: "atk", icon: "⚔️", value: `${gameState.getEffectiveAttack()}`, x: 0, color: "#ffdd77" },
-      { key: "armor", icon: "🛡️", value: `${gameState.getEffectiveArmor()}`, x: 20, color: "#77bbff" },
+      { key: "hp", icon: "HP", value: `${gameState.hp}/${gameState.getEffectiveMaxHp()}`, x: -24, color: COLORS.TEXT_ACCENT },
+      { key: "atk", icon: "AT", value: `${gameState.getEffectiveAttack()}`, x: 0, color: COLORS.TEXT_WHITE },
+      { key: "armor", icon: "AR", value: `${gameState.getEffectiveArmor()}`, x: 24, color: COLORS.TEXT_SECONDARY },
     ];
 
     return stats.map((s) =>
@@ -354,6 +354,7 @@ export default class GridManager {
     this._isRefilling = true;
     gameState.lockInput("refill");
     EventBus.emit(GameEvents.REFILL_START, { emptySlots });
+    this.scene.terminalAudio?.rowRefresh();
 
     console.log(`[GridManager] 开始补牌 — ${emptySlots.length} 个空格`);
 
@@ -404,6 +405,7 @@ export default class GridManager {
 
     this.slotContents[slotIndex] = card;
     EventBus.emit(GameEvents.SLOT_FILLED, { slot: slotIndex, card: cardData });
+    this.scene.terminalAudio?.tick();
 
     // 飞入动画（200ms）
     this.scene.tweens.add({

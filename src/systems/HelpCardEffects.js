@@ -252,13 +252,14 @@ function killMonster(scene, container, monsterData) {
 }
 
 /** 伤害飘字 */
+function showFloatText(scene, container, dmg) {
   const txt = scene.add.text(0, -30, `-${dmg}`, {
-    fontFamily: "Arial, sans-serif",
+    fontFamily: '"Courier New", Consolas, "Microsoft YaHei", monospace',
     fontSize: "18px",
     fontStyle: "bold",
-    color: "#ff4444",
-    stroke: "#000",
-    strokeThickness: 2,
+    color: "#D85A27",
+    stroke: "#120D08",
+    strokeThickness: 1,
   }).setOrigin(0.5);
   container.add(txt);
   scene.tweens.add({

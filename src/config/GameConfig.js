@@ -1,5 +1,7 @@
+import { CRT_THEME, hexToNumber } from "../style/crtTheme.js";
+
 // ============================================================
-// 游戏常量配置 — 九宫牌局
+// 游戏常量配置 - 九宫牌局
 // ============================================================
 
 /** 画布基础分辨率 */
@@ -57,49 +59,49 @@ export const LAYOUT = {
 /** 色板 */
 export const COLORS = {
   // 背景色系
-  BG_DARK: 0x1e2a38,
-  BG_PANEL: 0x263445,
-  BG_OVERLAY: 0x000000,
+  BG_DARK: hexToNumber(CRT_THEME.palette.bgDeep),
+  BG_PANEL: hexToNumber(CRT_THEME.palette.bgPanel),
+  BG_OVERLAY: hexToNumber(CRT_THEME.palette.shadow),
 
   // 格子
-  CELL_EMPTY: 0x334155,
-  CELL_BORDER: 0x4a5568,
-  CELL_HIGHLIGHT: 0x5a6a80,
+  CELL_EMPTY: hexToNumber(CRT_THEME.palette.bgScreen),
+  CELL_BORDER: hexToNumber(CRT_THEME.palette.amberLow),
+  CELL_HIGHLIGHT: hexToNumber(CRT_THEME.palette.amber),
 
   // 卡牌底色
-  PLAYER_CARD: 0x4a90d9,
-  PLAYER_CARD_LIGHT: 0x6aafe8,
-  MONSTER_CARD: 0xc94a3b,
-  MONSTER_CARD_LIGHT: 0xe85a4b,
-  HELP_WHITE: 0x6b7280,
-  HELP_BLUE: 0x4a8fc9,
-  HELP_GOLD: 0xd4a830,
-  HELP_RED: 0xc94a3b,
+  PLAYER_CARD: hexToNumber(CRT_THEME.palette.bgScreen),
+  PLAYER_CARD_LIGHT: hexToNumber(CRT_THEME.palette.amberBright),
+  MONSTER_CARD: hexToNumber(CRT_THEME.palette.bgPanel),
+  MONSTER_CARD_LIGHT: hexToNumber(CRT_THEME.palette.danger),
+  HELP_WHITE: hexToNumber(CRT_THEME.palette.amberDim),
+  HELP_BLUE: hexToNumber(CRT_THEME.palette.amberLow),
+  HELP_GOLD: hexToNumber(CRT_THEME.palette.amberMid),
+  HELP_RED: hexToNumber(CRT_THEME.palette.danger),
 
   // 文字
-  TEXT_PRIMARY: '#ffffff',
-  TEXT_SECONDARY: '#ccd6e0',
-  TEXT_ACCENT: '#ffe680',
-  TEXT_WHITE: '#ffffff',
+  TEXT_PRIMARY: CRT_THEME.palette.amber,
+  TEXT_SECONDARY: CRT_THEME.palette.amberMid,
+  TEXT_ACCENT: CRT_THEME.palette.amberBright,
+  TEXT_WHITE: CRT_THEME.palette.creamHot,
 
   // 按钮
-  BTN_BG: 0x4a90d9,
-  BTN_HOVER: 0x6aafe8,
+  BTN_BG: hexToNumber(CRT_THEME.palette.bgPanel),
+  BTN_HOVER: hexToNumber(CRT_THEME.palette.amberLow),
 
   // 道具牌格
-  ITEM_SLOT: 0x2a3a50,
-  ITEM_SLOT_BORDER: 0x4a5568,
+  ITEM_SLOT: hexToNumber(CRT_THEME.palette.bgScreen),
+  ITEM_SLOT_BORDER: hexToNumber(CRT_THEME.palette.amberLow),
 };
 
 /** 字体配置 */
 export const FONTS = {
-  FAMILY: 'Arial, "Microsoft YaHei", sans-serif',
-  TITLE: 'bold 32px Arial, "Microsoft YaHei", sans-serif',
-  SUBTITLE: '18px Arial, "Microsoft YaHei", sans-serif',
-  PANEL_HEADER: 'bold 14px Arial, "Microsoft YaHei", sans-serif',
-  PANEL_TEXT: '12px Arial, "Microsoft YaHei", sans-serif',
-  CARD_NAME: 'bold 13px Arial, "Microsoft YaHei", sans-serif',
-  CARD_STAT: '11px Arial, "Microsoft YaHei", sans-serif',
+  FAMILY: CRT_THEME.typography.fontFamily,
+  TITLE: `bold 32px ${CRT_THEME.typography.fontFamily}`,
+  SUBTITLE: `18px ${CRT_THEME.typography.fontFamily}`,
+  PANEL_HEADER: `bold 14px ${CRT_THEME.typography.fontFamily}`,
+  PANEL_TEXT: `12px ${CRT_THEME.typography.fontFamily}`,
+  CARD_NAME: `bold 13px ${CRT_THEME.typography.fontFamily}`,
+  CARD_STAT: `11px ${CRT_THEME.typography.fontFamily}`,
 };
 
 /** 深度层级 */

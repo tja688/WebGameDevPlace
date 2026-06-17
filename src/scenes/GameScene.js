@@ -15,6 +15,9 @@ import relicManager from "../systems/RelicManager.js";
 import skillManager from "../systems/SkillManager.js";
 import { rollRelics } from "../data/RelicData.js";
 import levelManager from "../systems/LevelManager.js";
+import CrtScreen from "../effects/CrtScreen.js";
+import TerminalAudio from "../audio/TerminalAudio.js";
+import TerminalFactory from "../ui/TerminalFactory.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +26,12 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     gameState.resetAll();
+
+    this.terminalAudio = new TerminalAudio(this);
+    this.crt = new CrtScreen(this, { intensity: "normal" });
+    this.terminal = new TerminalFactory(this, { audio: this.terminalAudio, crt: this.crt });
+    this.terminalAudio.screenOn();
+    this.crt.screenOn();
 
     // 初始化管理器
     relicManager.setScene(this);
@@ -65,6 +74,7 @@ export default class GameScene extends Phaser.Scene {
     // 瞄准模式状态
     /** @type {{ cardData: object, itemIdx: number, highlights: Array }|null } */
     this._targetingMode = null;
+    this._hoveredSlot = null;
 
     // 构建 UI
     this.buildPlayerInfo();
@@ -145,11 +155,11 @@ export default class GameScene extends Phaser.Scene {
 
     // ---- 瞄准模式下：根据效果类型响应点击 ----
     if (this._targetingMode) {
-      if (gameState.isInputLocked()) return;
+      if (gameState.isInputLocked()) { this._terminalInvalid(); return; }
       const slot = this.gridManager.getSlotAt(wx, wy);
-      if (slot < 1 || slot > 9) return;
+      if (slot < 1 || slot > 9) { this._terminalInvalid(); return; }
       const container = this.gridManager.slotContents[slot];
-      if (!container) return;
+      if (!container) { this._terminalInvalid(); return; }
 
       const { cardData, itemIdx } = this._targetingMode;
       const effectCard = HELP_CARDS[cardData.id] || cardData;
@@ -159,7 +169,7 @@ export default class GameScene extends Phaser.Scene {
       if (effect && effect.type === "swap_two_cards") {
         if (!this._swapTarget1) {
           // 第一次选择
-          if (slot === 5) return; // 不能选玩家
+          if (slot === 5) { this._terminalInvalid(); return; } // 不能选玩家
           this._swapTarget1 = { slot, container };
           container._swapHighlight = this.add.rectangle(container.x, container.y, GRID.CELL_WIDTH + 4, GRID.CELL_HEIGHT + 4)
             .setStrokeStyle(3, 0x44ff44, 0.8).setDepth(DEPTH.CARDS + 5).setOrigin(0.5);
@@ -167,7 +177,7 @@ export default class GameScene extends Phaser.Scene {
           return;
         } else {
           // 第二次选择 → 执行交换
-          if (slot === 5 || (slot === this._swapTarget1.slot)) return;
+          if (slot === 5 || (slot === this._swapTarget1.slot)) { this._terminalInvalid(); return; }
           const t1 = this._swapTarget1;
           this.gridManager.swapCards(t1.slot, slot);
           if (t1.container._swapHighlight) t1.container._swapHighlight.destroy();
@@ -191,8 +201,9 @@ export default class GameScene extends Phaser.Scene {
       } else if (effect && effect.type === "kidnap") {
         validTarget = container.cardData?.type === "monster" && !container.cardData.isElite && !container.cardData.isBoss;
       }
-      if (!validTarget) return;
+      if (!validTarget) { this._terminalInvalid(); return; }
 
+      this._terminalConfirm();
       const result = executeHelpCardEffect(this, effectCard, container);
       console.log(`[帮助卡] ${result}`);
       this.gridManager.updatePlayerCardStats();
@@ -203,12 +214,13 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (gameState.isInputLocked()) return;
+    if (gameState.isInputLocked()) { this._terminalInvalid(); return; }
 
     // 1. 检查道具牌格
     const itemIdx = this.getItemSlotAt(wx, wy);
     if (itemIdx >= 0 && this._itemSlots[itemIdx]) {
       console.log(`[点击] 道具槽${itemIdx + 1}`);
+      this._terminalConfirm();
       this.useItemCard(itemIdx);
       return;
     }
@@ -222,12 +234,14 @@ export default class GameScene extends Phaser.Scene {
     const playerSlot = this.gridManager.getPlayerSlot();
     if (!relicManager.hasRelic("trader") && !GridManager.isOrthogonalAdjacent(playerSlot, slot)) {
       console.log(`[点击] 格${slot} 不与玩家相邻`);
+      this._terminalInvalid();
       return;
     }
 
     // 2a. 空格子 → 触发旋转
     if (this.gridManager.isEmpty(slot)) {
       console.log(`[点击] 空格: 格${slot} → 旋转`);
+      this._terminalConfirm();
       gameState.interactionCount++;
       this.time.delayedCall(250, () => {
         this.gridManager.refillEmptySlots(() => {
@@ -239,7 +253,7 @@ export default class GameScene extends Phaser.Scene {
 
     const container = this.gridManager.slotContents[slot];
     console.log(`[点击] container=${!!container}, cardData=${!!(container && container.cardData)}, type=${container?.cardData?.type}`);
-    if (!container || !container.cardData) return;
+    if (!container || !container.cardData) { this._terminalInvalid(); return; }
 
     const cardData = container.cardData;
     // 嘲讽：正交相邻有嘲讽怪物时，只能攻击嘲讽怪物
@@ -247,16 +261,19 @@ export default class GameScene extends Phaser.Scene {
       const tauntSlot = this._findAdjacentTaunt();
       if (tauntSlot > 0 && slot !== tauntSlot) {
         console.log(`[嘲讽] 必须攻击格${tauntSlot}的嘲讽怪物`);
+        this._terminalInvalid();
         return;
       }
     }
 
     if (cardData.type === "monster") {
       console.log(`[点击] 怪物: 格${slot} — ${cardData.name}`);
+      this._terminalConfirm();
       EventBus.emit(GameEvents.CARD_CLICKED, { type: "monster", slot, card: cardData });
       resolveBattle(this, this.gridManager, slot, container);
     } else if (cardData.type === "help") {
       console.log(`[点击] 帮助卡: 格${slot} — ${cardData.name}`);
+      this._terminalConfirm();
       this.pickupHelpCard(slot, container);
     }
   }
@@ -267,8 +284,13 @@ export default class GameScene extends Phaser.Scene {
     const wy = pointer.worldY;
     const slot = this.gridManager.getSlotAt(wx, wy);
     if (slot < 1 || slot > 9) {
+      this._hoveredSlot = null;
       this._updateTooltip(null);
       return;
+    }
+    if (slot !== this._hoveredSlot) {
+      this._hoveredSlot = slot;
+      this.terminalAudio?.hover();
     }
     const container = this.gridManager.slotContents[slot];
     if (container && container.cardData?.type === "monster") {
@@ -292,20 +314,20 @@ export default class GameScene extends Phaser.Scene {
       const skillText = skill
         ? `【${skill.name}】\n${skill.desc}`
         : "无特殊技能";
-      const info = `${monsterData.name}\nHP:${monsterData.hp} ATK:${monsterData.atk} ARM:${monsterData.armor}\n\n${skillText}`;
+      const info = `${monsterData.name}\nHP:${String(monsterData.hp).padStart(2, "0")} AT:${String(monsterData.atk).padStart(2, "0")} AR:${String(monsterData.armor).padStart(2, "0")}\n\n${skillText}`;
 
       this._tooltipBg = this.add.rectangle(cx, cy, RIGHT_PANEL_W - 4, TOOLTIP_H - 4, COLORS.BG_PANEL, 0.9)
         .setDepth(DEPTH.UI_PANELS).setOrigin(0.5)
         .setStrokeStyle(1, COLORS.TEXT_ACCENT, 0.6);
       this._tooltipText = this.add.text(cx, TOOLTIP_Y + 20, info, {
-        fontFamily: FONTS.FAMILY, fontSize: "11px", color: COLORS.TEXT_PRIMARY,
+        fontFamily: FONTS.FAMILY, fontSize: "11px", color: COLORS.TEXT_ACCENT,
         align: "center", wordWrap: { width: RIGHT_PANEL_W - 20 },
       }).setOrigin(0.5, 0).setDepth(DEPTH.UI_TEXT);
     } else {
       this._tooltipBg = this.add.rectangle(cx, cy, RIGHT_PANEL_W - 4, TOOLTIP_H - 4, COLORS.BG_PANEL, 0.7)
         .setDepth(DEPTH.UI_PANELS).setOrigin(0.5)
         .setStrokeStyle(1, COLORS.CELL_BORDER, 0.3);
-      this._tooltipText = this.add.text(cx, cy, "鼠标悬停怪物卡\n查看技能详情", {
+      this._tooltipText = this.add.text(cx, cy, "HOVER MONSTER CARD\nFOR SCAN DETAIL", {
         fontFamily: FONTS.FAMILY, fontSize: "11px", color: COLORS.TEXT_SECONDARY, align: "center",
       }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     }
@@ -415,7 +437,7 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
 
     // 类型标签
-    const label = this.add.text(x, y + 8, "[帮助卡]", {
+    const label = this.add.text(x, y + 8, "[ITEM]", {
       fontFamily: FONTS.FAMILY,
       fontSize: "7px",
       color: COLORS.TEXT_ACCENT,
@@ -443,12 +465,12 @@ export default class GameScene extends Phaser.Scene {
     // 属性提升卡 → 弹出属性选择
     if (effect && effect.type === "statChoice") {
       const options = [
-        { key: "atk", label: "攻击 +1", subLabel: "永久提升攻击力", color: 0xffdd77 },
-        { key: "armor", label: "护甲 +1", subLabel: "永久提升基础护甲", color: 0x77bbff },
-        { key: "hp", label: "血量 +2", subLabel: "提升血量上限", color: 0xff7777 },
+        { key: "atk", label: "STRIKE +1", subLabel: "永久提升攻击力", color: COLORS.HELP_GOLD },
+        { key: "armor", label: "ARMOR +1", subLabel: "永久提升基础护甲", color: COLORS.HELP_BLUE },
+        { key: "hp", label: "INTEGRITY +2", subLabel: "提升血量上限", color: COLORS.HELP_RED },
       ];
       showSelectionOverlay(this, {
-        title: "选择属性提升",
+        title: "UNIT UPGRADE / SELECT ONE",
         options,
         skipLabel: "",
         onSelect: (key) => {
@@ -476,12 +498,12 @@ export default class GameScene extends Phaser.Scene {
         key: r.id,
         label: r.name,
         subLabel: r.desc,
-        color: { white: 0x6b7280, blue: 0x4a8fc9, gold: 0xd4a830 }[r.rarity] || 0x6b7280,
+        color: { white: COLORS.HELP_WHITE, blue: COLORS.HELP_BLUE, gold: COLORS.HELP_GOLD }[r.rarity] || COLORS.HELP_WHITE,
       }));
       showSelectionOverlay(this, {
-        title: "选择一件遗物",
+        title: "RELIC CLAIM / SELECT ONE",
         options,
-        skipLabel: "跳过 → +20💰",
+        skipLabel: "SKIP / +000020",
         onSelect: (key) => {
           const picked = relics.find((r) => r.id === key);
           if (picked) {
@@ -554,12 +576,13 @@ export default class GameScene extends Phaser.Scene {
 
   /** 弹出提示消息 */
   _showToast(msg) {
+    this._terminalInvalid();
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
-    const bg = this.add.rectangle(cx, cy + 80, 280, 36, 0x000000, 0.85)
-      .setDepth(200).setStrokeStyle(1, 0xff6644);
+    const bg = this.add.rectangle(cx, cy + 80, 300, 36, COLORS.BG_DARK, 0.9)
+      .setDepth(200).setStrokeStyle(1, COLORS.HELP_RED);
     const txt = this.add.text(cx, cy + 80, msg, {
-      fontFamily: FONTS.FAMILY, fontSize: "14px", color: "#ff8866",
+      fontFamily: FONTS.FAMILY, fontSize: "14px", color: COLORS.TEXT_ACCENT,
     }).setOrigin(0.5).setDepth(201);
     this.tweens.add({
       targets: [bg, txt], alpha: 0, y: cy + 55, duration: 500, delay: 1200,
@@ -701,14 +724,36 @@ export default class GameScene extends Phaser.Scene {
       this.updatePlayerInfoPanel();
     });
     EventBus.on(GameEvents.GOLD_CHANGED, () => this.updatePlayerInfoPanel());
-    EventBus.on(GameEvents.MONSTER_REMOVED, () => this.updateDeckPreview());
-    EventBus.on(GameEvents.SLOT_FILLED, () => this.updateDeckPreview());
-    EventBus.on(GameEvents.REFILL_END, () => this.updateDeckPreview());
+    EventBus.on(GameEvents.MONSTER_REMOVED, () => {
+      this.terminalAudio?.tick();
+      this.updateDeckPreview();
+    });
+    EventBus.on(GameEvents.SLOT_FILLED, () => {
+      this.updateDeckPreview();
+    });
+    EventBus.on(GameEvents.REFILL_END, () => {
+      this.terminalAudio?.rowRefresh();
+      this.updateDeckPreview();
+    });
+    EventBus.on(GameEvents.GRID_ROTATED, () => {
+      this.terminalAudio?.glitch(90);
+      this.crt?.glitch(90);
+    });
     EventBus.on(GameEvents.LEVEL_CLEAR, () => this.showLevelClearMessage());
     EventBus.on(GameEvents.PLAYER_DIED, () => this.showPlayerDeathMessage());
     EventBus.on(GameEvents.ELITE_KILLED, () => {
       this.time.delayedCall(500, () => levelManager.showMentorChoice());
     });
+  }
+
+  _terminalConfirm() {
+    this.terminalAudio?.confirm();
+    this.crt?.pulse(110);
+  }
+
+  _terminalInvalid() {
+    this.terminalAudio?.error();
+    this.crt?.glitch(120);
   }
 
   // ============================================================
@@ -721,10 +766,10 @@ export default class GameScene extends Phaser.Scene {
     const cx = LEFT_PANEL_X + LEFT_PANEL_W / 2;
     const statStartY = PLAYER_INFO_Y + 45;
     const stats = [
-      { l: "血量 (HP)", v: `${gameState.hp} / ${gameState.getEffectiveMaxHp()}`, c: "#ff7777" },
-      { l: "攻击 (ATK)", v: `${gameState.getEffectiveAttack()}`, c: "#ffdd77" },
-      { l: "护甲 (ARMOR)", v: `${gameState.getEffectiveArmor()} / ${gameState.getEffectiveBaseArmor()}`, c: "#77bbff" },
-      { l: "金币 (GOLD)", v: `${gameState.gold} 💰`, c: "#ffe680" },
+      { l: "UNIT INTEGRITY", v: `${String(gameState.hp).padStart(3, "0")} / ${String(gameState.getEffectiveMaxHp()).padStart(3, "0")}`, c: COLORS.TEXT_ACCENT },
+      { l: "STRIKE POWER", v: String(gameState.getEffectiveAttack()).padStart(3, "0"), c: COLORS.TEXT_WHITE },
+      { l: "ARMOR VALUE", v: `${String(gameState.getEffectiveArmor()).padStart(3, "0")} / ${String(gameState.getEffectiveBaseArmor()).padStart(3, "0")}`, c: COLORS.TEXT_SECONDARY },
+      { l: "CARGO VALUE", v: String(gameState.gold).padStart(6, "0"), c: COLORS.TEXT_ACCENT },
     ];
     this._playerInfoTexts = [];
     stats.forEach((s, i) => {
@@ -742,7 +787,7 @@ export default class GameScene extends Phaser.Scene {
     const cx = RIGHT_PANEL_X + RIGHT_PANEL_W / 2;
     const count = gameState.getBattleDeckCount();
     const next = gameState.battleDeck[0];
-    const info = next ? `剩余: ${count} 张\n下一张: ${next.name}` : `剩余: ${count} 张\n牌组已空`;
+    const info = next ? `DECK LEFT / ${String(count).padStart(2, "0")}\nNEXT CARGO / ${next.name}` : `DECK LEFT / ${String(count).padStart(2, "0")}\nNO SIGNAL`;
     this._deckPreviewText = this.add.text(cx, DECK_AREA_Y + 65, info, {
       fontFamily: FONTS.FAMILY, fontSize: "11px", color: COLORS.TEXT_SECONDARY, align: "center",
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
@@ -750,6 +795,8 @@ export default class GameScene extends Phaser.Scene {
 
   showLevelClearMessage() {
     this.exitTargetingMode();
+    this.terminalAudio?.rowRefresh();
+    this.crt?.glitch(120);
     levelManager.onLevelClear();
   }
 
@@ -766,18 +813,20 @@ export default class GameScene extends Phaser.Scene {
     rooms.forEach((room, i) => {
       const bx = startX + i * (btnW + gap);
 
-      const bg = this.add.rectangle(bx, btnY, btnW, btnH, room.color, 0.9)
+      const bg = this.add.rectangle(bx, btnY, btnW, btnH, COLORS.BG_PANEL, 0.92)
         .setDepth(DEPTH.OVERLAY - 1)
-        .setStrokeStyle(2, 0xffffff, 0.5)
+        .setStrokeStyle(1, COLORS.TEXT_ACCENT, 0.75)
         .setInteractive({ useHandCursor: true });
 
       const label = this.add.text(bx, btnY, room.label, {
-        fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: "#ffffff",
+        fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_ACCENT,
       }).setOrigin(0.5).setDepth(DEPTH.OVERLAY);
 
-      bg.on("pointerover", () => bg.setStrokeStyle(2, 0xffdd77, 1));
-      bg.on("pointerout", () => bg.setStrokeStyle(2, 0xffffff, 0.5));
+      bg.on("pointerover", () => { bg.setStrokeStyle(1, COLORS.TEXT_WHITE, 1); this.terminalAudio?.hover(); });
+      bg.on("pointerout", () => bg.setStrokeStyle(1, COLORS.TEXT_ACCENT, 0.75));
       bg.on("pointerdown", () => {
+        this.terminalAudio?.confirm();
+        this.crt?.glitch(120);
         this.hideRoomButtons();
         levelManager.executeRoom(room.key);
       });
@@ -799,6 +848,8 @@ export default class GameScene extends Phaser.Scene {
   /** 节点推进后重建关卡 */
   rebuildLevel() {
     this.hideRoomButtons();
+    this.terminalAudio?.glitch(120);
+    this.crt?.glitch(120);
     // 未使用的帮助卡回到玩家侧卡组
     let recycled = 0;
     // 道具牌格中的帮助卡（回收时走直接 push，不计上限检查）
@@ -876,23 +927,26 @@ export default class GameScene extends Phaser.Scene {
 
   showPlayerDeathMessage() {
     const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2;
-    this.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(DEPTH.OVERLAY);
-    this.add.text(cx, cy - 30, "💀 玩家死亡\n游戏结束", {
-      fontFamily: FONTS.FAMILY, fontSize: "36px", fontStyle: "bold", color: "#ff4444", align: "center",
+    this.terminalAudio?.screenOff();
+    this.crt?.screenOff();
+    this.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, COLORS.BG_OVERLAY, 0.74).setDepth(DEPTH.OVERLAY);
+    this.add.text(cx, cy - 34, "SIGNAL LOST\nSESSION TERMINATED", {
+      fontFamily: FONTS.FAMILY, fontSize: "34px", fontStyle: "bold", color: COLORS.HELP_RED, align: "center",
     }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
 
     // 重新开始按钮
     const btnW = 180, btnH = 42, btnY = cy + 70;
-    const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, 0xcc4444, 0.9)
-      .setDepth(DEPTH.OVERLAY + 1).setStrokeStyle(2, 0xff8888)
+    const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, COLORS.BG_PANEL, 0.92)
+      .setDepth(DEPTH.OVERLAY + 1).setStrokeStyle(1, COLORS.HELP_RED)
       .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(cx, btnY, "重新开始", {
-      fontFamily: FONTS.FAMILY, fontSize: "18px", fontStyle: "bold", color: "#ffffff",
+    const btnText = this.add.text(cx, btnY, "> REBOOT SESSION", {
+      fontFamily: FONTS.FAMILY, fontSize: "16px", fontStyle: "bold", color: COLORS.TEXT_ACCENT,
     }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 2);
 
-    btnBg.on("pointerover", () => btnBg.setFillStyle(0xee5555));
-    btnBg.on("pointerout", () => btnBg.setFillStyle(0xcc4444));
+    btnBg.on("pointerover", () => { btnBg.setStrokeStyle(1, COLORS.TEXT_WHITE); this.terminalAudio?.hover(); });
+    btnBg.on("pointerout", () => btnBg.setStrokeStyle(1, COLORS.HELP_RED));
     btnBg.on("pointerdown", () => {
+      this.terminalAudio?.screenOn();
       this.scene.restart();
     });
   }
@@ -905,7 +959,7 @@ export default class GameScene extends Phaser.Scene {
     const { LEFT_PANEL_X, LEFT_PANEL_W, PLAYER_INFO_Y, PLAYER_INFO_H } = LAYOUT;
     const cx = LEFT_PANEL_X + LEFT_PANEL_W / 2;
     this.drawPanel(cx, PLAYER_INFO_Y + PLAYER_INFO_H / 2, LEFT_PANEL_W, PLAYER_INFO_H);
-    this.add.text(cx, PLAYER_INFO_Y + 14, "玩家信息", {
+    this.add.text(cx, PLAYER_INFO_Y + 14, "UNIT STATUS", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this.updatePlayerInfoPanel();
@@ -915,10 +969,10 @@ export default class GameScene extends Phaser.Scene {
     const { LEFT_PANEL_X, LEFT_PANEL_W, EQUIPMENT_Y, EQUIPMENT_H } = LAYOUT;
     const cx = LEFT_PANEL_X + LEFT_PANEL_W / 2, cy = EQUIPMENT_Y + EQUIPMENT_H / 2;
     this.drawPanel(cx, cy, LEFT_PANEL_W, EQUIPMENT_H);
-    this._equipTitle = this.add.text(cx, EQUIPMENT_Y + 14, "装备栏 (12)", {
+    this._equipTitle = this.add.text(cx, EQUIPMENT_Y + 14, "RELIC BAY (12)", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
-    this._equipTip = this.add.text(cx, EQUIPMENT_Y + EQUIPMENT_H - 14, "右键丢弃 → +20💰", {
+    this._equipTip = this.add.text(cx, EQUIPMENT_Y + EQUIPMENT_H - 14, "RMB DISCARD / +000020", {
       fontFamily: FONTS.FAMILY, fontSize: "10px", color: COLORS.TEXT_SECONDARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this._equipSlotsGfx = [];
@@ -942,11 +996,11 @@ export default class GameScene extends Phaser.Scene {
 
       const relic = relics[i];
       const bgColor = relic
-        ? ({ white: 0x6b7280, blue: 0x4a8fc9, gold: 0xd4a830 }[relic.rarity] || 0x6b7280)
-        : COLORS.CELL_EMPTY;
+          ? ({ white: COLORS.HELP_WHITE, blue: COLORS.HELP_BLUE, gold: COLORS.HELP_GOLD }[relic.rarity] || COLORS.HELP_WHITE)
+          : COLORS.CELL_EMPTY;
 
       const bg = this.add.rectangle(sx, sy, sz, sz, bgColor, 0.9)
-        .setStrokeStyle(1, relic ? 0xffffff : COLORS.CELL_BORDER, relic ? 0.4 : 0.3)
+        .setStrokeStyle(1, relic ? COLORS.TEXT_ACCENT : COLORS.CELL_BORDER, relic ? 0.7 : 0.3)
         .setDepth(DEPTH.UI_PANELS);
       group.push(bg);
 
@@ -985,7 +1039,7 @@ export default class GameScene extends Phaser.Scene {
     const { CENTER_X, CENTER_W, BATTLEFIELD_Y, BATTLEFIELD_H } = LAYOUT;
     const cx = CENTER_X + CENTER_W / 2, cy = BATTLEFIELD_Y + BATTLEFIELD_H / 2;
     this.drawPanel(cx, cy, CENTER_W, BATTLEFIELD_H);
-    this.add.text(cx, BATTLEFIELD_Y + 14, "九宫格战场", {
+    this.add.text(cx, BATTLEFIELD_Y + 14, "GATE GRID B-03", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this.gridManager = new GridManager(this);
@@ -996,7 +1050,7 @@ export default class GameScene extends Phaser.Scene {
     const { CENTER_X, CENTER_W, ITEM_SLOTS_Y, ITEM_SLOTS_H } = LAYOUT;
     const cx = CENTER_X + CENTER_W / 2, cy = ITEM_SLOTS_Y + ITEM_SLOTS_H / 2;
     this.drawPanel(cx, cy, CENTER_W, ITEM_SLOTS_H);
-    this.add.text(cx, ITEM_SLOTS_Y + 14, "道具牌格 (5)", {
+    this.add.text(cx, ITEM_SLOTS_Y + 14, "CARGO BUFFER (5)", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     const slotW = 50, gap = 12, totalW = 5 * slotW + 4 * gap;
@@ -1014,7 +1068,7 @@ export default class GameScene extends Phaser.Scene {
     const { RIGHT_PANEL_X, RIGHT_PANEL_W, DECK_AREA_Y, DECK_AREA_H } = LAYOUT;
     const cx = RIGHT_PANEL_X + RIGHT_PANEL_W / 2, cy = DECK_AREA_Y + DECK_AREA_H / 2;
     this.drawPanel(cx, cy, RIGHT_PANEL_W, DECK_AREA_H);
-    this.add.text(cx, DECK_AREA_Y + 14, "牌组区", {
+    this.add.text(cx, DECK_AREA_Y + 14, "DECK SIGNAL", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this.updateDeckPreview();
@@ -1024,12 +1078,12 @@ export default class GameScene extends Phaser.Scene {
     const { RIGHT_PANEL_X, RIGHT_PANEL_W, TOOLTIP_Y, TOOLTIP_H, SKILLS_Y, SKILLS_H } = LAYOUT;
     const cx = RIGHT_PANEL_X + RIGHT_PANEL_W / 2;
     this.drawPanel(cx, TOOLTIP_Y + TOOLTIP_H / 2, RIGHT_PANEL_W, TOOLTIP_H);
-    this.add.text(cx, TOOLTIP_Y + 14, "介绍区", {
+    this.add.text(cx, TOOLTIP_Y + 14, "SCAN DETAIL", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this._updateTooltip(null);
     this.drawPanel(cx, SKILLS_Y + SKILLS_H / 2, RIGHT_PANEL_W, SKILLS_H);
-    this.add.text(cx, SKILLS_Y + 14, "技能栏", {
+    this.add.text(cx, SKILLS_Y + 14, "PROTOCOL BAY", {
       fontFamily: FONTS.FAMILY, fontSize: "14px", fontStyle: "bold", color: COLORS.TEXT_PRIMARY,
     }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT);
     this.renderSkillPanel();
@@ -1047,7 +1101,7 @@ export default class GameScene extends Phaser.Scene {
 
     const skills = skillManager.getAllSkills();
     if (skills.length === 0) {
-      this._skillTexts.push(this.add.text(cx, SKILLS_Y + 50, "(无)", {
+      this._skillTexts.push(this.add.text(cx, SKILLS_Y + 50, "(NO SIGNAL)", {
         fontFamily: FONTS.FAMILY, fontSize: "11px", color: COLORS.TEXT_SECONDARY,
       }).setOrigin(0.5).setDepth(DEPTH.UI_TEXT));
     } else {

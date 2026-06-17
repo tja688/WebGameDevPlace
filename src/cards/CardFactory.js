@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { COLORS, FONTS, GRID, DEPTH } from "../config/GameConfig.js";
+import { CRT_THEME } from "../style/crtTheme.js";
 
 // ============================================================
 // CardFactory — 卡牌工厂
@@ -35,7 +36,7 @@ export function createMonsterCard(scene, cardData, x, y) {
 
   // 名签条（顶部）
   const isEliteOrBoss = cardData.isElite || cardData.isBoss;
-  const nameBarColor = isEliteOrBoss ? (cardData.isBoss ? 0xd4a830 : 0xcc4444) : 0x000000;
+  const nameBarColor = isEliteOrBoss ? (cardData.isBoss ? COLORS.HELP_GOLD : COLORS.HELP_RED) : COLORS.BG_DARK;
   const nameBarAlpha = isEliteOrBoss ? 0.7 : 0.5;
   const nameBar = scene.add
     .rectangle(0, -CELL_HEIGHT / 2 + 11, CELL_WIDTH - 4, 18, nameBarColor, nameBarAlpha)
@@ -43,8 +44,8 @@ export function createMonsterCard(scene, cardData, x, y) {
   container.add(nameBar);
 
   // 精英/层主标签
-  const tag = cardData.isBoss ? "👑" : cardData.isElite ? "⭐" : "";
-  const displayName = tag ? `${tag}${cardData.name}` : cardData.name;
+  const tag = cardData.isBoss ? "BOSS " : cardData.isElite ? "ELT " : "MOB ";
+  const displayName = `${tag}${cardData.name}`;
 
   // 名称文字
   const nameText = scene.add
@@ -52,7 +53,8 @@ export function createMonsterCard(scene, cardData, x, y) {
       fontFamily: FONTS.FAMILY,
       fontSize: "11px",
       fontStyle: "bold",
-      color: COLORS.TEXT_WHITE,
+      color: COLORS.TEXT_ACCENT,
+      shadow: { offsetX: 0, offsetY: 0, color: CRT_THEME.palette.amberLow, blur: 4, fill: true },
     })
     .setOrigin(0.5);
   container.add(nameText);
@@ -70,19 +72,20 @@ export function createMonsterCard(scene, cardData, x, y) {
   // 属性数值（底部）
   const statY = CELL_HEIGHT / 2 - 28;
   const stats = [
-    { icon: "❤️", value: cardData.hp, color: "#ff7777", x: -22 },
-    { icon: "⚔️", value: cardData.atk, color: "#ffdd77", x: 0 },
-    { icon: "🛡️", value: cardData.armor, color: "#77bbff", x: 22 },
+    { icon: "HP", value: cardData.hp, color: CRT_THEME.palette.danger, x: -24 },
+    { icon: "AT", value: cardData.atk, color: CRT_THEME.palette.amberBright, x: 0 },
+    { icon: "AR", value: cardData.armor, color: CRT_THEME.palette.amberMid, x: 24 },
   ];
 
   stats.forEach((s) => {
     const statText = scene.add
-      .text(s.x, statY, `${s.icon}\n${s.value}`, {
+      .text(s.x, statY, `${s.icon}\n${String(s.value).padStart(2, "0")}`, {
         fontFamily: FONTS.FAMILY,
         fontSize: "12px",
         fontStyle: "bold",
         color: s.color,
         align: "center",
+        shadow: { offsetX: 0, offsetY: 0, color: CRT_THEME.palette.amberLow, blur: 3, fill: true },
       })
       .setOrigin(0.5);
     container.add(statText);
@@ -106,9 +109,9 @@ export function refreshMonsterCardDisplay(container) {
   const atkText = container.getAt(5);
   const armorText = container.getAt(6);
 
-  if (hpText && hpText.setText) hpText.setText(`❤️\n${cardData.hp}`);
-  if (atkText && atkText.setText) atkText.setText(`⚔️\n${cardData.atk}`);
-  if (armorText && armorText.setText) armorText.setText(`🛡️\n${cardData.armor}`);
+  if (hpText && hpText.setText) hpText.setText(`HP\n${String(cardData.hp).padStart(2, "0")}`);
+  if (atkText && atkText.setText) atkText.setText(`AT\n${String(cardData.atk).padStart(2, "0")}`);
+  if (armorText && armorText.setText) armorText.setText(`AR\n${String(cardData.armor).padStart(2, "0")}`);
 }
 
 /**
@@ -143,26 +146,27 @@ export function createHelpCard(scene, cardData, x, y) {
       fontFamily: FONTS.FAMILY,
       fontSize: "12px",
       fontStyle: "bold",
-      color: COLORS.TEXT_WHITE,
+      color: COLORS.TEXT_ACCENT,
       align: "center",
       wordWrap: { width: CELL_WIDTH - 10 },
+      shadow: { offsetX: 0, offsetY: 0, color: CRT_THEME.palette.amberLow, blur: 4, fill: true },
     })
     .setOrigin(0.5);
   container.add(nameText);
 
   // 类型标签
   const typeLabel = scene.add
-    .text(0, -4, "[帮助卡]", {
+    .text(0, -4, "[ITEM]", {
       fontFamily: FONTS.FAMILY,
       fontSize: "10px",
-      color: COLORS.TEXT_PRIMARY,
+      color: COLORS.TEXT_SECONDARY,
     })
     .setOrigin(0.5);
   container.add(typeLabel);
 
   // 效果简述
   const effectText = scene.add
-    .text(0, CELL_HEIGHT / 2 - 30, cardData.effect || "", {
+    .text(0, CELL_HEIGHT / 2 - 30, cardData.desc || "PROC READY", {
       fontFamily: FONTS.FAMILY,
       fontSize: "9px",
       color: COLORS.TEXT_ACCENT,

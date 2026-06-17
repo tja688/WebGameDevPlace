@@ -3,11 +3,13 @@ import { GAME_WIDTH, GAME_HEIGHT } from "./config/GameConfig.js";
 import BootScene from "./scenes/BootScene.js";
 import MenuScene from "./scenes/MenuScene.js";
 import GameScene from "./scenes/GameScene.js";
+import StyleTestScene from "./scenes/StyleTestScene.js";
+import { CRT_THEME } from "./style/crtTheme.js";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: "game-root",
-  backgroundColor: "#1e2a38",
+  backgroundColor: CRT_THEME.palette.bgDeep,
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   disableContextMenu: true,
@@ -16,5 +18,5 @@ const game = new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   // 先启动 BootScene，生成贴图后它会自动切到 MenuScene
-  scene: [BootScene, MenuScene, GameScene],
+  scene: [BootScene, MenuScene, GameScene, StyleTestScene],
 });

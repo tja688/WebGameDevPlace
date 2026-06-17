@@ -24,3 +24,4 @@
 ## 6. 高风险/坑点记录
 - 开发过程中发现的高风险问题、棘手的 Bug、容易误导后续 agent 的事实，按时间顺序追加到本文件末尾
 
+- 2026-06-17：`src/systems/HelpCardEffects.js` 尾部 `showFloatText` 缺失函数声明，导致文件末尾出现孤立代码块，`npm run build` 在 Vite import analysis 阶段失败。修复：补回 `function showFloatText(scene, container, dmg)` 并保持函数闭合。
