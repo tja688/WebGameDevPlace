@@ -1,0 +1,46 @@
+<div class="overlay">
+    <div class="overlay-panel room-panel">
+        <h2>选择房间</h2>
+        <div class="room-options">
+            @if (State?.RoomOptions != null)
+            {
+                @for (int i = 0; i < State.RoomOptions.Count; i++)
+                {
+                    var room = State.RoomOptions[i];
+                    var idx = i;
+                    <div class="room-card" @onclick="() => OnSelect?.Invoke(idx)">
+                        <div class="room-icon">@RoomIcon(room)</div>
+                        <div class="room-name">@RoomLabel(room)</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public CoreViewSnapshot? State { get; set; }
+    [Parameter] public Action<int>? OnSelect { get; set; }
+
+    private static string RoomIcon(RoomKind kind) => kind switch
+    {
+        RoomKind.Shop => "🏪",
+        RoomKind.Tavern => "🍺",
+        RoomKind.Fountain => "⛲",
+        RoomKind.Gold => "💰",
+        RoomKind.Treasure => "🎁",
+        RoomKind.Event => "❓",
+        _ => "🚪"
+    };
+
+    private static string RoomLabel(RoomKind kind) => kind switch
+    {
+        RoomKind.Shop => "商店",
+        RoomKind.Tavern => "酒馆",
+        RoomKind.Fountain => "泉水",
+        RoomKind.Gold => "金矿",
+        RoomKind.Treasure => "宝箱",
+        RoomKind.Event => "事件",
+        _ => kind.ToString()
+    };
+}

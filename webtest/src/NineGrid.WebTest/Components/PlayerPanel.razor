@@ -1,0 +1,56 @@
+<div class="player-panel">
+    <h3>玩家信息</h3>
+    <div class="stat-row">
+        <span class="stat-label">血量</span>
+        <span class="stat-value hp">@GetAvatarHp() / @GetAvatarMaxHp()</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">攻击</span>
+        <span class="stat-value atk">@GetAvatarAttack()</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">护甲</span>
+        <span class="stat-value armor">@GetAvatarArmor()</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">金币</span>
+        <span class="stat-value gold">@State?.Coins</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">互动</span>
+        <span class="stat-value">@State?.InteractionCount</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public CoreViewSnapshot? State { get; set; }
+
+    private int GetAvatarHp()
+    {
+        if (State == null) return 0;
+        var avatarSlot = State.GetSlot(State.AvatarSlot);
+        return avatarSlot?.Hp ?? 0;
+    }
+
+    private int GetAvatarMaxHp()
+    {
+        // MaxHp not in BoardSlotView; use snapshot as-is
+        if (State == null) return 0;
+        var avatarSlot = State.GetSlot(State.AvatarSlot);
+        return avatarSlot?.Hp ?? 0; // simplified for MVP
+    }
+
+    private int GetAvatarAttack()
+    {
+        if (State == null) return 0;
+        var avatarSlot = State.GetSlot(State.AvatarSlot);
+        return avatarSlot?.Attack ?? 0;
+    }
+
+    private int GetAvatarArmor()
+    {
+        if (State == null) return 0;
+        var avatarSlot = State.GetSlot(State.AvatarSlot);
+        return avatarSlot?.Armor ?? 0;
+    }
+}

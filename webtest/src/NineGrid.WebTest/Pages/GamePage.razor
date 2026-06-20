@@ -1,0 +1,130 @@
+@page "/"
+@inject GameSession Game
+@implements IDisposable
+
+<div class="game-container">
+    @if (!Game.IsRunning)
+    {
+        <div class="start-screen">
+            <h1>九宫牌局</h1>
+            <p>TableNine WebTest — Blazor WASM</p>
+            <button class="btn btn-primary" @onclick="StartGame">开始游戏</button>
+        </div>
+    }
+    else if (Game.State != null)
+    {
+        <div class="game-layout">
+            <div class="left-panel">
+                <PlayerPanel State="Game.State" />
+                <EquipmentBar State="Game.State" />
+                <div class="skills-section">
+                    <h3>技能</h3>
+                    <p class="hint">（技能面板待扩展）</p>
+                </div>
+            </div>
+
+            <div class="center-panel">
+                <div class="node-info">
+                    <span>节点 @Game.State.NodeIndex / 9</span>
+                    <span>阶段: @PhaseLabel(Game.State.Phase)</span>
+                </div>
+
+                <BoardGrid State="Game.State"
+                           OnAttack="Game.Attack"
+                           OnPickup="Game.PickupItem"
+                           OnClickEmpty="Game.ClickEmpty" />
+
+                <ItemSlots State="Game.State" OnUseItem="Game.UseItem" />
+            </div>
+
+            <div class="right-panel">
+                <ActionLog Log="Game.Log" />
+            </div>
+        </div>
+
+        <!-- Overlays -->
+        @if (Game.State.Phase == GamePhase.RewardItemChoice)
+        {
+            <RewardOverlay State="Game.State"
+                           OnSelect="Game.SelectReward"
+                           OnSkip="Game.SkipReward" />
+        }
+
+        @if (Game.State.Phase == GamePhase.RoomChoice)
+        {
+            <RoomOverlay State="Game.State"
+                         OnSelect="Game.SelectRoom" />
+        }
+
+        @if (Game.State.Phase == GamePhase.NodeCompleted)
+        {
+            <div class="overlay">
+                <div class="overlay-panel">
+                    <h2>节点完成！</h2>
+                    <button class="btn btn-primary" @onclick="Game.StartNextNode">进入下一节点</button>
+                </div>
+            </div>
+        }
+
+        @if (Game.State.Phase == GamePhase.Victory)
+        {
+            <div class="overlay">
+                <div class="overlay-panel victory">
+                    <h2>🎉 通关！</h2>
+                    <p>恭喜你完成了所有节点</p>
+                    <button class="btn btn-primary" @onclick="StartGame">再来一局</button>
+                </div>
+            </div>
+        }
+
+        @if (Game.State.Phase == GamePhase.Defeat)
+        {
+            <div class="overlay">
+                <div class="overlay-panel defeat">
+                    <h2>败北</h2>
+                    <p>你的冒险结束了</p>
+                    <button class="btn btn-primary" @onclick="StartGame">再来一局</button>
+                </div>
+            </div>
+        }
+    }
+
+    @if (Game.LastError != null)
+    {
+        <div class="error-bar">@Game.LastError</div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Game.OnStateChanged += StateHasChanged;
+    }
+
+    private void StartGame()
+    {
+        Game.NewGame(seed: (ulong)DateTime.Now.Ticks);
+    }
+
+    public void Dispose()
+    {
+        Game.OnStateChanged -= StateHasChanged;
+    }
+
+    private static string PhaseLabel(GamePhase phase) => phase switch
+    {
+        GamePhase.None => "无",
+        GamePhase.BuildEnemyPool => "构建敌方卡池",
+        GamePhase.ResetNode => "重置节点",
+        GamePhase.DealOpeningCards => "开局发牌",
+        GamePhase.InteractionLoop => "互动中",
+        GamePhase.ClearCheck => "通关检查",
+        GamePhase.RewardItemChoice => "选择奖励",
+        GamePhase.RoomChoice => "选择房间",
+        GamePhase.RoomEvent => "房间事件",
+        GamePhase.NodeCompleted => "节点完成",
+        GamePhase.Victory => "胜利",
+        GamePhase.Defeat => "失败",
+        _ => phase.ToString()
+    };
+}

@@ -1,0 +1,25 @@
+<div class="action-log">
+    <h3>事件日志</h3>
+    <div class="log-entries">
+        @foreach (var entry in _reversedLog)
+        {
+            <div class="log-entry @GetLogClass(entry)">@entry</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<string> Log { get; set; } = new();
+
+    private IEnumerable<string> _reversedLog => Log.AsEnumerable().Reverse().Take(100);
+
+    private static string GetLogClass(string entry)
+    {
+        if (entry.Contains("[ERROR]")) return "log-error";
+        if (entry.Contains("[Rejected]")) return "log-warn";
+        if (entry.Contains("DMG") || entry.Contains("KILL")) return "log-combat";
+        if (entry.Contains("PHASE")) return "log-phase";
+        if (entry.Contains("REWARD") || entry.Contains("ROOM")) return "log-reward";
+        return "log-normal";
+    }
+}

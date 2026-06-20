@@ -1,0 +1,21 @@
+<div class="item-slots">
+    <h4>道具栏</h4>
+    <div class="slots-row">
+        @for (int i = 0; i < 5; i++)
+        {
+            <div class="item-slot" @onclick="() => HandleUseItem(i)">
+                <span class="item-placeholder">—</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public CoreViewSnapshot? State { get; set; }
+    [Parameter] public Action<int>? OnUseItem { get; set; }
+
+    private void HandleUseItem(int index)
+    {
+        // TODO: map item slot index to card uid from DeckModel
+    }
+}

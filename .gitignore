@@ -53,3 +53,9 @@ temp/
 # Generated source maps
 *.map
 
+# .NET / Blazor
+webtest/**/bin/
+webtest/**/obj/
+webtest/**/*.user
+webtest/**/*.suo
+webtest/.vs/

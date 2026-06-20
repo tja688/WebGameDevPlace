@@ -1,0 +1,21 @@
+<div class="equipment-bar">
+    <h3>遗物栏</h3>
+    <div class="relic-slots">
+        @for (int i = 0; i < 12; i++)
+        {
+            <div class="relic-slot">
+                @if (i < _relicCount)
+                {
+                    <span class="relic-filled">◆</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public CoreViewSnapshot? State { get; set; }
+
+    // Relic count is not directly in CoreViewSnapshot, so we approximate
+    private int _relicCount => 0; // TODO: read from PlayerModel via snapshot
+}

@@ -1,0 +1,27 @@
+<div class="overlay">
+    <div class="overlay-panel reward-panel">
+        <h2>选择奖励</h2>
+        <p>选择一张卡牌加入你的收藏，或跳过</p>
+        <div class="reward-options">
+            @if (State?.RewardOptions != null)
+            {
+                @for (int i = 0; i < State.RewardOptions.Count; i++)
+                {
+                    var option = State.RewardOptions[i];
+                    var idx = i; // capture for lambda
+                    <div class="reward-card" @onclick="() => OnSelect?.Invoke(idx)">
+                        <div class="reward-name">@option.DefId</div>
+                        <div class="reward-kind">@option.Kind</div>
+                    </div>
+                }
+            }
+        </div>
+        <button class="btn btn-secondary" @onclick="OnSkip">跳过</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public CoreViewSnapshot? State { get; set; }
+    [Parameter] public Action<int>? OnSelect { get; set; }
+    [Parameter] public Action? OnSkip { get; set; }
+}

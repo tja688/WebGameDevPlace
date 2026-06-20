@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Do NOT define UNITY_5_6_OR_NEWER here. QFramework.cs uses this constant
+         to conditionally compile Unity-specific code. Without it, all Unity blocks
+         are excluded, which is what we want for Blazor WASM. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.11" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- QFramework: patched copy from Unity (auto-included by SDK default glob) -->
+
+  <!-- NineGrid.Core: link Unity source files directly, zero modification -->
+  <ItemGroup>
+    <Compile Include="..\..\..\..\Ninegrid Gambit\Assets\Scripts\NineGrid.Core\**\*.cs"
+             Exclude="..\..\..\..\Ninegrid Gambit\Assets\Scripts\NineGrid.Core\**\*.asmdef" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,359 @@
+/* TableNine WebTest — Dark terminal aesthetic */
+:root {
+    --bg-dark: #1a1a2e;
+    --bg-panel: #16213e;
+    --bg-card: #0f3460;
+    --bg-card-hover: #1a4a7a;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-dim: #606060;
+    --accent-warm: #e94560;
+    --accent-gold: #f0c040;
+    --accent-green: #4ecca3;
+    --accent-blue: #45a0e9;
+    --border: #2a2a4e;
+    --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.page { min-height: 100vh; }
+
+/* ── Start Screen ── */
+.start-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 16px;
+}
+
+.start-screen h1 {
+    font-size: 36px;
+    color: var(--accent-gold);
+    letter-spacing: 4px;
+}
+
+/* ── Game Layout ── */
+.game-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr 280px;
+    gap: 8px;
+    padding: 8px;
+    min-height: 100vh;
+}
+
+.left-panel, .right-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.center-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+}
+
+.node-info {
+    display: flex;
+    gap: 24px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ── Board Grid ── */
+.board-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.board-row {
+    display: flex;
+    gap: 4px;
+}
+
+.board-slot {
+    width: 120px;
+    height: 90px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.board-slot:hover {
+    border-color: var(--accent-blue);
+}
+
+.slot-monster { border-color: var(--accent-warm); }
+.slot-helpcard { border-color: var(--accent-green); }
+.avatar-slot { border-color: var(--accent-gold); background: rgba(240,192,64,0.08); }
+
+/* ── Cards ── */
+.card {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 3px;
+    text-align: center;
+}
+
+.card-monster { background: rgba(233,69,96,0.15); }
+.card-helpcard { background: rgba(78,204,163,0.15); }
+.card-avatar { background: rgba(240,192,64,0.15); }
+.empty-slot { color: var(--text-dim); font-size: 11px; }
+
+.card-name {
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.card-stats {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.stat-hp { color: var(--accent-warm); }
+.stat-atk { color: var(--accent-gold); }
+.stat-armor { color: var(--accent-blue); }
+
+.blessed-mark {
+    font-size: 10px;
+    color: var(--accent-gold);
+    margin-top: 2px;
+}
+
+/* ── Player Panel ── */
+.player-panel h3, .equipment-bar h3, .action-log h3 {
+    color: var(--accent-gold);
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(42,42,78,0.5);
+}
+
+.stat-label { color: var(--text-secondary); }
+.stat-value { font-weight: bold; }
+.stat-value.hp { color: var(--accent-warm); }
+.stat-value.atk { color: var(--accent-gold); }
+.stat-value.armor { color: var(--accent-blue); }
+.stat-value.gold { color: var(--accent-gold); }
+
+/* ── Equipment Bar ── */
+.equipment-bar { margin-top: 16px; }
+
+.relic-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.relic-slot {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.relic-filled { color: var(--accent-gold); font-size: 16px; }
+
+/* ── Item Slots ── */
+.item-slots h4 {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.slots-row {
+    display: flex;
+    gap: 4px;
+}
+
+.item-slot {
+    width: 64px;
+    height: 48px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.item-slot:hover { border-color: var(--accent-green); }
+.item-placeholder { color: var(--text-dim); }
+
+/* ── Action Log ── */
+.action-log {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-entries {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 11px;
+    max-height: calc(100vh - 80px);
+}
+
+.log-entry {
+    padding: 2px 4px;
+    border-bottom: 1px solid rgba(42,42,78,0.3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-error { color: var(--accent-warm); background: rgba(233,69,96,0.1); }
+.log-warn { color: var(--accent-gold); }
+.log-combat { color: var(--accent-warm); }
+.log-phase { color: var(--accent-blue); font-weight: bold; }
+.log-reward { color: var(--accent-green); }
+.log-normal { color: var(--text-secondary); }
+
+/* ── Overlays ── */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.overlay-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 400px;
+    text-align: center;
+}
+
+.overlay-panel h2 {
+    color: var(--accent-gold);
+    margin-bottom: 16px;
+}
+
+.victory h2 { color: var(--accent-green); }
+.defeat h2 { color: var(--accent-warm); }
+
+.reward-options, .room-options {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.reward-card, .room-card {
+    width: 120px;
+    padding: 16px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: center;
+}
+
+.reward-card:hover, .room-card:hover {
+    border-color: var(--accent-gold);
+    background: rgba(240,192,64,0.08);
+}
+
+.reward-name { font-weight: bold; margin-bottom: 4px; }
+.reward-kind { font-size: 11px; color: var(--text-secondary); }
+.room-icon { font-size: 28px; margin-bottom: 8px; }
+.room-name { font-size: 13px; }
+
+/* ── Buttons ── */
+.btn {
+    padding: 8px 20px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    transition: background 0.15s;
+}
+
+.btn-primary {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    border-color: var(--accent-gold);
+    font-weight: bold;
+}
+
+.btn-primary:hover { background: #d4a830; }
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+/* ── Error Bar ── */
+.error-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(233,69,96,0.9);
+    color: white;
+    padding: 8px 16px;
+    font-size: 12px;
+    z-index: 200;
+}
+
+/* ── Hints ── */
+.hint { color: var(--text-dim); font-size: 11px; font-style: italic; }
+.skills-section { margin-top: 16px; }
+
+/* ── Loading ── */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: var(--text-secondary);
+}

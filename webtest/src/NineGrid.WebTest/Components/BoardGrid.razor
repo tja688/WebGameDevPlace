@@ -1,0 +1,98 @@
+<div class="board-grid">
+    @for (int row = 0; row < 3; row++)
+    {
+        <div class="board-row">
+            @for (int col = 0; col < 3; col++)
+            {
+                int slotIndex = row * 3 + col + 1; // 1-9
+                var slotView = State?.GetSlot(SlotId.Board(slotIndex));
+                var isAvatar = slotIndex == 5; // center is avatar
+
+                <div class="board-slot @(isAvatar ? "avatar-slot" : "") @GetSlotClass(slotView)"
+                     @onclick="() => HandleClick(slotIndex, slotView)">
+                    @if (isAvatar && (slotView == null || slotView.CardUid == 0))
+                    {
+                        <div class="card avatar-card">
+                            <div class="card-name">化身</div>
+                            <div class="card-stats">★</div>
+                        </div>
+                    }
+                    else if (slotView != null && slotView.CardUid != 0)
+                    {
+                        <div class="card @GetCardClass(slotView.Kind)">
+                            <div class="card-name">@GetDisplayName(slotView)</div>
+                            <div class="card-stats">
+                                <span class="stat-hp">♥@slotView.Hp</span>
+                                <span class="stat-atk">⚔@slotView.Attack</span>
+                                @if (slotView.Armor > 0)
+                                {
+                                    <span class="stat-armor">🛡@slotView.Armor</span>
+                                }
+                            </div>
+                            @if (slotView.Blessed)
+                            {
+                                <div class="blessed-mark">✦福地</div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card empty-slot">空</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public CoreViewSnapshot? State { get; set; }
+    [Parameter] public Action<int>? OnAttack { get; set; }
+    [Parameter] public Action<int>? OnPickup { get; set; }
+    [Parameter] public Action<int>? OnClickEmpty { get; set; }
+
+    private void HandleClick(int slotIndex, BoardSlotView? slotView)
+    {
+        if (slotIndex == 5) return; // can't click avatar slot
+
+        if (slotView == null || slotView.CardUid == 0)
+        {
+            OnClickEmpty?.Invoke(slotIndex);
+        }
+        else if (slotView.Kind == CardKind.Monster)
+        {
+            OnAttack?.Invoke(slotIndex);
+        }
+        else if (slotView.Kind == CardKind.HelpCard)
+        {
+            OnPickup?.Invoke(slotIndex);
+        }
+    }
+
+    private static string GetSlotClass(BoardSlotView? slotView)
+    {
+        if (slotView == null || slotView.CardUid == 0) return "slot-empty";
+        return slotView.Kind switch
+        {
+            CardKind.Monster => "slot-monster",
+            CardKind.HelpCard => "slot-helpcard",
+            _ => "slot-other"
+        };
+    }
+
+    private static string GetCardClass(CardKind kind) => kind switch
+    {
+        CardKind.Monster => "card-monster",
+        CardKind.HelpCard => "card-helpcard",
+        CardKind.Avatar => "card-avatar",
+        _ => "card-default"
+    };
+
+    private static string GetDisplayName(BoardSlotView slotView)
+    {
+        if (string.IsNullOrEmpty(slotView.DefId)) return "???";
+        // Extract readable name from defId like "monster.beggar" -> "乞丐"
+        var parts = slotView.DefId.Split('.');
+        return parts.Length > 1 ? parts[^1] : slotView.DefId;
+    }
+}
