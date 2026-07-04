@@ -67,8 +67,8 @@ assertDoesNotThrow('drawPostBattle renders shop-choice rewards', () => {
             goldGained: 3,
             postBattleData: {
                 options: [
-                    { type: 'shop', name: '牌店', icon: 'S', desc: '购买卡牌、删牌和强化' },
-                    { type: 'blacksmith', name: '铁匠铺', icon: 'B', desc: '购买遗物、升级倍率和附魔' },
+                    { type: 'shop', name: '牌店', icon: 'S', desc: '购买矿石、删矿和强化' },
+                    { type: 'blacksmith', name: '船坞铺', icon: 'B', desc: '购买船体改造、升级倍率和附魔' },
                     { type: 'event', name: '随机事件', icon: '?', desc: '遇到意想不到的事' }
                 ]
             }
@@ -79,7 +79,7 @@ assertDoesNotThrow('drawPostBattle renders shop-choice rewards', () => {
 assertDoesNotThrow('drawCardSelect renders deck selection screen', () => {
     drawCardSelect(renderer, ctx, {
         data: {
-            title: '选择一张卡牌',
+            title: '选择一张矿石',
             desc: '测试选牌',
             cards: [createCardInstance('brute_force'), createCardInstance('war_training')]
         }
@@ -102,7 +102,7 @@ assertDoesNotThrow('drawEvent renders event screen', () => {
     drawEvent(renderer, ctx, {
         data: {
             eventName: '神秘力量',
-            eventDesc: '选择牌组内一张卡牌，使其数值永久+2'
+            eventDesc: '选择矿舱内一张矿石，使其数值永久+2'
         }
     });
 });

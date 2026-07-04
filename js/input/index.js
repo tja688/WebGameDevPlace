@@ -2478,7 +2478,7 @@ export const Input = {
             return;
         }
 
-        // 点击卡牌不做选择，只播放音效
+        // 点击矿石不做选择，只播放音效
         const scrollY = state.data.deckViewScrollY || 0;
         const adjustedPos = { x: pos.x, y: pos.y + scrollY };
         if (state.data.deckViewCardRects) {
@@ -2498,7 +2498,7 @@ export const Input = {
         const scrollY = state.data.deckViewScrollY || 0;
         const adjustedPos = { x: pos.x, y: pos.y + scrollY };
 
-        // 检测卡牌悬停
+        // 检测矿石悬停
         if (state.data.deckViewCardRects) {
             for (const rect of state.data.deckViewCardRects) {
                 if (this.hitTest(adjustedPos, rect)) {

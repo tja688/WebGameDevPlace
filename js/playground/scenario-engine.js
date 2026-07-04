@@ -237,7 +237,7 @@ function evaluateAssertion(state, assertion, logs) {
 
 function enrichStateSnapshot(state) {
     const snapshot = deepClone(state);
-    // 为每个slot中的卡牌添加计算后的 finalValue
+    // 为每个slot中的矿石添加计算后的 finalValue
     for (const slot of snapshot.slots) {
         for (const card of slot.cards) {
             // 这里的state是原始对象，snapshot是克隆，需要用原始state计算

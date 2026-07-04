@@ -69,7 +69,7 @@ export function drawCards(state, count) {
             cardName: card.name,
             handIndex: state.hand.length - 1
         });
-        // 抽卡动画：40帧(~667ms)带延迟错峰，带旋转和拖尾
+        // 抽取矿石动画：40帧(~667ms)带延迟错峰，带旋转和拖尾
         state.drawAnimations.push({
             card: card,
             handIndex: state.hand.length - 1,

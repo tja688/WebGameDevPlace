@@ -3,7 +3,7 @@
  *
  * 简化版渲染：
  * - menu 视图：Canvas 绘制类型选择菜单
- * - effect 视图：Canvas 绘制牌桌+手牌，右侧信息由 DOM 面板处理
+ * - effect 视图：Canvas 绘制铸造台+精炼盘，右侧信息由 DOM 面板处理
  */
 
 import { PlaygroundState } from './index.js';
@@ -163,7 +163,7 @@ function drawEffectSandbox(renderer, ctx, state) {
             : `${slot.multiplier}X`;
         ctx.fillText(mulText, sx + slotW / 2, sy + 28);
 
-        // 格子中的卡牌
+        // 格子中的矿石
         const cardH = 48;
         const cardGap = 6;
         const cardsStartY = sy + 44;
@@ -216,7 +216,7 @@ function drawEffectSandbox(renderer, ctx, state) {
         state.data.pgSlotRects.push({ index: i, x: sx, y: sy, w: slotW, h: slotH });
     }
 
-    // 底部手牌区
+    // 底部精炼盘区
     const handY = boardY + boardH + 12;
     const handH = 100;
 

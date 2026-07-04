@@ -176,7 +176,7 @@ assert(s15b.slots[1].cards[1].permanentBonus === 4, '猛训练在场后，后续
 const s15c = makeTestState(['training_trace', 'war_training']);
 playCardToSlot(s15c.hand[0], 1, s15c);
 playCardToSlot(s15c.hand[0], 0, s15c);
-assert(s15c.slots[0].cards[0].permanentBonus === 4, '训练痕迹在场后，相邻格淬火2多触发一次为+4');
+assert(s15c.slots[0].cards[0].permanentBonus === 4, '锻痕在场后，相邻格淬火2多触发一次为+4');
 
 // Test 16: Playground 战斗标记不应污染正式主线战斗
 const s16 = createGameState('title');

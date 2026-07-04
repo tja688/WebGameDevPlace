@@ -754,7 +754,7 @@ function drawSettingsPanel(renderer, ctx, state) {
     const data = state.data || (state.data = {});
     if (data.settingsExpanded === undefined) data.settingsExpanded = false;
 
-    // 设置按钮和首个遗物同排，便于和反馈入口一起形成顶栏
+    // 设置按钮和首个船体改造同排，便于和反馈入口一起形成顶栏
     const btnSize = 36;
     const relicX = renderer.width - 20 - btnSize;
     const topRowY = 20;
@@ -886,7 +886,7 @@ function drawFeedbackLink(renderer, ctx, state) {
     const w = textW + paddingX * 2;
     const h = fontSize + paddingY * 2 + 2;
 
-    // 位置：与设置按钮、首个遗物并排
+    // 位置：与设置按钮、首个船体改造并排
     const settingBtnSize = 36;
     const topRowY = 20;
     const gap = 10;
@@ -956,7 +956,7 @@ function drawBoardArea(renderer, ctx, state) {
     const gap = 20;
     const t = renderer.animTime;
 
-    // 获取入场卡牌拖动状态（从 input 模块）
+    // 获取入场矿石拖动状态（从 input 模块）
     const Input = window.GameInput || {};
     const isDraggingSlotCard = Input.isDraggingSlotCard || false;
     const draggedSlotCard = Input.draggedSlotCard || null;
@@ -1044,7 +1044,7 @@ function drawBoardArea(renderer, ctx, state) {
             const cw = slotW - 20;
             const ch = cardH;
 
-            // 挤开位移效果：当拖动矿石到本格时，插入位置处的卡牌向两侧偏移
+            // 挤开位移效果：当拖动矿石到本格时，插入位置处的矿石向两侧偏移
             if (isSlotDragTarget && dragInsertCardIndex >= 0) {
                 const offset = 8; // 挤开距离
                 if (c >= dragInsertCardIndex) {
@@ -1504,7 +1504,7 @@ function drawUI(renderer, ctx, state) {
 
     drawButton(ctx, btnX, btnY, btnW, btnH, btnText, btnOptions);
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnW = 100;
     const deckBtnH = 36;
     const deckBtnX = renderer.width - 170 - deckBtnW - 12;

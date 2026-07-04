@@ -6,11 +6,11 @@ import { executeScenario } from './js/playground/scenario-engine.js';
 import './js/effects/index.js';
 
 const scenarios = [
-    // ===== 问题1：双生复制缺失动态growAmount =====
+    // ===== 问题1：双晶复制缺失动态growAmount =====
     // 使用定义中无growAmount的模板，但实例覆盖growAmount=2
     {
         id: 'twin_growAmount_dynamic',
-        name: '双生复制应保留实例的growAmount',
+        name: '双晶复制应余烬实例的growAmount',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -29,16 +29,16 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'hand.length', expected: 1, desc: '复制牌加入手牌' },
-            { path: 'hand[0].growAmount', expected: 2, desc: '复制体应保留实例的growAmount=2' },
-            { path: 'hand[0].keywords', expected: ['grow'], desc: '复制体去除双生，保留成长' }
+            { path: 'hand.length', expected: 1, desc: '复制牌加入精炼盘' },
+            { path: 'hand[0].growAmount', expected: 2, desc: '复制体应余烬实例的growAmount=2' },
+            { path: 'hand[0].keywords', expected: ['grow'], desc: '复制体去除双晶，余烬淬火' }
         ]
     },
-    // ===== 问题2：双生复制缺失动态chainCount =====
+    // ===== 问题2：双晶复制缺失动态chainCount =====
     // 使用定义中无chainCount的模板，但实例覆盖chainCount=2
     {
         id: 'twin_chainCount_dynamic',
-        name: '双生复制应保留实例的chainCount',
+        name: '双晶复制应余烬实例的chainCount',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -62,15 +62,15 @@ const scenarios = [
         ],
         assertions: [
             // brute_force有关键词twin+chain，打出后：chain先抽2张，twin后push copy，hand=[bf,bf,copy]
-            { path: 'hand.length', expected: 3, desc: 'chain抽2张 + twin复制1张 = 3张手牌' },
+            { path: 'hand.length', expected: 3, desc: 'chain抽2张 + twin复制1张 = 3张精炼盘' },
             { path: 'hand[2].defId', expected: 'brute_force', desc: '最后一张是复制牌' },
-            { path: 'hand[2].chainCount', expected: 2, desc: '复制体应保留实例的chainCount=2' }
+            { path: 'hand[2].chainCount', expected: 2, desc: '复制体应余烬实例的chainCount=2' }
         ]
     },
-    // ===== 问题3：训练痕迹效果 =====
+    // ===== 问题3：锻痕效果 =====
     {
         id: 'training_trace_adjacent',
-        name: '训练痕迹：相邻格成长多触发一次',
+        name: '锻痕：相邻格淬火多触发一次',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -81,7 +81,7 @@ const scenarios = [
             ],
             hand: [
                 { template: 'training_trace', baseValue: 0, keywords: [], extraEffects: ['training_trace_effect'] },
-                { name: '成长牌', baseValue: 10, keywords: ['grow'], growAmount: 1 }
+                { name: '淬火牌', baseValue: 10, keywords: ['grow'], growAmount: 1 }
             ],
             deck: [],
             discard: []
@@ -91,13 +91,13 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'slots[1].cards[0].permanentBonus', expected: 2, desc: '相邻格有训练痕迹，成长应+2（多触发一次）' }
+            { path: 'slots[1].cards[0].permanentBonus', expected: 2, desc: '相邻格有锻痕，淬火应+2（多触发一次）' }
         ]
     },
     // ===== 问题4：猛训练效果 =====
     {
         id: 'intense_training_same_slot',
-        name: '猛训练：同格后续成长多触发一次',
+        name: '猛训练：同格后续淬火多触发一次',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -108,7 +108,7 @@ const scenarios = [
             ],
             hand: [
                 { template: 'intense_training', baseValue: 10, keywords: [], extraEffects: ['intense_training_effect'] },
-                { name: '成长牌', baseValue: 10, keywords: ['grow'], growAmount: 1 }
+                { name: '淬火牌', baseValue: 10, keywords: ['grow'], growAmount: 1 }
             ],
             deck: [],
             discard: []
@@ -118,13 +118,13 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '同格有猛训练，成长应+2（多触发一次）' }
+            { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '同格有猛训练，淬火应+2（多触发一次）' }
         ]
     },
     // ===== 问题5：集体训练效果 =====
     {
         id: 'group_training_grant_grow2',
-        name: '集体训练：同格后续卡牌获得成长2',
+        name: '集体训练：同格后续矿石获得淬火2',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -135,7 +135,7 @@ const scenarios = [
             ],
             hand: [
                 { template: 'group_training', baseValue: 20, keywords: [], extraEffects: ['group_training_effect'] },
-                { name: '无成长牌', baseValue: 10, keywords: [] }
+                { name: '无淬火牌', baseValue: 10, keywords: [] }
             ],
             deck: [],
             discard: []
@@ -145,13 +145,13 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '集体训练赋予成长2，永久+2' }
+            { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '集体训练赋予淬火2，永久+2' }
         ]
     },
-    // ===== 问题6：集体训练覆盖成长1为成长2 =====
+    // ===== 问题6：集体训练覆盖淬火1为淬火2 =====
     {
         id: 'group_training_override',
-        name: '集体训练：有成长1的牌应变为成长2',
+        name: '集体训练：有淬火1的牌应变为淬火2',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -162,7 +162,7 @@ const scenarios = [
             ],
             hand: [
                 { template: 'group_training', baseValue: 20, keywords: [], extraEffects: ['group_training_effect'] },
-                { name: '成长1牌', baseValue: 10, keywords: ['grow'], growAmount: 1 }
+                { name: '淬火1牌', baseValue: 10, keywords: ['grow'], growAmount: 1 }
             ],
             deck: [],
             discard: []
@@ -172,13 +172,13 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '集体训练覆盖为成长2，永久+2' }
+            { path: 'slots[0].cards[1].permanentBonus', expected: 2, desc: '集体训练覆盖为淬火2，永久+2' }
         ]
     },
-    // ===== 问题7：回响+奉献不重复触发（光环效果不受回响影响） =====
+    // ===== 问题7：重铸+预热不重复触发（光环效果不受重铸影响） =====
     {
         id: 'echo_dedicate_no_double',
-        name: '回响+奉献：光环效果不受回响影响',
+        name: '重铸+预热：光环效果不受重铸影响',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -199,13 +199,13 @@ const scenarios = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'slots[1].cards[1].finalValue', expected: 10, desc: '测试牌获得奉献光环+5=10，回响不影响光环' }
+            { path: 'slots[1].cards[1].finalValue', expected: 10, desc: '测试牌获得预热光环+5=10，重铸不影响光环' }
         ]
     },
-    // ===== 问题8：战后保留permanentBonus =====
+    // ===== 问题8：战后余烬permanentBonus =====
     {
         id: 'post_battle_keep_permanent',
-        name: '战后成长加成应跨战斗保留',
+        name: '战后淬火加成应跨战斗余烬',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 10, maxHp: 10 },
@@ -233,7 +233,7 @@ const scenarios = [
             { type: 'endTurn' }
         ],
         assertions: [
-            { path: 'slots[0].cards[0].permanentBonus', expected: 1, desc: '成长永久+1' }
+            { path: 'slots[0].cards[0].permanentBonus', expected: 1, desc: '淬火永久+1' }
         ]
     }
 ];
