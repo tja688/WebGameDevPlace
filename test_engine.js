@@ -50,37 +50,37 @@ assert(s.slots[1].multiplier === 1, '中格倍率为1X');
 assert(s.slots[2].multiplier === 1, '右格倍率为1X');
 assert(s.hand.length === 5, '初始精炼盘5张');
 
-// Test 2: 老兵雄心熔核触发（5点翻倍=10，在1X格=10）
-const s2 = makeTestState(['veteran_ambition']);
+// Test 2: 老兵的矿脉熔核触发（5点翻倍=10，在1X格=10）
+const s2 = makeTestState(['veteran_ore']);
 playCardToSlot(s2.hand[0], 1, s2);
 let dmg = calculateTotalBoardDamage(s2);
-assert(dmg === 10, `老兵雄心(5)熔核翻倍(10)在1X格应为10，实际${dmg}`);
+assert(dmg === 10, `老兵的矿脉(5)熔核翻倍(10)在1X格应为10，实际${dmg}`);
 
-// Test 3: 蛮力纯点数（15点在1X格=15）
-const s3 = makeTestState(['brute_force']);
+// Test 3: 粗铁纯点数（15点在1X格=15）
+const s3 = makeTestState(['crude_iron']);
 playCardToSlot(s3.hand[0], 0, s3);
 dmg = calculateTotalBoardDamage(s3);
-assert(dmg === 15, `蛮力(15)在1X格应为15，实际${dmg}`);
+assert(dmg === 15, `粗铁(15)在1X格应为15，实际${dmg}`);
 
 // Test 4: 熔核无条件触发（场上有更大点数也翻倍）
-const s4 = makeTestState(['veteran_ambition', 'brute_force']);
+const s4 = makeTestState(['veteran_ore', 'crude_iron']);
 const s4card1 = s4.hand[0];
 const s4card2 = s4.hand[1];
-playCardToSlot(s4card1, 1, s4); // 老兵雄心放中格
-playCardToSlot(s4card2, 2, s4); // 蛮力放右格
+playCardToSlot(s4card1, 1, s4); // 老兵的矿脉放中格
+playCardToSlot(s4card2, 2, s4); // 粗铁放右格
 const fv4a = getCardFinalValue(s4.slots[2].cards[0], s4);
-assert(fv4a === 15, `蛮力(15)最终值应为15，实际${fv4a}`);
+assert(fv4a === 15, `粗铁(15)最终值应为15，实际${fv4a}`);
 const fv4b = getCardFinalValue(s4.slots[1].cards[0], s4);
-assert(fv4b === 10, `老兵雄心(5)熔核应无条件翻倍为10，实际${fv4b}`);
+assert(fv4b === 10, `老兵的矿脉(5)熔核应无条件翻倍为10，实际${fv4b}`);
 
-// Test 5: 齐心协力淬火（10点打出后永久+1）
-const s5 = makeTestState(['unity_strike']);
+// Test 5: 齐心协力矿淬火（10点打出后永久+1）
+const s5 = makeTestState(['teamwork_ore']);
 playCardToSlot(s5.hand[0], 0, s5);
-assert(s5.slots[0].cards[0].permanentBonus === 1, '齐心协力淬火+1');
-assert(getCardBaseValue(s5.slots[0].cards[0]) === 11, '齐心协力基础值变为11');
+assert(s5.slots[0].cards[0].permanentBonus === 1, '齐心协力矿淬火+1');
+assert(getCardBaseValue(s5.slots[0].cards[0]) === 11, '齐心协力矿基础值变为11');
 
 // Test 6: 熔炼规则 - 任意牌可无限熔炼
-const s6 = makeTestState(['brute_force', 'veteran_ambition', 'brute_force']);
+const s6 = makeTestState(['crude_iron', 'veteran_ore', 'crude_iron']);
 const s6c1 = s6.hand[0]; const s6c2 = s6.hand[1]; const s6c3 = s6.hand[2];
 playCardToSlot(s6c1, 0, s6);
 playCardToSlot(s6c2, 0, s6);
@@ -99,20 +99,20 @@ assert(s7.phase === 'ended', '玩家死亡');
 assert(s7.result === 'lose', '战斗失败');
 
 // Test 8: 击杀胜利
-const s8 = makeTestState(['brute_force']);
+const s8 = makeTestState(['crude_iron']);
 s8.monster.hp = 15;
 playCardToSlot(s8.hand[0], 1, s8);
 endTurn(s8);
 assert(s8.phase === 'ended', '击杀后战斗结束');
 assert(s8.result === 'win', '战斗胜利');
 
-// Test 9: 辅助打击预热（8点预热=上方矿石+4），叠牌加成2张=倍率+1
-const s9 = makeTestState(['support_strike', 'brute_force']);
+// Test 9: 助燃矿预热（8点预热=上方矿石+4），叠牌加成2张=倍率+1
+const s9 = makeTestState(['assist_ore', 'crude_iron']);
 const s9c1 = s9.hand[0]; const s9c2 = s9.hand[1];
-playCardToSlot(s9c1, 1, s9); // 辅助打击放中格
-playCardToSlot(s9c2, 1, s9); // 蛮力放中格，应获得+4
+playCardToSlot(s9c1, 1, s9); // 助燃矿放中格
+playCardToSlot(s9c2, 1, s9); // 粗铁放中格，应获得+4
 const dmg9 = calculateTotalBoardDamage(s9);
-assert(dmg9 === (8 + 19) * 2, `辅助打击(8)+蛮力(15+4=19)在2X格应为54，实际${dmg9}`);
+assert(dmg9 === (8 + 19) * 2, `助燃矿(8)+粗铁(15+4=19)在2X格应为54，实际${dmg9}`);
 
 // Test 10: 回合开始矿渣堆洗回矿舱
 const s10 = createInitialState();
@@ -128,7 +128,7 @@ endTurn(s10);
 assert(s10.hand.length === 5, '下回合精炼盘5张（无余烬则全部丢弃，洗回后抽5张）');
 
 // Test 11: 所有格子都可以放牌
-const s11 = makeTestState(['brute_force']);
+const s11 = makeTestState(['crude_iron']);
 const ok11a = canPlaceCard(s11.hand[0], s11.slots[0], s11);
 assert(ok11a.ok, '左格可以放牌');
 const ok11b = canPlaceCard(s11.hand[0], s11.slots[1], s11);
@@ -137,12 +137,12 @@ const ok11c = canPlaceCard(s11.hand[0], s11.slots[2], s11);
 assert(ok11c.ok, '右格可以放牌');
 
 // Test 12: 爬藤碎屑（加入矿渣牌）
-const s12 = makeTestState(['vine_climb']);
+const s12 = makeTestState(['vine_ore']);
 playCardToSlot(s12.hand[0], 0, s12);
-assert(s12.hand.some(c => c.defId === 'diffusion'), '爬藤碎屑加入矿渣牌');
+assert(s12.hand.some(c => c.defId === 'slag'), '爬藤碎屑加入矿渣牌');
 
 // Test 13: 叠牌加成系统（叠牌已废弃）
-const s13 = makeTestState(['brute_force', 'brute_force', 'brute_force', 'brute_force']);
+const s13 = makeTestState(['crude_iron', 'crude_iron', 'crude_iron', 'crude_iron']);
 playCardToSlot(s13.hand[0], 0, s13);
 playCardToSlot(s13.hand[0], 1, s13);
 playCardToSlot(s13.hand[0], 2, s13);
@@ -163,17 +163,17 @@ assert(stock14.enchantKeywords[0] !== stock14.enchantKeywords[1], '船坞附魔�
 assert(stock14.enchantKeywords.every(k => !allButLastTwo.includes(k)), '刷新词条避开上一组词条');
 
 // Test 15: 训练体系驻场效果影响后续打出的牌
-const s15a = makeTestState(['group_training', 'brute_force']);
+const s15a = makeTestState(['batch_quench', 'crude_iron']);
 playCardToSlot(s15a.hand[0], 1, s15a);
 playCardToSlot(s15a.hand[0], 1, s15a);
-assert(s15a.slots[1].cards[1].permanentBonus === 2, '集体训练在场后，后续同格无淬火牌获得淬火2');
+assert(s15a.slots[1].cards[1].permanentBonus === 2, '集体淬火在场后，后续同格无淬火牌获得淬火2');
 
-const s15b = makeTestState(['intense_training', 'war_training']);
+const s15b = makeTestState(['intense_forge', 'war_quench']);
 playCardToSlot(s15b.hand[0], 1, s15b);
 playCardToSlot(s15b.hand[0], 1, s15b);
-assert(s15b.slots[1].cards[1].permanentBonus === 4, '猛训练在场后，后续同格淬火2多触发一次为+4');
+assert(s15b.slots[1].cards[1].permanentBonus === 4, '猛锻在场后，后续同格淬火2多触发一次为+4');
 
-const s15c = makeTestState(['training_trace', 'war_training']);
+const s15c = makeTestState(['forge_trace', 'war_quench']);
 playCardToSlot(s15c.hand[0], 1, s15c);
 playCardToSlot(s15c.hand[0], 0, s15c);
 assert(s15c.slots[0].cards[0].permanentBonus === 4, '锻痕在场后，相邻格淬火2多触发一次为+4');
@@ -205,7 +205,7 @@ assert(!s17._eventBattle, '正式主线战斗不应残留事件战斗标记');
 assert(s17._originalStageIndex === undefined, '正式主线战斗不应残留事件原始关卡索引');
 
 // Test 18: 驻台预热光环持续生效
-const s18 = makeTestState(['support_strike', 'brute_force']);
+const s18 = makeTestState(['assist_ore', 'crude_iron']);
 s18.monster.hp = 9999;
 const s18Support = s18.hand[0];
 s18Support.keywords.push('remain');
@@ -213,14 +213,14 @@ playCardToSlot(s18Support, 1, s18);
 playCardToSlot(s18.hand[0], 1, s18);
 assert(getCardFinalValue(s18.slots[1].cards[1], s18) === 19, '首张同格后续牌获得预热+4');
 endTurn(s18);
-const s18SecondBrute = createCardInstance('brute_force');
+const s18SecondBrute = createCardInstance('crude_iron');
 s18.hand = [s18SecondBrute];
 s18.deck = [];
 playCardToSlot(s18SecondBrute, 1, s18);
 assert(getCardFinalValue(s18.slots[1].cards[1], s18) === 19, '驻台预热光环持续生效，第二回合仍+4');
 
 // Test 19: 词条添加统一遵守3词条上限与去重
-const s19Card = createCardInstance('brute_force');
+const s19Card = createCardInstance('crude_iron');
 let kwResult = addKeywordToCard(s19Card, 'grow');
 assert(kwResult.ok && s19Card.growAmount === 1, '添加淬火词条时初始化growAmount');
 kwResult = addKeywordToCard(s19Card, 'grow');
@@ -237,37 +237,37 @@ const s20 = initBattleFromRun(run20);
 assert(s20.player.maxHearts === 4 && s20.player.hearts === 4, 'runData.maxHearts 会应用到新战斗');
 
 // Test 21: 结算时间线显式记录出牌、效果和下一回合开始
-const s21 = makeTestState(['ponder']);
-s21.deck = [createCardInstance('brute_force')];
+const s21 = makeTestState(['probe_ore']);
+s21.deck = [createCardInstance('crude_iron')];
 playCardToSlot(s21.hand[0], 0, s21);
 assert(s21.effectTimeline.some(e => e.type === 'play_card_to_slot'), '时间线记录出牌入格');
 assert(s21.effectTimeline.some(e => e.type === 'effect_start' && e.effectId === 'chain'), '时间线记录词条效果开始');
 endTurn(s21);
 assert(s21.effectTimeline.some(e => e.type === 'turn_start' && e.turn === 2), '下一回合开始记录在turn=2');
 
-// Test 22: 黄色君王 - 黄之王会禁用预热
-const s22 = makeMonsterTestState(['support_strike', 'brute_force'], {
-    name: '黄色君王',
+// Test 22: 金王旗舰 - 金王诅咒会禁用预热
+const s22 = makeMonsterTestState(['assist_ore', 'crude_iron'], {
+    name: '金王旗舰',
     disableDedicate: true
 });
 playCardToSlot(s22.hand[0], 1, s22);
 playCardToSlot(s22.hand[0], 1, s22);
-assert(getCardFinalValue(s22.slots[1].cards[1], s22) === 15, '黄之王激活时，同格后续牌不会获得预热加成');
-assert(calculateTotalBoardDamage(s22) === (8 + 15) * 2, '黄之王激活时，辅助打击与蛮力同格总伤害应为46');
+assert(getCardFinalValue(s22.slots[1].cards[1], s22) === 15, '金王诅咒激活时，同格后续牌不会获得预热加成');
+assert(calculateTotalBoardDamage(s22) === (8 + 15) * 2, '金王诅咒激活时，助燃矿与粗铁同格总伤害应为46');
 
-// Test 23: 黄色君王 - 黄色领域会让无预热牌触发反向预热
-const s23 = makeMonsterTestState(['brute_force', 'brute_force'], {
-    name: '黄色君王',
+// Test 23: 金王旗舰 - 黄金领域会让无预热牌触发反向预热
+const s23 = makeMonsterTestState(['crude_iron', 'crude_iron'], {
+    name: '金王旗舰',
     yellowDomain: true
 });
 playCardToSlot(s23.hand[0], 1, s23);
 playCardToSlot(s23.hand[0], 1, s23);
-assert(getCardFinalValue(s23.slots[1].cards[1], s23) === 8, '黄色领域会让后一张同格无预热牌获得-7点数');
-assert(calculateTotalBoardDamage(s23) === (15 + 8) * 2, '黄色领域激活时，两张蛮力同格总伤害应为46');
+assert(getCardFinalValue(s23.slots[1].cards[1], s23) === 8, '黄金领域会让后一张同格无预热牌获得-7点数');
+assert(calculateTotalBoardDamage(s23) === (15 + 8) * 2, '黄金领域激活时，两张粗铁同格总伤害应为46');
 
-// Test 24: 黄色君王 - 黄之心会在回合开始给随机精炼盘赋予预热
-const s24 = makeMonsterTestState(['brute_force', 'unity_strike'], {
-    name: '黄色君王',
+// Test 24: 金王旗舰 - 金王之心会在回合开始给随机精炼盘赋予预热
+const s24 = makeMonsterTestState(['crude_iron', 'teamwork_ore'], {
+    name: '金王旗舰',
     yellowHeart: true
 });
 const originalRandom24 = Math.random;
@@ -277,11 +277,11 @@ FX.fire(Trigger.ON_TURN_START, EffectContext({
     trigger: Trigger.ON_TURN_START
 }));
 Math.random = originalRandom24;
-assert(s24.hand[0].keywords.includes('dedicate'), '黄之心会给随机精炼盘添加预热词条');
+assert(s24.hand[0].keywords.includes('dedicate'), '金王之心会给随机精炼盘添加预热词条');
 
-// Test 25: 黄色君王 - 黄之心应优先赋予没有预热的精炼盘
-const s25 = makeMonsterTestState(['support_strike', 'brute_force'], {
-    name: '黄色君王',
+// Test 25: 金王旗舰 - 金王之心应优先赋予没有预热的精炼盘
+const s25 = makeMonsterTestState(['assist_ore', 'crude_iron'], {
+    name: '金王旗舰',
     yellowHeart: true
 });
 const originalRandom25 = Math.random;
@@ -291,71 +291,71 @@ FX.fire(Trigger.ON_TURN_START, EffectContext({
     trigger: Trigger.ON_TURN_START
 }));
 Math.random = originalRandom25;
-assert(s25.hand[1].keywords.includes('dedicate'), '黄之心遇到已有预热精炼盘时，仍应给其他精炼盘赋予预热');
+assert(s25.hand[1].keywords.includes('dedicate'), '金王之心遇到已有预热精炼盘时，仍应给其他精炼盘赋予预热');
 
-// Test 26: 藤蔓号 - 香甜诱饵让中间格打出的牌淬火+1
-const s26 = makeMonsterTestState(['brute_force'], {
+// Test 26: 藤蔓号 - 缠海藻让中间格打出的牌淬火+1
+const s26 = makeMonsterTestState(['crude_iron'], {
     name: '藤蔓号',
     centerGrow1: true
 });
 playCardToSlot(s26.hand[0], 1, s26);
-assert(s26.slots[1].cards[0].permanentBonus === 1, '藤蔓号的香甜诱饵会让中间格打出的牌永久+1');
+assert(s26.slots[1].cards[0].permanentBonus === 1, '藤蔓号的缠海藻会让中间格打出的牌永久+1');
 
-// Test 27: 藤蔓号 - 盘根让每回合少抽1张牌
+// Test 27: 藤蔓号 - 缠索让每回合少抽1张牌
 const s27 = makeMonsterTestState([], {
     name: '藤蔓号',
     lessDraw: 1
 });
 s27.deck = [
-    createCardInstance('brute_force'),
-    createCardInstance('brute_force'),
-    createCardInstance('brute_force'),
-    createCardInstance('brute_force'),
-    createCardInstance('brute_force')
+    createCardInstance('crude_iron'),
+    createCardInstance('crude_iron'),
+    createCardInstance('crude_iron'),
+    createCardInstance('crude_iron'),
+    createCardInstance('crude_iron')
 ];
 endTurn(s27);
-assert(s27.turn === 2 && s27.hand.length === 4, '藤蔓号的盘根会让下一回合只抽4张牌');
+assert(s27.turn === 2 && s27.hand.length === 4, '藤蔓号的缠索会让下一回合只抽4张牌');
 
-// Test 28: 骷髅骑士 - 亡者让所有矿石点数-2
-const s28 = makeMonsterTestState(['brute_force'], {
-    name: '骷髅骑士',
+// Test 28: 铁甲私掠舰 - 铁甲让所有矿石点数-2
+const s28 = makeMonsterTestState(['crude_iron'], {
+    name: '铁甲私掠舰',
     allCardPenalty: 2
 });
 playCardToSlot(s28.hand[0], 0, s28);
-assert(getCardFinalValue(s28.slots[0].cards[0], s28) === 13, '骷髅骑士的亡者会让矿石最终点数-2');
+assert(getCardFinalValue(s28.slots[0].cards[0], s28) === 13, '铁甲私掠舰的铁甲会让矿石最终点数-2');
 
-// Test 29: 骷髅骑士 - 惊人熔核（叠牌系统已废弃，此效果不再触发）
-const s29 = makeMonsterTestState(['brute_force'], {
-    name: '骷髅骑士',
+// Test 29: 铁甲私掠舰 - 破阵号角（叠牌系统已废弃，此效果不再触发）
+const s29 = makeMonsterTestState(['crude_iron'], {
+    name: '铁甲私掠舰',
     noStrategySlotPenalty: 10
 });
 playCardToSlot(s29.hand[0], 0, s29);
-assert(getSlotEffectiveMultiplier(s29.slots[0], s29) === 1, '叠牌系统已废弃，骷髅骑士惊人熔核不再生效');
+assert(getSlotEffectiveMultiplier(s29.slots[0], s29) === 1, '叠牌系统已废弃，铁甲私掠舰破阵号角不再生效');
 
-// Test 30: 骷髅骑士 - 武技（叠牌系统已废弃，此效果不再触发）
-const s30 = makeMonsterTestState(['brute_force', 'brute_force', 'brute_force'], {
-    name: '骷髅骑士',
+// Test 30: 铁甲私掠舰 - 武技（叠牌系统已废弃，此效果不再触发）
+const s30 = makeMonsterTestState(['crude_iron', 'crude_iron', 'crude_iron'], {
+    name: '铁甲私掠舰',
     prevStrategyPenalty: 5
 });
 playCardToSlot(s30.hand[0], 0, s30);
 playCardToSlot(s30.hand[0], 1, s30);
 playCardToSlot(s30.hand[0], 2, s30);
 endTurn(s30);
-assert(s30.monster.prevStrategyId === null, '叠牌系统已废弃，骷髅骑士不再记录叠牌');
+assert(s30.monster.prevStrategyId === null, '叠牌系统已废弃，铁甲私掠舰不再记录叠牌');
 s30.hand = [
-    createCardInstance('brute_force'),
-    createCardInstance('brute_force'),
-    createCardInstance('brute_force')
+    createCardInstance('crude_iron'),
+    createCardInstance('crude_iron'),
+    createCardInstance('crude_iron')
 ];
 s30.deck = [];
 s30.discard = [];
 playCardToSlot(s30.hand[0], 0, s30);
 playCardToSlot(s30.hand[0], 1, s30);
 playCardToSlot(s30.hand[0], 2, s30);
-assert(getSlotEffectiveMultiplier(s30.slots[0], s30) === 1, '叠牌系统已废弃，骷髅骑士武技不再生效');
+assert(getSlotEffectiveMultiplier(s30.slots[0], s30) === 1, '叠牌系统已废弃，铁甲私掠舰武技不再生效');
 
 // Test 31: 驻台牌下回合开始移除驻台词条，但牌仍余烬在场上到本回合结束
-const s31 = makeTestState(['hold_position']);
+const s31 = makeTestState(['tungsten_core']);
 s31.monster.hp = 9999;
 playCardToSlot(s31.hand[0], 0, s31);
 endTurn(s31);
@@ -364,7 +364,7 @@ assert(s31.slots[0].cards[0].remainExhausted, '驻台牌在下回合开始标记
 
 // Test 32: 本场海战永久加成不会污染战后矿舱
 const run32 = createRunData('veteran');
-const s32 = makeTestState(['apprentice_forge', 'brute_force']);
+const s32 = makeTestState(['apprentice_cast', 'crude_iron']);
 s32.runDataRef = run32;
 s32.stageKey = '1-1';
 playCardToSlot(s32.hand[0], 0, s32);
@@ -372,44 +372,44 @@ playCardToSlot(s32.hand[0], 0, s32);
 assert(s32.slots[0].cards[1].battleBonus === 5 && s32.slots[0].cards[1].permanentBonus === 0, '学徒铸造使用本场海战永久加成');
 s32.result = 'win';
 resolveBattleEnd(s32);
-assert(run32.deck.some(c => c.defId === 'brute_force' && (c.battleBonus || 0) === 0 && c.permanentBonus === 0), '战斗结束后本场海战永久加成清零');
+assert(run32.deck.some(c => c.defId === 'crude_iron' && (c.battleBonus || 0) === 0 && c.permanentBonus === 0), '战斗结束后本场海战永久加成清零');
 
-// Test 33: 先手优势只在本回合第一张牌时触发
-const s33 = makeTestState(['brute_force', 'first_advantage']);
+// Test 33: 先手矿只在本回合第一张牌时触发
+const s33 = makeTestState(['crude_iron', 'first_ore']);
 playCardToSlot(s33.hand[0], 0, s33);
 playCardToSlot(s33.hand[0], 1, s33);
-assert((s33.slots[1].cards[0].tempBonus || 0) === 0, '非第一张打出的先手优势不会获得+5');
-assert(!s33.slots[1].cards[0].keywords.includes('remain'), '非第一张打出的先手优势不会获得驻台');
+assert((s33.slots[1].cards[0].tempBonus || 0) === 0, '非第一张打出的先手矿不会获得+5');
+assert(!s33.slots[1].cards[0].keywords.includes('remain'), '非第一张打出的先手矿不会获得驻台');
 
-// Test 34: 锦上添花从矿舱响应上手，而不是打出后抽随机牌
-const s34 = makeTestState(['brute_force', 'brute_force', 'brute_force']);
-s34.deck = [createCardInstance('icing_on_cake')];
+// Test 34: 镀银从矿舱响应上手，而不是打出后抽随机牌
+const s34 = makeTestState(['crude_iron', 'crude_iron', 'crude_iron']);
+s34.deck = [createCardInstance('silver_plate')];
 playCardToSlot(s34.hand[0], 0, s34);
 playCardToSlot(s34.hand[0], 0, s34);
 playCardToSlot(s34.hand[0], 0, s34);
-assert(s34.hand.some(c => c.defId === 'icing_on_cake'), '任意铸造台三张牌时，矿舱中的锦上添花移到精炼盘');
-assert(!s34.deck.some(c => c.defId === 'icing_on_cake'), '锦上添花响应后离开矿舱');
+assert(s34.hand.some(c => c.defId === 'silver_plate'), '任意铸造台三张牌时，矿舱中的镀银移到精炼盘');
+assert(!s34.deck.some(c => c.defId === 'silver_plate'), '镀银响应后离开矿舱');
 
-// Test 35: 一人成军只统计当前抽牌堆，不统计精炼盘/矿渣堆/铸造台
-const s35 = makeTestState(['one_man_army', 'war_training']);
-s35.deck = [createCardInstance('brute_force')];
-s35.discard = [createCardInstance('big_brute_force')];
+// Test 35: 独钻只统计当前抽牌堆，不统计精炼盘/矿渣堆/铸造台
+const s35 = makeTestState(['solo_drill', 'war_quench']);
+s35.deck = [createCardInstance('crude_iron')];
+s35.discard = [createCardInstance('big_crude_iron')];
 playCardToSlot(s35.hand[0], 0, s35);
-assert(getCardFinalValue(s35.slots[0].cards[0], s35) === 15, '一人成军只会统计当前抽牌堆中的矿石点数');
+assert(getCardFinalValue(s35.slots[0].cards[0], s35) === 15, '独钻只会统计当前抽牌堆中的矿石点数');
 
 // Test 36: 每场战斗第一张牌船体改造不会在每回合重复触发
-const s36 = makeTestState(['brute_force']);
+const s36 = makeTestState(['crude_iron']);
 s36.runDataRef = { relics: [{ id: 'test_blitz', name: '首炮', effect: { type: 'first_card_per_battle_bonus', bonus: 20 } }] };
 s36.monster.hp = 9999;
 playCardToSlot(s36.hand[0], 0, s36);
 assert(getCardFinalValue(s36.slots[0].cards[0], s36) === 35, '首炮会强化每场战斗第一张牌');
 endTurn(s36);
-s36.hand = [createCardInstance('brute_force')];
+s36.hand = [createCardInstance('crude_iron')];
 s36.deck = [];
 playCardToSlot(s36.hand[0], 0, s36);
 assert(getCardFinalValue(s36.slots[0].cards[0], s36) === 15, '首炮不会在第二回合第一张牌重复触发');
 
-// Test 37: 击败黄色君王后，BOSS船体改造三选一必定包含一个黄色君王专属船体改造
+// Test 37: 击败金王旗舰后，BOSS船体改造三选一必定包含一个金王旗舰专属船体改造
 const run38 = createRunData('veteran');
 run38.stageIndex = 7;
 const s38 = initBattleFromRun(run38);
@@ -417,23 +417,23 @@ s38.phase = 'ended';
 s38.result = 'win';
 s38.monster.hp = 0;
 const res38 = resolveBattleEnd(s38);
-const yellowBossRelicIds = ['relic_boss_yellow_bone', 'relic_boss_yellow_heart', 'relic_boss_yellow_flesh'];
-assert(res38.postBattleData.relicOptions.some(r => yellowBossRelicIds.includes(r.id)), '黄色君王战后BOSS船体改造必定包含一个专属船体改造');
+const yellowBossRelicIds = ['relic_gold_king_bone', 'relic_gold_king_heart', 'relic_gold_king_flesh'];
+assert(res38.postBattleData.relicOptions.some(r => yellowBossRelicIds.includes(r.id)), '金王旗舰战后BOSS船体改造必定包含一个专属船体改造');
 
 // Test 38: 入场矿石在同铸造台内向后重排时，插入索引应按移除后的可见列表计算
-const s39 = makeTestState(['brute_force', 'veteran_ambition', 'unity_strike']);
+const s39 = makeTestState(['crude_iron', 'veteran_ore', 'teamwork_ore']);
 playCardToSlot(s39.hand[0], 0, s39);
 playCardToSlot(s39.hand[0], 0, s39);
 playCardToSlot(s39.hand[0], 0, s39);
 const moved39 = moveSlotCard(s39.slots[0].cards[0], 0, 0, 2, s39);
 assert(moved39, '同铸造台内可将入场矿石向后重排');
 assert(
-    s39.slots[0].cards.map(card => card.defId).join(',') === 'veteran_ambition,unity_strike,brute_force',
+    s39.slots[0].cards.map(card => card.defId).join(',') === 'veteran_ore,teamwork_ore,crude_iron',
     '同铸造台内向后重排后，矿石顺序应稳定正确'
 );
 
 // Test 39: 入场矿石拖动预览应使用与实际移动一致的插入规则
-const s40 = makeTestState(['brute_force', 'veteran_ambition', 'unity_strike']);
+const s40 = makeTestState(['crude_iron', 'veteran_ore', 'teamwork_ore']);
 playCardToSlot(s40.hand[0], 0, s40);
 playCardToSlot(s40.hand[0], 0, s40);
 playCardToSlot(s40.hand[0], 0, s40);

@@ -9,38 +9,38 @@
 
 // 第一航段配置
 const ACT1_CONFIG = {
-    '1-1': { type: 'normal',  monsterPool: ['face_plant'],         postBattle: 'shop_high_event',     goldReward: 6 },
-    '1-2': { type: 'normal',  monsterPool: ['one_arm_giant'],      postBattle: 'shop_high_event',     goldReward: 6 },
-    '1-3': { type: 'normal',  monsterPool: ['strange_dancer'],     postBattle: 'shop_high_event',     goldReward: 6 },
-    '1-4': { type: 'elite',   monsterPool: ['skeleton_knight'],    postBattle: 'blacksmith_mid_event', goldReward: 8 },
-    '1-5': { type: 'normal',  monsterPool: ['dream_self'],         postBattle: 'shop_low_event',      goldReward: 6 },
-    '1-6': { type: 'normal',  monsterPool: ['mushroom_son'],       postBattle: 'shop_low_event',      goldReward: 6 },
-    '1-7': { type: 'normal',  monsterPool: ['thief'],              postBattle: 'shop_low_event',      goldReward: 6 },
-    '1-8': { type: 'boss',    monsterPool: ['yellow_king'],        postBattle: 'boss_relic_event',    goldReward: 10 }
+    '1-1': { type: 'normal',  monsterPool: ['vine_ship'],            postBattle: 'shop_high_event',     goldReward: 6 },
+    '1-2': { type: 'normal',  monsterPool: ['shattered_hull'],      postBattle: 'shop_high_event',     goldReward: 6 },
+    '1-3': { type: 'normal',  monsterPool: ['wild_wave'],            postBattle: 'shop_high_event',     goldReward: 6 },
+    '1-4': { type: 'elite',   monsterPool: ['ironclad_privateer'],   postBattle: 'blacksmith_mid_event', goldReward: 8 },
+    '1-5': { type: 'normal',  monsterPool: ['fog_ship'],             postBattle: 'shop_low_event',      goldReward: 6 },
+    '1-6': { type: 'normal',  monsterPool: ['spore_fog'],            postBattle: 'shop_low_event',      goldReward: 6 },
+    '1-7': { type: 'normal',  monsterPool: ['plunder_ship'],         postBattle: 'shop_low_event',      goldReward: 6 },
+    '1-8': { type: 'boss',    monsterPool: ['gold_king_flagship'],   postBattle: 'boss_relic_event',    goldReward: 10 }
 };
 
 // 第二航段配置
 const ACT2_CONFIG = {
-    '2-1': { type: 'normal',  monsterPool: ['layer2_wolf', 'layer2_bat', 'layer2_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
-    '2-2': { type: 'normal',  monsterPool: ['layer2_wolf', 'layer2_bat', 'layer2_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
-    '2-3': { type: 'normal',  monsterPool: ['layer2_wolf', 'layer2_bat', 'layer2_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
-    '2-4': { type: 'elite',   monsterPool: ['layer2_elite'],                                               postBattle: 'blacksmith_mid_event', goldReward: 8 },
-    '2-5': { type: 'normal',  monsterPool: ['layer2_normal5', 'layer2_normal6', 'layer2_normal7'],          postBattle: 'shop_low_event',      goldReward: 6 },
-    '2-6': { type: 'normal',  monsterPool: ['layer2_normal5', 'layer2_normal6', 'layer2_normal7'],          postBattle: 'shop_low_event',      goldReward: 6 },
-    '2-7': { type: 'normal',  monsterPool: ['layer2_normal5', 'layer2_normal6', 'layer2_normal7'],          postBattle: 'shop_low_event',      goldReward: 6 },
-    '2-8': { type: 'boss',    monsterPool: ['layer2_boss'],                                                postBattle: 'boss_relic_event',    goldReward: 10 }
+    '2-1': { type: 'normal',  monsterPool: ['patrol_corvette', 'night_raid', 'acid_hull'],                postBattle: 'shop_high_event',     goldReward: 6 },
+    '2-2': { type: 'normal',  monsterPool: ['patrol_corvette', 'night_raid', 'acid_hull'],                postBattle: 'shop_high_event',     goldReward: 6 },
+    '2-3': { type: 'normal',  monsterPool: ['patrol_corvette', 'night_raid', 'acid_hull'],                postBattle: 'shop_high_event',     goldReward: 6 },
+    '2-4': { type: 'elite',   monsterPool: ['ironclad_frigate'],                                          postBattle: 'blacksmith_mid_event', goldReward: 8 },
+    '2-5': { type: 'normal',  monsterPool: ['magma_walker', 'shadow_hunter', 'greedy_galleon'],           postBattle: 'shop_low_event',      goldReward: 6 },
+    '2-6': { type: 'normal',  monsterPool: ['magma_walker', 'shadow_hunter', 'greedy_galleon'],           postBattle: 'shop_low_event',      goldReward: 6 },
+    '2-7': { type: 'normal',  monsterPool: ['magma_walker', 'shadow_hunter', 'greedy_galleon'],           postBattle: 'shop_low_event',      goldReward: 6 },
+    '2-8': { type: 'boss',    monsterPool: ['magma_leviathan'],                                           postBattle: 'boss_relic_event',    goldReward: 10 }
 };
 
 // 第三航段配置
 const ACT3_CONFIG = {
-    '3-1': { type: 'normal',  monsterPool: ['layer3_wolf', 'layer3_bat', 'layer3_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
-    '3-2': { type: 'normal',  monsterPool: ['layer3_wolf', 'layer3_bat', 'layer3_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
-    '3-3': { type: 'normal',  monsterPool: ['layer3_wolf', 'layer3_bat', 'layer3_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
-    '3-4': { type: 'elite',   monsterPool: ['layer3_elite'],                                               postBattle: 'blacksmith_mid_event', goldReward: 8 },
-    '3-5': { type: 'normal',  monsterPool: ['layer3_normal5', 'layer3_normal6', 'layer3_normal7'],          postBattle: 'shop_low_event',      goldReward: 6 },
-    '3-6': { type: 'normal',  monsterPool: ['layer3_normal5', 'layer3_normal6', 'layer3_normal7'],          postBattle: 'shop_low_event',      goldReward: 6 },
-    '3-7': { type: 'normal',  monsterPool: ['layer3_normal5', 'layer3_normal6', 'layer3_normal7'],          postBattle: 'shop_low_event',      goldReward: 6 },
-    '3-8': { type: 'boss',    monsterPool: ['layer3_boss'],                                                postBattle: 'boss_relic_event',    goldReward: 10 }
+    '3-1': { type: 'normal',  monsterPool: ['hell_patrol', 'nightmare_raid', 'chaos_hull'],                postBattle: 'shop_high_event',     goldReward: 6 },
+    '3-2': { type: 'normal',  monsterPool: ['hell_patrol', 'nightmare_raid', 'chaos_hull'],                postBattle: 'shop_high_event',     goldReward: 6 },
+    '3-3': { type: 'normal',  monsterPool: ['hell_patrol', 'nightmare_raid', 'chaos_hull'],                postBattle: 'shop_high_event',     goldReward: 6 },
+    '3-4': { type: 'elite',   monsterPool: ['fallen_frigate'],                                             postBattle: 'blacksmith_mid_event', goldReward: 8 },
+    '3-5': { type: 'normal',  monsterPool: ['void_walker', 'soul_reaper', 'greed_dreadnought'],            postBattle: 'shop_low_event',      goldReward: 6 },
+    '3-6': { type: 'normal',  monsterPool: ['void_walker', 'soul_reaper', 'greed_dreadnought'],            postBattle: 'shop_low_event',      goldReward: 6 },
+    '3-7': { type: 'normal',  monsterPool: ['void_walker', 'soul_reaper', 'greed_dreadnought'],            postBattle: 'shop_low_event',      goldReward: 6 },
+    '3-8': { type: 'boss',    monsterPool: ['chaos_lord'],                                                 postBattle: 'boss_relic_event',    goldReward: 10 }
 };
 
 export const STAGE_CONFIG = {

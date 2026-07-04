@@ -147,12 +147,12 @@ export function initBattleFromRun(runData) {
     // 解析敌舰技能
     parseMonsterSkills(state.monster);
 
-    // 骷髅骑士：第一回合随机指定上回合叠牌（叠牌系统已废弃，保留空逻辑）
+    // 铁甲私掠舰：第一回合随机指定上回合叠牌（叠牌系统已废弃，保留空逻辑）
     if (state.monster.prevStrategyPenalty > 0) {
         state.monster.prevStrategyId = null;
     }
 
-    // 盗贼：船体改造偷取——随机禁用一件本场海战内的船体改造效果
+    // 劫掠号：船体改造偷取——随机禁用一件本场海战内的船体改造效果
     if (state.monster.disableRandomRelic && runData.relics.length > 0) {
         const candidates = runData.relics.filter(r => r.effect);
         const stolen = candidates.length > 0 ? pickRandom(candidates) : null;
@@ -172,7 +172,7 @@ export function initBattleFromRun(runData) {
         playerHearts: state.player.hearts
     });
 
-    // 黄之心：每场海战开始赋予矿舱内随机一块矿石预热词条
+    // 金王之心：每场海战开始赋予矿舱内随机一块矿石预热词条
     const yellowHeartRelic = getActiveRelics(state).find(r => r.effect?.type === 'dedicate_permanent');
     if (yellowHeartRelic) {
         const candidates = deck.filter(c => !c.keywords.includes('dedicate'));
@@ -477,7 +477,7 @@ export function endTurn(state) {
     state.monster.firstCardSlotIndex = -1;
     state.monster.cardsPlayedThisTurn = 0;
 
-    // 清除上回合被梦中的你禁用的矿石标记（精炼盘、矿舱、矿渣堆全部清理）
+    // 清除上回合被迷雾号禁用的矿石标记（精炼盘、矿舱、矿渣堆全部清理）
     const allRetainCards = [...state.hand, ...state.deck, ...state.discard];
     for (const card of allRetainCards) {
         if (card.retainDisabledThisTurn) {

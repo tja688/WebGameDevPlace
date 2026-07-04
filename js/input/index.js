@@ -2218,7 +2218,7 @@ export const Input = {
                 if (myIdx > 0) {
                     const belowCard = cards[myIdx - 1];
                     if (!belowCard.keywords.includes('dedicate')) {
-                        sourceName = `黄色领域（${belowCard.name}）`;
+                        sourceName = `黄金领域（${belowCard.name}）`;
                     }
                 }
             }
@@ -2533,7 +2533,7 @@ export const Input = {
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     if (btn.id === 'battle') {
                         const monsterIds = Object.keys(MONSTER_DEFS);
-                        const defaultMonster = monsterIds.length > 0 ? monsterIds[0] : 'face_plant';
+                        const defaultMonster = monsterIds.length > 0 ? monsterIds[0] : 'vine_ship';
                         enterPlaygroundBattle(this.state, defaultMonster);
                     } else if (btn.id === 'effect') {
                         // 进入词条效果沙盒，默认选中第一个场景

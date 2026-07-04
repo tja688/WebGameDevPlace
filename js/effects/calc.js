@@ -57,7 +57,7 @@ registerEffect({
     }
 });
 
-// 黄色领域（yellow_domain）光环：无预热特性的矿石，其上方矿石获得-1/2点数
+// 黄金领域（yellow_domain）光环：无预热特性的矿石，其上方矿石获得-1/2点数
 registerEffect({
     id: 'yellow_domain_aura',
     triggers: Trigger.ON_CALC_VALUE,

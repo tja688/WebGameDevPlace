@@ -225,7 +225,7 @@ function parseMonsterSkills(monster) {
 
 export function initPlaygroundBattleState(runData, monsterDefId) {
     const cls = CLASS_DEFS[runData.classId];
-    const safeMonsterDefId = MONSTER_DEFS[monsterDefId] ? monsterDefId : 'face_plant';
+    const safeMonsterDefId = MONSTER_DEFS[monsterDefId] ? monsterDefId : 'vine_ship';
     const monsterDef = MONSTER_DEFS[safeMonsterDefId];
 
     const slots = createBattleSlots({ slotUpgrades: runData.slotUpgrades });
