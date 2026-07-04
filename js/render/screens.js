@@ -1,6 +1,6 @@
 /**
- * 生死烛局 - 非战斗界面渲染
- * 
+ * Heave! - 非战斗界面渲染
+ *
  * 包含：title, class_select, map, post_battle, card_pick, card_select,
  *       shop, blacksmith, event, treasure, act_transition, victory, game_over
  */
@@ -41,13 +41,13 @@ export function drawTitle(renderer, ctx, state) {
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(255,215,0,0.4)';
     ctx.shadowBlur = 20;
-    ctx.fillText('🕯 生死烛局', cx, cy - 60);
+    ctx.fillText('⚓ Heave!', cx, cy - 60);
     ctx.shadowBlur = 0;
 
     // 版本号
     ctx.fillStyle = '#666';
     ctx.font = '12px Microsoft YaHei';
-    ctx.fillText('v0.6.17', cx, cy + 12);
+    ctx.fillText('v0.6.19', cx, cy + 12);
 
     const btnW = 280;
     const btnH = 60;
@@ -159,7 +159,7 @@ export function drawClassSelect(renderer, ctx, state) {
 
         ctx.fillStyle = isAvailable ? '#aaa' : '#444';
         ctx.font = '14px Microsoft YaHei';
-        const desc = isAvailable ? (cls.startingRelic ? `遗物：${cls.startingRelic.name}` : '无初始遗物') : '（暂未开放）';
+        const desc = isAvailable ? (cls.startingRelic ? `船体改造：${cls.startingRelic.name}` : '无初始船体改造') : '（暂未开放）';
         wrapText(ctx, desc, x + cardW / 2, y + 290, cardW - 40, 22);
 
         if (!isAvailable) {
@@ -200,7 +200,7 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`💰 ${runData.gold} 金币`, renderer.width - 30, 45);
+    ctx.fillText(`💰 ${runData.gold} 银元`, renderer.width - 30, 45);
 
     const nodeW = 100;
     const nodeH = 130;
@@ -226,7 +226,7 @@ export function drawMap(renderer, ctx, state) {
         stageKeys.push(`${runData.act}-${i}`);
     }
     const typeIcons = { normal: '👹', elite: '👺', boss: '👿' };
-    const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
+    const typeLabels = { normal: '普通', elite: '私掠舰', boss: '旗舰' };
 
     for (let i = 0; i < 8; i++) {
         const key = stageKeys[i];
@@ -298,7 +298,7 @@ export function drawMap(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText(`职业: ${cls.name} | 牌库: ${runData.deck.length} 张 | 遗物: ${runData.relics.length} 件 | 倍率格: 3格`, 30, renderer.height - 60);
+    ctx.fillText(`职业: ${cls.name} | 矿舱: ${runData.deck.length} 块 | 船体改造: ${runData.relics.length} 件 | 铸造台: 3台`, 30, renderer.height - 60);
 
     if (runData.stageIndex < 8) {
         const curKey = getCurrentStageKey(runData);
@@ -306,10 +306,10 @@ export function drawMap(renderer, ctx, state) {
         ctx.fillStyle = '#ffaa66';
         ctx.font = '18px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText(`点击节点进入 ${curKey} - ${typeLabels[curConfig.type]}战斗`, cx, renderer.height - 30);
+        ctx.fillText(`点击节点进入 ${curKey} - ${typeLabels[curConfig.type]}海战`, cx, renderer.height - 30);
     }
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, renderer.width - 140, renderer.height - 80, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -319,7 +319,7 @@ export function drawBossRelic(renderer, ctx, state) {
     const data = state.data;
     const cx = renderer.width / 2;
 
-    drawGlowText(ctx, 'BOSS遗物 - 选择一项奖励', cx, 100, {
+    drawGlowText(ctx, '旗舰船体改造 - 选择一项奖励', cx, 100, {
         color: '#ffd700',
         glowColor: '#b8860b',
         glowBlur: 15,
@@ -332,7 +332,7 @@ export function drawBossRelic(renderer, ctx, state) {
         ctx.fillStyle = '#aaa';
         ctx.font = '18px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText(`获得 ${data.goldGained} 金币 | 累计: ${data.runData.gold} 金币`, cx + 10, 140);
+        ctx.fillText(`获得 ${data.goldGained} 银元 | 累计: ${data.runData.gold} 银元`, cx + 10, 140);
     }
 
     state.data.optionRects = [];
@@ -385,7 +385,7 @@ export function drawBossRelic(renderer, ctx, state) {
         state.data.optionRects.push({ x, y, w: cardW, h: cardH, index: i, type: 'relic', data: relic });
     }
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, renderer.width - 140, renderer.height - 80, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -399,7 +399,7 @@ export function drawPostBattle(renderer, ctx, state) {
     ctx.fillRect(0, 0, renderer.width, renderer.height);
 
     let title = '战后休整';
-    if (data.type === 'treasure') title = '遗物宝箱';
+    if (data.type === 'treasure') title = '船体改造宝箱';
     else if (data.type === 'shop_choice') title = '选择你的前路';
 
     drawGlowText(ctx, title, cx, 100, {
@@ -415,7 +415,7 @@ export function drawPostBattle(renderer, ctx, state) {
         ctx.fillStyle = '#aaa';
         ctx.font = '18px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText(`获得 ${data.goldGained} 金币 | 累计: ${data.runData.gold} 金币`, cx + 10, 140);
+        ctx.fillText(`获得 ${data.goldGained} 银元 | 累计: ${data.runData.gold} 银元`, cx + 10, 140);
     }
 
     state.data.optionRects = [];
@@ -428,7 +428,7 @@ export function drawPostBattle(renderer, ctx, state) {
         drawShopChoiceOptions(renderer, ctx, state, data.postBattleData.options);
     }
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, renderer.width - 140, renderer.height - 80, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -573,7 +573,7 @@ export function drawCardPick(renderer, ctx, state) {
     const data = state.data;
     const cx = renderer.width / 2;
 
-    drawGlowText(ctx, '选择一张卡牌加入牌组', cx, 80, {
+    drawGlowText(ctx, '选择一块矿石加入矿舱', cx, 80, {
         color: '#ffd700',
         glowColor: '#b8860b',
         glowBlur: 12,
@@ -583,7 +583,7 @@ export function drawCardPick(renderer, ctx, state) {
 
     ctx.fillStyle = '#aaa';
     ctx.font = '18px Microsoft YaHei';
-    ctx.fillText('普通怪战利品', cx, 115);
+    ctx.fillText('普通敌舰战利品', cx, 115);
 
     state.data.optionRects = [];
     const options = data.options || [];
@@ -669,7 +669,7 @@ export function drawCardPick(renderer, ctx, state) {
     ctx.fillText('跳过', cx, skipY + 29);
     state.data.skipRect = { x: skipX, y: skipY, w: skipW, h: skipH };
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, skipX + skipW + 20, skipY, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -679,7 +679,7 @@ export function drawCardSelect(renderer, ctx, state) {
     const data = state.data;
     const cx = renderer.width / 2;
 
-    drawGlowText(ctx, data.title || '选择一张卡牌', cx, 80, {
+    drawGlowText(ctx, data.title || '选择一块矿石', cx, 80, {
         color: '#ffd700',
         glowColor: '#b8860b',
         glowBlur: 10,
@@ -821,20 +821,20 @@ export function drawShop(renderer, ctx, state) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 24px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('🏪 牌店', 30, 45);
+    ctx.fillText('🏪 精炼厂', 30, 45);
 
     drawSoulIcon(ctx, renderer.width - 180, 35, 20);
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`${runData.gold} 金币`, renderer.width - 30, 45);
+    ctx.fillText(`${runData.gold} 银元`, renderer.width - 30, 45);
 
     state.data.shopItemRects = [];
 
     ctx.fillStyle = '#aaa';
     ctx.font = 'bold 18px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('卡牌', 60, 110);
+    ctx.fillText('矿石', 60, 110);
 
     const cardW = 180;
     const cardH = 260;
@@ -907,7 +907,7 @@ export function drawShop(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = 'bold 18px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('遗物', 60, 505);
+    ctx.fillText('船体改造', 60, 505);
 
     const relicW = 270;
     const relicH = 58;
@@ -946,7 +946,7 @@ export function drawShop(renderer, ctx, state) {
             ctx.fillStyle = runData.gold >= price ? '#2ecc71' : '#e74c3c';
             ctx.font = 'bold 14px Microsoft YaHei';
             ctx.textAlign = 'right';
-            ctx.fillText(`${price}金币`, x + relicW - 12, relicY + 23);
+            ctx.fillText(`${price}银元`, x + relicW - 12, relicY + 23);
         }
 
         state.data.shopItemRects.push({ x, y: relicY, w: relicW, h: relicH, key: `relic_${i}`, item, price, type: 'relic' });
@@ -956,10 +956,10 @@ export function drawShop(renderer, ctx, state) {
     const btnH = 45;
     const refreshCost = (runData.freeRefreshCount > 0 || runData.shopFriendRefreshAvailable) ? 0 : runData.shopRefreshCost;
     const services = [
-        { key: 'remove_card', text: `🗑️ 删牌服务 (${runData.shopRemoveCost || 2}金币)`, x: 60, cost: runData.shopRemoveCost || 2 },
-        { key: 'upgrade_card', text: `⬆️ 数值强化 +5 (2金币起)`, x: 240, cost: 0 },
-        { key: 'buy_strategy', text: `📜 计策等级提升 (4金币)`, x: 440, cost: 4 },
-        { key: 'refresh', text: `🔄 刷新商店 (${refreshCost}金币)`, x: 640, cost: refreshCost },
+        { key: 'remove_card', text: `🗑️ 删除矿石服务 (${runData.shopRemoveCost || 2}银元)`, x: 60, cost: runData.shopRemoveCost || 2 },
+        { key: 'upgrade_card', text: `⬆️ 矿石强化 +5 (2银元起)`, x: 240, cost: 0 },
+        { key: 'buy_strategy', text: `📜 叠牌等级提升 (4银元)`, x: 440, cost: 4 },
+        { key: 'refresh', text: `🔄 刷新精炼厂 (${refreshCost}银元)`, x: 640, cost: refreshCost },
     ];
     state.data.shopServiceRects = [];
     for (const svc of services) {
@@ -982,11 +982,11 @@ export function drawShop(renderer, ctx, state) {
 
     drawBackButton(ctx, state, '返回地图', renderer.width, renderer.height);
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, 190, renderer.height - 80, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 
-    // 计策系统已废弃，隐藏计策二选一弹窗
+    // 叠牌系统已废弃，隐藏叠牌二选一弹窗
     data.strategyOptions = null;
 }
 
@@ -1009,13 +1009,13 @@ export function drawBlacksmith(renderer, ctx, state) {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 24px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('🔨 铁匠铺', 30, 45);
+    ctx.fillText('🔨 船坞', 30, 45);
 
     drawSoulIcon(ctx, renderer.width - 180, 35, 20);
     ctx.fillStyle = '#aaa';
     ctx.font = '20px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`${runData.gold} 金币`, renderer.width - 30, 45);
+    ctx.fillText(`${runData.gold} 银元`, renderer.width - 30, 45);
 
     state.data.blacksmithRects = [];
 
@@ -1026,8 +1026,8 @@ export function drawBlacksmith(renderer, ctx, state) {
     const startY = 100;
 
     const columns = [
-        { title: '🎁 遗物', items: [] },
-        { title: '⚡ 强化倍率格', items: [] },
+        { title: '🎁 船体改造', items: [] },
+        { title: '⚡ 强化铸造台', items: [] },
         { title: '✨ 服务', items: [] }
     ];
 
@@ -1036,7 +1036,7 @@ export function drawBlacksmith(renderer, ctx, state) {
         columns[0].items.push({ type: 'buy_relic', name: item.name, cost: item.price, data: item, index: i });
     }
 
-    // 第二版：铁匠改为随机强化倍率格
+    // 第二版：船坞改为随机强化铸造台
     const slotUpgradeCost = 4;
     let totalSlotUpgrades = 0;
     const maxSlots = 3;
@@ -1045,13 +1045,13 @@ export function drawBlacksmith(renderer, ctx, state) {
     }
     columns[1].items.push({
         type: 'upgrade_slot',
-        name: runData.blacksmithSlotUpgraded ? '倍率格已强化' : '随机强化倍率格',
+        name: runData.blacksmithSlotUpgraded ? '铸造台已强化' : '随机强化铸造台',
         cost: slotUpgradeCost,
         disabled: !!runData.blacksmithSlotUpgraded,
-        subText: runData.blacksmithSlotUpgraded ? '同一铁匠仅能使用一次' : `当前累计+${totalSlotUpgrades}倍率`
+        subText: runData.blacksmithSlotUpgraded ? '同一船坞仅能使用一次' : `当前累计+${totalSlotUpgrades}倍率`
     });
 
-    // 附魔费用按词条稀有度定价：低级 2 / 中级 4 / 高级 8
+    // 附魔费用按词条稀有度定价：低阶 2 / 中阶 4 / 高阶 8
     const ENCHANT_COST_MAP = { basic: 2, medium: 4, advanced: 8 };
     const refreshCost = runData.blacksmithFriendRefreshAvailable ? 0 : runData.blacksmithRefreshCost;
     const enchantKeywords = stock.enchantKeywords || [];
@@ -1063,14 +1063,14 @@ export function drawBlacksmith(renderer, ctx, state) {
             keyword,
             name: kwData ? `附魔【${kwData.name}】` : '附魔词条',
             cost: cost,
-            subText: runData.blacksmithFirstEnchantFree ? '新人福利：本次附魔免费' : (kwData ? `效果：${kwData.desc}` : '选定卡牌添加词条')
+            subText: runData.blacksmithFirstEnchantFree ? '新人福利：本次附魔免费' : (kwData ? `效果：${kwData.desc}` : '选定矿石添加词条')
         });
     }
     columns[2].items.push({
         type: 'refresh',
-        name: '刷新遗物+词条',
+        name: '刷新船体改造+词条',
         cost: refreshCost,
-        subText: runData.blacksmithFriendRefreshAvailable ? '朋友证：本次免费' : '重新生成遗物和附魔词条'
+        subText: runData.blacksmithFriendRefreshAvailable ? '朋友证：本次免费' : '重新生成船体改造和附魔词条'
     });
 
     for (let c = 0; c < columns.length; c++) {
@@ -1113,7 +1113,7 @@ export function drawBlacksmith(renderer, ctx, state) {
                 ctx.fillStyle = costColor;
                 ctx.font = 'bold 14px Microsoft YaHei';
                 ctx.textAlign = 'right';
-                ctx.fillText(`${item.cost}金币`, x + colW - 15, itemY + 22);
+                ctx.fillText(`${item.cost}银元`, x + colW - 15, itemY + 22);
 
                 ctx.fillStyle = '#666';
                 ctx.font = '11px Microsoft YaHei';
@@ -1130,7 +1130,7 @@ export function drawBlacksmith(renderer, ctx, state) {
 
     drawBackButton(ctx, state, '返回地图', renderer.width, renderer.height);
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, 190, renderer.height - 80, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -1224,7 +1224,7 @@ export function drawEvent(renderer, ctx, state) {
     ctx.fillText('离开', cx, btnY + 29);
     state.data.skipRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -1264,7 +1264,7 @@ export function drawTreasure(renderer, ctx, state) {
         ctx.fillStyle = '#ffd700';
         ctx.font = 'bold 28px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText('你获得了遗物！', cx, cy - 120);
+        ctx.fillText('你获得了船体改造！', cx, cy - 120);
 
         const cardW = 360;
         const cardH = 220;
@@ -1307,7 +1307,7 @@ export function drawTreasure(renderer, ctx, state) {
 
         state.data.treasureAcceptRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 
-        // 查看牌组按钮
+        // 查看矿舱按钮
         const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
         if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
     }
@@ -1343,12 +1343,12 @@ export function drawActTransition(renderer, ctx, state) {
 
     ctx.fillStyle = '#ffaa44';
     ctx.font = 'bold 24px Microsoft YaHei';
-    ctx.fillText('获得道具：拓展效率牌桌', cx, cy - 40);
+    ctx.fillText('获得道具：拓展效率铸造台', cx, cy - 40);
 
     ctx.fillStyle = '#aaa';
     ctx.font = '18px Microsoft YaHei';
     const nextSlotCount = 3 + act;
-    ctx.fillText(`倍率牌桌上限增加一格（${2 + act}格 → ${nextSlotCount}格）`, cx, cy - 5);
+    ctx.fillText(`铸造台上限增加一台（${2 + act}台 → ${nextSlotCount}台）`, cx, cy - 5);
 
     const btnW = 260;
     const btnH = 55;
@@ -1370,7 +1370,7 @@ export function drawActTransition(renderer, ctx, state) {
 
     state.data.transitionBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -1404,9 +1404,9 @@ export function drawVictory(renderer, ctx, state) {
 
     ctx.fillStyle = '#ffcc66';
     ctx.font = '20px Microsoft YaHei';
-    ctx.fillText(`累计获得金币: ${runData ? runData.gold : 0}`, cx, cy + 10);
-    ctx.fillText(`牌库数量: ${runData ? runData.deck.length : 0} 张`, cx, cy + 45);
-    ctx.fillText(`遗物数量: ${runData ? runData.relics.length : 0} 件`, cx, cy + 80);
+    ctx.fillText(`累计获得银元: ${runData ? runData.gold : 0}`, cx, cy + 10);
+    ctx.fillText(`矿舱数量: ${runData ? runData.deck.length : 0} 块`, cx, cy + 45);
+    ctx.fillText(`船体改造数量: ${runData ? runData.relics.length : 0} 件`, cx, cy + 80);
 
     const btnW = 220;
     const btnH = 55;
@@ -1428,7 +1428,7 @@ export function drawVictory(renderer, ctx, state) {
 
     state.data.restartBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 
-    // 查看牌组按钮
+    // 查看矿舱按钮
     const deckBtnRect = drawDeckViewButton(ctx, state, btnX + btnW + 20, btnY, 110, 38);
     if (deckBtnRect) state.data.deckViewBtnRect = deckBtnRect;
 }
@@ -1449,7 +1449,7 @@ export function drawGameOver(renderer, ctx, state) {
     ctx.fillStyle = '#aaa';
     ctx.font = '22px Microsoft YaHei';
     ctx.fillText(`到达关卡: ${data.reachedStage || '1-1'}`, cx, cy - 20);
-    ctx.fillText(`累计获得金币: ${data.totalGold || 0}`, cx, cy + 20);
+    ctx.fillText(`累计获得银元: ${data.totalGold || 0}`, cx, cy + 20);
 
     const btnW = 220;
     const btnH = 55;
@@ -1493,7 +1493,7 @@ export function drawDeckViewButton(ctx, state, x, y, w, h) {
     ctx.fillStyle = isHover ? '#ffcc88' : '#ffd700';
     ctx.font = 'bold 14px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText(`📜 牌组 ${runData.deck.length}`, x + w / 2, y + h / 2 + 5);
+    ctx.fillText(`📜 矿舱 ${runData.deck.length}`, x + w / 2, y + h / 2 + 5);
 
     return { x, y, w, h };
 }
@@ -1513,7 +1513,7 @@ export function drawDeckViewOverlay(renderer, ctx, state) {
     ctx.fillRect(0, 0, width, height);
 
     // 标题
-    drawGlowText(ctx, `📜 当前牌组（${runData.deck.length} 张）`, cx, 60, {
+    drawGlowText(ctx, `📜 当前矿舱（${runData.deck.length} 块）`, cx, 60, {
         color: '#ffd700',
         glowColor: '#b8860b',
         glowBlur: 12,

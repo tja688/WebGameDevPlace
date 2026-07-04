@@ -1,10 +1,10 @@
 /**
- * 生死烛局 - 战后结算系统（第二版）
+ * Heave! - 战后结算系统（第二版）
  *
  * 战后流程：
- * - 普通战：获得金币 → 商店 → 事件 → 地图
- * - 精英战：获得金币 → 铁匠 → 事件 → 地图
- * - BOSS战：获得金币 → BOSS遗物 → 传说事件 → 下一层
+ * - 普通海战：获得银元 → 精炼厂 → 事件 → 地图
+ * - 私掠舰战：获得银元 → 船坞 → 事件 → 地图
+ * - 旗舰战：获得银元 → 旗舰改造 → 传说事件 → 下一航段
  */
 
 import { pickRandom } from '../core/utils.js';
@@ -14,31 +14,31 @@ import { STAGE_CONFIG, RELIC_DEFS, CARD_DEFS, createCardRewardOptions } from '..
 // ===== 事件池定义（按 7.事件池.md） =====
 const EVENT_POOLS = {
     common: [
-        { name: '散落的金币', desc: '玩家获得4金币', effect: 'gain_gold', param: 4 },
-        { name: '遗落的兵书', desc: '获得一次随机计策等级强化', effect: 'random_strategy_level' },
-        { name: '好心的小画家', desc: '从牌组中选择任意一张牌+5点数', effect: 'buff_card', param: 5 },
-        { name: '自助铁匠锤', desc: '玩家-2金币，任意倍率格点数+1', effect: 'self_blacksmith', param: { goldCost: 2, slotBonus: 1 } },
-        { name: '及时的帮助', desc: '获得一次三选一卡牌的机会', effect: 'card_pick_three' },
-        { name: '求牌乞丐', desc: '获得一次免费删牌机会', effect: 'free_remove_card' },
-        { name: '可疑商人', desc: '玩家-4金币，随机获得一件遗物', effect: 'buy_random_relic', param: 4 },
-        { name: '神秘肌肉男', desc: '获得一张何须智慧？', effect: 'gain_specific_card', param: 'no_wisdom' },
-        { name: '乱涂乱画', desc: '选择牌组内任意一张卡牌随机转换为随机卡牌', effect: 'transform_card' },
-        { name: '催熟激素', desc: '牌组内的成长牌立刻成长2次', effect: 'grow_cards_twice' },
-        { name: '盲目岩壁', desc: '选择牌组内任意一张卡牌获得蔓延词条', effect: 'enchant_spread' },
-        { name: '场外援助', desc: '下一场战斗，怪物血量减少200点', effect: 'next_monster_hp_down', param: 200 }
+        { name: '漂流银箱', desc: '海面上漂来一个银箱，获得4银元', effect: 'gain_gold', param: 4 },
+        { name: '海战图残卷', desc: '获得一次随机叠牌等级强化', effect: 'random_strategy_level' },
+        { name: '船首像画家', desc: '从矿舱中选择任意一块矿石+5强度', effect: 'buff_card', param: 5 },
+        { name: '自助船坞', desc: '玩家-2银元，任意铸造台倍率+1', effect: 'self_blacksmith', param: { goldCost: 2, slotBonus: 1 } },
+        { name: '及时的帮助', desc: '获得一次三选一矿石的机会', effect: 'card_pick_three' },
+        { name: '求矿乞丐', desc: '获得一次免费删矿机会', effect: 'free_remove_card' },
+        { name: '黑市掮客', desc: '玩家-4银元，随机获得一件船体改造', effect: 'buy_random_relic', param: 4 },
+        { name: '走私大副', desc: '获得一块何需谋略？', effect: 'gain_specific_card', param: 'no_strategy' },
+        { name: '涂鸦水手', desc: '选择矿舱内任意一块矿石随机转换为随机矿石', effect: 'transform_card' },
+        { name: '催熟炉', desc: '矿舱内的淬火矿立刻淬火2次', effect: 'grow_cards_twice' },
+        { name: '暗礁馈赠', desc: '选择矿舱内任意一块矿石获得碎屑特性', effect: 'enchant_spread' },
+        { name: '顺风波及', desc: '下一场海战，敌舰装甲值减少200点', effect: 'next_monster_hp_down', param: 200 }
     ],
     rare: [
-        { name: '抵御怪物', desc: '玩家立刻与X-7的任意一只怪物进行战斗（X为当前所在层数）', effect: 'fight_monster' },
-        { name: '出土遗物', desc: '获得一次三选一中级遗物的机会', effect: 'pick_rare_relic' },
-        { name: '残破克隆镜', desc: '下一场战斗，生命值+1', effect: 'next_battle_hearts_plus', param: 1 },
-        { name: '预言家', desc: '下一次商店刷新卡牌均为随机指定体系牌', effect: 'next_shop_system' },
-        { name: '赝品画家', desc: '选择牌组内任意一张卡牌，将它的复制品加入卡组', effect: 'duplicate_card' },
-        { name: '金钱壶', desc: '玩家获得8金币', effect: 'gain_gold', param: 8 }
+        { name: '遭遇巡逻舰', desc: '玩家立刻与X-7的任意一艘敌舰进行海战（X为当前所在航段）', effect: 'fight_monster' },
+        { name: '沉船宝藏', desc: '获得一次三选一中级船体改造的机会', effect: 'pick_rare_relic' },
+        { name: '残破克隆镜', desc: '下一场海战，备用锚+1', effect: 'next_battle_hearts_plus', param: 1 },
+        { name: '走私掮客', desc: '下一次精炼厂刷新矿石均为随机指定矿脉矿', effect: 'next_shop_system' },
+        { name: '赝品工匠', desc: '选择矿舱内任意一块矿石，将它的复制品加入矿舱', effect: 'duplicate_card' },
+        { name: '海盗赃款', desc: '玩家获得8银元', effect: 'gain_gold', param: 8 }
     ],
     legendary: [
-        { name: '魔镜', desc: '玩家在本局中生命值+1', effect: 'max_hearts_plus' },
-        { name: '轻语岩壁', desc: '选择任意一张卡牌获得伟力词条', effect: 'enchant_mighty' },
-        { name: '挑战强敌', desc: '玩家立刻与该层任意精英进行战斗', effect: 'fight_elite' }
+        { name: '海神遗物', desc: '玩家在本局中备用锚+1', effect: 'max_hearts_plus' },
+        { name: '古锚祝福', desc: '选择任意一块矿石获得熔核特性', effect: 'enchant_mighty' },
+        { name: '悬赏私掠舰', desc: '玩家立刻与该航段任意私掠舰进行海战', effect: 'fight_elite' }
     ]
 };
 
@@ -98,7 +98,7 @@ export function resolveBattleEnd(battleState) {
 
     if (battleState.result === 'win') {
         let goldGain = config.goldReward || 6;
-        // 首回合击杀额外+2金币
+        // 首回合击沉额外+2银元
         if (battleState.firstTurnKill) {
             goldGain += 2;
         }
@@ -111,7 +111,7 @@ export function resolveBattleEnd(battleState) {
         runData.heartsLostInStage = battleState.heartsLost;
         runData.completedStages.push(battleState.stageKey);
 
-        // 合并所有卡牌回 runData.deck
+        // 合并所有矿石回 runData.deck
         const allCards = [
             ...battleState.deck,
             ...battleState.hand,
@@ -198,7 +198,7 @@ function pickBossRelics(monsterId) {
     const pool = RELIC_DEFS.filter(r => r.rarity === 'boss');
     const fallbackPool = RELIC_DEFS.filter(r => r.rarity === 'epic');
     const bossSpecificIds = {
-        yellow_king: ['relic_boss_yellow_bone', 'relic_boss_yellow_heart', 'relic_boss_yellow_flesh']
+        gold_king_flagship: ['relic_gold_king_bone', 'relic_gold_king_heart', 'relic_gold_king_flesh']
     };
     const specificPool = pool.filter(r => (bossSpecificIds[monsterId] || []).includes(r.id));
     if (specificPool.length > 0) {

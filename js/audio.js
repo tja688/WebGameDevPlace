@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 增强音效系统（Web Audio API + BGM）
+ * Heave! - 增强音效系统（Web Audio API + BGM）
  */
 
 export const GameAudio = {
@@ -148,10 +148,10 @@ export const GameAudio = {
         });
     },
 
-    // ===== 堆叠递进音效 =====
+    // ===== 熔炼递进音效 =====
     playStackSound(stackCount) {
-        // stackCount: 放置后该格的总卡牌数
-        // 音调随堆叠数递增，带来满足感
+        // stackCount: 放置后该铸造台的总矿石数
+        // 音调随熔炼数递增，带来满足感
         const baseFreq = 440;
         const step = 60; // 每多一张音高提升
         const freq = baseFreq + (stackCount - 1) * step;

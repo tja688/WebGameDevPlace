@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - Playground DOM UI 控制器
+ * Heave! - Playground DOM UI 控制器
  *
  * 提供：
  * - 场景选择器、JSON 编辑器、控制按钮（AI 测试用）
@@ -128,7 +128,7 @@ export function initPlaygroundUI(gameState) {
 }
 
 function populateStaticSelects() {
-    // 填充怪物下拉框
+    // 填充敌舰下拉框
     if (monsterSelect) {
         let html = '';
         for (const [id, def] of Object.entries(MONSTER_DEFS)) {
@@ -136,7 +136,7 @@ function populateStaticSelects() {
         }
         monsterSelect.innerHTML = html;
     }
-    // 填充卡牌下拉框
+    // 填充矿石下拉框
     if (cardSelect) {
         let html = '';
         for (const [id, def] of Object.entries(CARD_DEFS)) {

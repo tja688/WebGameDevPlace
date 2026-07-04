@@ -1,13 +1,13 @@
 /**
- * 生死烛局 - 关卡配置（第二版）
+ * Heave! - 航段配置（第二版）
  *
- * 每层8个节点，共3层：
- * - 普通怪战后：商店 → 事件（高/低概率）
- * - 精英怪战后：铁匠 → 事件（中/低概率）
- * - BOSS战后：BOSS遗物 → 传说事件 → 进入下一层
+ * 每航段8个节点，共3航段：
+ * - 普通敌舰战后：精炼厂 → 事件（高/低概率）
+ * - 精英敌舰战后：船坞 → 事件（中/低概率）
+ * - BOSS战后：BOSS船体改造 → 传说事件 → 进入下一航段
  */
 
-// 第一层配置
+// 第一航段配置
 const ACT1_CONFIG = {
     '1-1': { type: 'normal',  monsterPool: ['face_plant'],         postBattle: 'shop_high_event',     goldReward: 6 },
     '1-2': { type: 'normal',  monsterPool: ['one_arm_giant'],      postBattle: 'shop_high_event',     goldReward: 6 },
@@ -19,7 +19,7 @@ const ACT1_CONFIG = {
     '1-8': { type: 'boss',    monsterPool: ['yellow_king'],        postBattle: 'boss_relic_event',    goldReward: 10 }
 };
 
-// 第二层配置
+// 第二航段配置
 const ACT2_CONFIG = {
     '2-1': { type: 'normal',  monsterPool: ['layer2_wolf', 'layer2_bat', 'layer2_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
     '2-2': { type: 'normal',  monsterPool: ['layer2_wolf', 'layer2_bat', 'layer2_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
@@ -31,7 +31,7 @@ const ACT2_CONFIG = {
     '2-8': { type: 'boss',    monsterPool: ['layer2_boss'],                                                postBattle: 'boss_relic_event',    goldReward: 10 }
 };
 
-// 第三层配置
+// 第三航段配置
 const ACT3_CONFIG = {
     '3-1': { type: 'normal',  monsterPool: ['layer3_wolf', 'layer3_bat', 'layer3_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },
     '3-2': { type: 'normal',  monsterPool: ['layer3_wolf', 'layer3_bat', 'layer3_slime'],                   postBattle: 'shop_high_event',     goldReward: 6 },

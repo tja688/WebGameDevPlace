@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - Playground 渲染器
+ * Heave! - Playground 渲染器
  *
  * 简化版渲染：
  * - menu 视图：Canvas 绘制类型选择菜单
@@ -90,7 +90,7 @@ function drawMenu(renderer, ctx, state) {
     ctx.fillStyle = '#666';
     ctx.font = '14px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('生死烛局 Playground v3.3', cx, renderer.height - 40);
+    ctx.fillText('Heave! Playground v3.3', cx, renderer.height - 40);
 }
 
 // ===== Effect 沙盒视图 =====
@@ -154,7 +154,7 @@ function drawEffectSandbox(renderer, ctx, state) {
         ctx.lineWidth = 2;
         ctx.strokeRect(sx, sy, slotW, slotH);
 
-        // 倍率标题
+        // 铸造台标题
         ctx.fillStyle = COLORS.accent;
         ctx.font = 'bold 18px Microsoft YaHei';
         ctx.textAlign = 'center';
@@ -228,7 +228,7 @@ function drawEffectSandbox(renderer, ctx, state) {
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '14px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('手牌:', boardX + 10, handY + 20);
+    ctx.fillText('精炼盘:', boardX + 10, handY + 20);
 
     const hand = sandboxState?.hand || [];
     const handCardW = 110;

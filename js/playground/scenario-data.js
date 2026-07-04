@@ -1,17 +1,17 @@
 /**
- * 生死烛局 - Playground 预设场景数据
+ * Heave! - Playground 预设场景数据
  *
  * 覆盖全部 11 种词条及边界组合，共 18 个场景。
  * 场景格式与 scenario-engine.js 兼容，可直接导出为 JSON。
  */
 
 export const EFFECT_SCENARIOS = [
-    // ===== 伟力（mighty）=====
+    // ===== 熔核（mighty）=====
     {
         id: 'mighty_basic',
-        name: '伟力基础触发',
+        name: '熔核基础触发',
         category: 'keyword',
-        description: '5点伟力牌打出后，应无条件翻倍为10',
+        description: '5点熔核牌打出后，应无条件翻倍为10',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -30,15 +30,15 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'slots[1].cards[0].finalValue', expected: 10, desc: '伟力翻倍后点数为10' },
+            { path: 'slots[1].cards[0].finalValue', expected: 10, desc: '熔核翻倍后点数为10' },
             { path: 'slots[1].cards[0].keywords', expected: ['mighty'], desc: '词条未被消耗' }
         ]
     },
     {
         id: 'mighty_unconditional',
-        name: '伟力无条件触发（场上有更大点数）',
+        name: '熔核无条件触发（场上有更大点数）',
         category: 'keyword',
-        description: '5点伟力牌在场，即使场上有15点蛮力，也应翻倍为10',
+        description: '5点熔核牌在场，即使场上有15点蛮力，也应翻倍为10',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -60,16 +60,16 @@ export const EFFECT_SCENARIOS = [
         ],
         assertions: [
             { path: 'slots[2].cards[0].finalValue', expected: 15, desc: '蛮力点数不变' },
-            { path: 'slots[1].cards[0].finalValue', expected: 10, desc: '老兵雄心伟力无条件翻倍为10点' }
+            { path: 'slots[1].cards[0].finalValue', expected: 10, desc: '老兵雄心熔核无条件翻倍为10点' }
         ]
     },
 
-    // ===== 回响（echo）=====
+    // ===== 重铸（echo）=====
     {
         id: 'echo_chain',
-        name: '回响+连携（抽2次牌）',
+        name: '重铸+共生（抽2次牌）',
         category: 'keyword',
-        description: '回响词条使ON_PLAY效果再触发一次，连携应抽2张牌',
+        description: '重铸词条使ON_PLAY效果再触发一次，共生应抽2张牌',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -92,14 +92,14 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'hand.length', expected: 2, desc: '连携触发2次，抽2张牌' }
+            { path: 'hand.length', expected: 2, desc: '共生触发2次，抽2张牌' }
         ]
     },
     {
         id: 'echo_grow',
-        name: '回响+成长（成长触发2次）',
+        name: '重铸+淬火（淬火触发2次）',
         category: 'keyword',
-        description: '回响使成长效果触发2次，永久点数+2',
+        description: '重铸使淬火效果触发2次，永久点数+2',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -118,17 +118,17 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[0].permanentBonus', expected: 2, desc: '回响使成长触发2次，永久加成+2' },
+            { path: 'slots[0].cards[0].permanentBonus', expected: 2, desc: '重铸使淬火触发2次，永久加成+2' },
             { path: 'slots[0].cards[0].baseValue', expected: 10, desc: '基础值不变' }
         ]
     },
 
-    // ===== 双生（twin）=====
+    // ===== 双晶（twin）=====
     {
         id: 'twin_no_twin',
-        name: '双生复制去除双生词条',
+        name: '双晶复制去除双晶词条',
         category: 'keyword',
-        description: '双生牌打出后，复制加入手牌，复制体应去除双生词条',
+        description: '双晶牌打出后，复制加入精炼盘，复制体应去除双晶词条',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -147,18 +147,18 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'hand.length', expected: 1, desc: '复制牌加入手牌' },
-            { path: 'hand[0].keywords', expected: ['dedicate'], desc: '复制体去除双生，保留奉献' },
+            { path: 'hand.length', expected: 1, desc: '复制牌加入精炼盘' },
+            { path: 'hand[0].keywords', expected: ['dedicate'], desc: '复制体去除双晶，余烬预热' },
             { path: 'hand[0].baseValue', expected: 10, desc: '复制体基础值相同' }
         ]
     },
 
-    // ===== 连携（chain）=====
+    // ===== 共生（chain）=====
     {
         id: 'chain_basic',
-        name: '连携基础（抽1张牌）',
+        name: '共生基础（抽1张牌）',
         category: 'keyword',
-        description: '连携牌打出，从牌库抽1张牌',
+        description: '共生牌打出，从矿舱抽1张牌',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -180,13 +180,13 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'hand.length', expected: 1, desc: '抽1张牌后手牌剩1张（原牌打出，新牌抽入）' },
-            { path: 'deck.length', expected: 1, desc: '牌库剩余1张' }
+            { path: 'hand.length', expected: 1, desc: '抽1张牌后精炼盘剩1张（原牌打出，新牌抽入）' },
+            { path: 'deck.length', expected: 1, desc: '矿舱剩余1张' }
         ]
     },
     {
         id: 'chain_2',
-        name: '连携2（抽2张牌）',
+        name: '共生2（抽2张牌）',
         category: 'keyword',
         description: '理清头绪有chainCount=2，应抽2张牌',
         setup: {
@@ -211,17 +211,17 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'hand.length', expected: 2, desc: '连携2抽2张牌' },
-            { path: 'deck.length', expected: 1, desc: '牌库剩余1张' }
+            { path: 'hand.length', expected: 2, desc: '共生2抽2张牌' },
+            { path: 'deck.length', expected: 1, desc: '矿舱剩余1张' }
         ]
     },
 
-    // ===== 蔓延（spread）=====
+    // ===== 碎屑（spread）=====
     {
         id: 'spread_draw',
-        name: '蔓延加入扩散牌',
+        name: '碎屑加入矿渣牌',
         category: 'keyword',
-        description: '打出蔓延牌后，手牌中应出现0点扩散牌',
+        description: '打出碎屑牌后，精炼盘中应出现0点矿渣牌',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -240,16 +240,16 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'hand.length', expected: 1, desc: '蔓延加入1张扩散牌' },
-            { path: 'hand[0].defId', expected: 'diffusion', desc: '加入的是扩散牌' },
-            { path: 'hand[0].baseValue', expected: 0, desc: '扩散牌点数为0' }
+            { path: 'hand.length', expected: 1, desc: '碎屑加入1张矿渣牌' },
+            { path: 'hand[0].defId', expected: 'diffusion', desc: '加入的是矿渣牌' },
+            { path: 'hand[0].baseValue', expected: 0, desc: '矿渣牌点数为0' }
         ]
     },
 
-    // ===== 成长（grow）=====
+    // ===== 淬火（grow）=====
     {
         id: 'grow_basic',
-        name: '成长基础（永久+1）',
+        name: '淬火基础（永久+1）',
         category: 'keyword',
         description: '齐心协力打出后，永久点数+1',
         setup: {
@@ -270,13 +270,13 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[0].permanentBonus', expected: 1, desc: '成长永久+1' },
+            { path: 'slots[0].cards[0].permanentBonus', expected: 1, desc: '淬火永久+1' },
             { path: 'slots[0].cards[0].finalValue', expected: 11, desc: '最终点数=基础10+永久1' }
         ]
     },
     {
         id: 'grow_2',
-        name: '成长2（永久+2）',
+        name: '淬火2（永久+2）',
         category: 'keyword',
         description: '战时训练有growAmount=2，打出后永久+2',
         setup: {
@@ -297,17 +297,17 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[0].permanentBonus', expected: 2, desc: '成长2永久+2' },
+            { path: 'slots[0].cards[0].permanentBonus', expected: 2, desc: '淬火2永久+2' },
             { path: 'slots[0].cards[0].finalValue', expected: 10, desc: '最终点数=基础8+永久2' }
         ]
     },
 
-    // ===== 奉献（dedicate）=====
+    // ===== 预热（dedicate）=====
     {
         id: 'dedicate_half',
-        name: '奉献向下取整',
+        name: '预热向下取整',
         category: 'keyword',
-        description: '8点奉献牌在场，堆叠在它上方的卡牌获得8/2=4点加成',
+        description: '8点预热牌在场，熔炼在它上方的矿石获得8/2=4点加成',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -328,15 +328,15 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'slots[1].cards[0].finalValue', expected: 8, desc: '奉献牌自身点数不变' },
-            { path: 'slots[1].cards[1].finalValue', expected: 19, desc: '蛮力获得+4奉献加成=15+4' }
+            { path: 'slots[1].cards[0].finalValue', expected: 8, desc: '预热牌自身点数不变' },
+            { path: 'slots[1].cards[1].finalValue', expected: 19, desc: '蛮力获得+4预热加成=15+4' }
         ]
     },
     {
         id: 'devotion_stacking',
-        name: '多张奉献堆叠顺序',
+        name: '多张预热熔炼顺序',
         category: 'keyword',
-        description: '同格有多张奉献牌时，每张奉献牌只影响正上方紧邻的一张牌。奉献A上方是奉献B，奉献B获得+3；奉献B上方是测试牌，测试牌获得奉献B基础值10/2=5点（光环不计入光环）',
+        description: '同格有多张预热牌时，每张预热牌只影响正上方紧邻的一张牌。预热A上方是预热B，预热B获得+3；预热B上方是测试牌，测试牌获得预热B基础值10/2=5点（光环不计入光环）',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -346,8 +346,8 @@ export const EFFECT_SCENARIOS = [
                 { index: 2, multiplier: 1, cards: [] }
             ],
             hand: [
-                { name: '奉献A', baseValue: 6, keywords: ['dedicate'] },
-                { name: '奉献B', baseValue: 10, keywords: ['dedicate'] },
+                { name: '预热A', baseValue: 6, keywords: ['dedicate'] },
+                { name: '预热B', baseValue: 10, keywords: ['dedicate'] },
                 { name: '测试牌', baseValue: 5, keywords: [] }
             ],
             deck: [],
@@ -359,9 +359,9 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 1 }
         ],
         assertions: [
-            { path: 'slots[1].cards[0].finalValue', expected: 6, desc: '奉献A自身6点' },
-            { path: 'slots[1].cards[1].finalValue', expected: 13, desc: '奉献B获得奉献A光环+3=10+3' },
-            { path: 'slots[1].cards[2].finalValue', expected: 10, desc: '测试牌获得奉献B光环+5=5+5（奉献B基础值10/2向下取整=5，光环不计入光环）' }
+            { path: 'slots[1].cards[0].finalValue', expected: 6, desc: '预热A自身6点' },
+            { path: 'slots[1].cards[1].finalValue', expected: 13, desc: '预热B获得预热A光环+3=10+3' },
+            { path: 'slots[1].cards[2].finalValue', expected: 10, desc: '测试牌获得预热B光环+5=5+5（预热B基础值10/2向下取整=5，光环不计入光环）' }
         ]
     },
 
@@ -427,16 +427,16 @@ export const EFFECT_SCENARIOS = [
             { type: 'play', handIndex: 0, slotIndex: 0 }
         ],
         assertions: [
-            { path: 'slots[0].cards[3].finalValue', expected: 14, desc: '齐心：同格3张其他牌=10+3，叠牌加成4张=卡牌+1，共14' }
+            { path: 'slots[0].cards[3].finalValue', expected: 14, desc: '齐心：同格3张其他牌=10+3，叠牌加成4张=矿石+1，共14' }
         ]
     },
 
-    // ===== 保留（retain）=====
+    // ===== 余烬（retain）=====
     {
         id: 'retain_hand',
-        name: '保留手牌',
+        name: '余烬精炼盘',
         category: 'keyword',
-        description: '保留牌回合结束时应保留在手牌中',
+        description: '余烬牌回合结束时应余烬在精炼盘中',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -461,17 +461,17 @@ export const EFFECT_SCENARIOS = [
             { type: 'endTurn' }
         ],
         assertions: [
-            { path: 'hand.length', expected: 5, desc: '保留牌留在手牌，其余丢弃后抽5张' },
-            { path: 'hand.some(c => c.keywords.includes("retain"))', expected: undefined, desc: '保留牌仍在手牌（手动检查）' }
+            { path: 'hand.length', expected: 5, desc: '余烬牌留在精炼盘，其余丢弃后抽5张' },
+            { path: 'hand.some(c => c.keywords.includes("retain"))', expected: undefined, desc: '余烬牌仍在精炼盘（手动检查）' }
         ]
     },
 
-    // ===== 留场（remain）=====
+    // ===== 驻台（remain）=====
     {
         id: 'remain_stay',
-        name: '留场不移入弃牌堆',
+        name: '驻台不移入矿渣堆',
         category: 'keyword',
-        description: '留场牌回合结束时应保留在格子上',
+        description: '驻台牌回合结束时应余烬在格子上',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100 },
@@ -497,17 +497,17 @@ export const EFFECT_SCENARIOS = [
             { type: 'endTurn' }
         ],
         assertions: [
-            { path: 'slots[0].cards.length', expected: 1, desc: '留场牌仍在格0' },
-            { path: 'slots[1].cards.length', expected: 0, desc: '非留场牌已清理' }
+            { path: 'slots[0].cards.length', expected: 1, desc: '驻台牌仍在格0' },
+            { path: 'slots[1].cards.length', expected: 0, desc: '非驻台牌已清理' }
         ]
     },
 
     // ===== 组合与边界 =====
     {
         id: 'mighty_vs_edge_penalty',
-        name: '伟力与边缘格惩罚',
+        name: '熔核与边缘格惩罚',
         category: 'boundary',
-        description: '怪物有边缘格-5惩罚，伟力牌放在右格。先翻倍(5*2=10)再惩罚(10-5=5)',
+        description: '敌舰有边缘格-5惩罚，熔核牌放在右格。先翻倍(5*2=10)再惩罚(10-5=5)',
         setup: {
             player: { hearts: 4, maxHearts: 4 },
             monster: { hp: 100, maxHp: 100, edgePenalty: 5, keywords: ['edge_penalty_5'] },

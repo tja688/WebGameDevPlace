@@ -1,10 +1,10 @@
 /**
- * 生死烛局 - 输入处理系统
+ * Heave! - 输入处理系统
  * 
  * 架构：
  * - 核心层：坐标转换、hover状态管理、拖拽基础
  * - 分发层：根据 state.screen 分发到各处理函数
- * - 战斗层：卡牌拖拽、格子检测、结束回合
+ * - 战斗层：矿石拖拽、格子检测、结束回合
  */
 
 import { switchScreen, getCurrentStageKey } from '../core/state.js';
@@ -33,7 +33,7 @@ export const Input = {
     _windowTouchEndHandler: null,
     _windowTouchCancelHandler: null,
 
-    // 入场卡牌拖动状态
+    // 入场矿石拖动状态
     isDraggingSlotCard: false,
     draggedSlotCard: null,
     draggedSlotCardFromIndex: -1,
@@ -133,7 +133,7 @@ export const Input = {
             return;
         }
 
-        // 通用查看牌组按钮检测
+        // 通用查看矿舱按钮检测
         if (state.data && state.data.deckViewBtnRect && this.hitTest(pos, state.data.deckViewBtnRect)) {
             this.toggleDeckView();
             return;
@@ -183,7 +183,7 @@ export const Input = {
             return;
         }
 
-        // 通用查看牌组按钮悬停检测
+        // 通用查看矿舱按钮悬停检测
         if (state.data && state.data.deckViewBtnRect && this.hitTest(pos, state.data.deckViewBtnRect)) {
             state.data.hoverDeckViewBtn = true;
             this.canvas.style.cursor = 'pointer';
@@ -228,7 +228,7 @@ export const Input = {
             return;
         }
 
-        // 处理入场卡牌拖动释放
+        // 处理入场矿石拖动释放
         if (this.isDraggingSlotCard && this.draggedSlotCard) {
             const pos = this.getEventCanvasPos(e) || { x: this.state.dragX, y: this.state.dragY };
             let slotIdx = this.dragInsertSlotIndex;
@@ -310,7 +310,7 @@ export const Input = {
             ? slot.cards.filter(card => card.uuid !== this.draggedSlotCard.uuid)
             : slot.cards;
 
-        // 如果没有卡牌，插入到开头
+        // 如果没有矿石，插入到开头
         if (visibleCards.length === 0) return 0;
 
         // 根据Y坐标判断插入位置
@@ -458,7 +458,7 @@ export const Input = {
         }
     },
 
-    // ===== 通用卡牌选择界面 =====
+    // ===== 通用矿石选择界面 =====
     handleCardSelectHover(pos, state) {
         const scrollY = state.data.cardSelectScrollY || 0;
         const adjustedPos = { x: pos.x, y: pos.y + scrollY };
@@ -498,7 +498,7 @@ export const Input = {
                     if (data.selectMode === 'shop_remove') {
                         const removeCost = runData.shopRemoveCost || 2;
                         if (runData.gold < removeCost) {
-                            showPlaceholderToast('金币不足！');
+                            showPlaceholderToast('银元不足！');
                             data.processing = false;
                             return;
                         }
@@ -506,7 +506,7 @@ export const Input = {
                         runData.shopRemoveCost = removeCost * 2;
                         const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
                         if (idx !== -1) runData.deck.splice(idx, 1);
-                        showPlaceholderToast(`已移除 ${card.name}（消耗${removeCost}金币）`);
+                        showPlaceholderToast(`已移除 ${card.name}（消耗${removeCost}银元）`);
                         data.processing = false;
                         switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
                         return;
@@ -516,14 +516,14 @@ export const Input = {
                         const cardCost = runData.shopUpgradeCosts[card.uuid] || 2;
                         const upgradeCost = cardCost;
                         if (runData.gold < upgradeCost) {
-                            showPlaceholderToast(`金币不足！需要${upgradeCost}金币`);
+                            showPlaceholderToast(`银元不足！需要${upgradeCost}银元`);
                             data.processing = false;
                             return;
                         }
                         runData.gold -= upgradeCost;
                         card.permanentBonus += 5;
                         runData.shopUpgradeCosts[card.uuid] = cardCost + 1;
-                        showPlaceholderToast(`${card.name} 数值+5（消耗${upgradeCost}金币）！`);
+                        showPlaceholderToast(`${card.name} 数值+5（消耗${upgradeCost}银元）！`);
                         data.processing = false;
                         switchScreen(this.state, 'shop', data.returnData || { runData, stock: getOrCreateShopStock(runData) });
                         return;
@@ -547,7 +547,7 @@ export const Input = {
                             data.processing = false;
                             return;
                         }
-                        showPlaceholderToast(`${card.name} 获得【成长1】！`);
+                        showPlaceholderToast(`${card.name} 获得【淬火1】！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -562,7 +562,7 @@ export const Input = {
                             data.processing = false;
                             return;
                         }
-                        showPlaceholderToast(`${card.name} 获得【蔓延】！`);
+                        showPlaceholderToast(`${card.name} 获得【碎屑】！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -600,7 +600,7 @@ export const Input = {
                         runData.gold += gain;
                         const idx = runData.deck.findIndex(c => c.uuid === card.uuid);
                         if (idx !== -1) runData.deck.splice(idx, 1);
-                        showPlaceholderToast(`移除 ${card.name}，获得 ${gain} 金币！`);
+                        showPlaceholderToast(`移除 ${card.name}，获得 ${gain} 银元！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -622,7 +622,7 @@ export const Input = {
 
                     if (data.selectMode === 'event_pick_card') {
                         runData.deck.push(card);
-                        showPlaceholderToast(`获得卡牌：${card.name}`);
+                        showPlaceholderToast(`获得矿石：${card.name}`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -637,7 +637,7 @@ export const Input = {
                             data.processing = false;
                             return;
                         }
-                        showPlaceholderToast(`${card.name} 获得【伟力】！`);
+                        showPlaceholderToast(`${card.name} 获得【熔核】！`);
                         setTimeout(() => {
                             data.processing = false;
                             this._finishEvent(runData);
@@ -649,7 +649,7 @@ export const Input = {
                         const keyword = data.enchantKeyword;
                         const cost = runData.blacksmithFirstEnchantFree ? 0 : data.enchantCost;
                         if (runData.gold < cost) {
-                            showPlaceholderToast('金币不足！');
+                            showPlaceholderToast('银元不足！');
                             data.processing = false;
                             return;
                         }
@@ -657,7 +657,7 @@ export const Input = {
                         if (result.ok) {
                             runData.gold -= cost;
                             if (runData.blacksmithFirstEnchantFree) runData.blacksmithFirstEnchantFree = false;
-                            // 记录本铁匠已敲词条，刷新后不再出现
+                            // 记录本船坞已敲词条，刷新后不再出现
                             if (!runData.blacksmithEnchantedKeywords) runData.blacksmithEnchantedKeywords = [];
                             if (!runData.blacksmithEnchantedKeywords.includes(keyword)) {
                                 runData.blacksmithEnchantedKeywords.push(keyword);
@@ -682,8 +682,8 @@ export const Input = {
                             data.processing = false;
                             switchScreen(this.state, 'card_select', {
                                 runData,
-                                title: '我爱玩小卡组',
-                                desc: `继续选择要删除的卡牌（剩余${remaining}张）`,
+                                title: '我爱玩小矿舱',
+                                desc: `继续选择要删除的矿石（剩余${remaining}块）`,
                                 cards: runData.deck,
                                 backText: '完成',
                                 selectMode: 'boss_remove_four',
@@ -735,7 +735,7 @@ export const Input = {
         }
     },
 
-    // ===== 选牌界面 =====
+    // ===== 选矿界面 =====
     handleCardPickHover(pos, state) {
         if (state.data.optionRects) {
             for (const rect of state.data.optionRects) {
@@ -786,7 +786,7 @@ export const Input = {
                     if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     const newCard = createCardInstance(rect.defId);
                     runData.deck.push(newCard);
-                    showPlaceholderToast(`获得卡牌：${newCard.name}`);
+                    showPlaceholderToast(`获得矿石：${newCard.name}`);
 
                     setTimeout(() => {
                         data.processing = false;
@@ -808,7 +808,7 @@ export const Input = {
         }
     },
 
-    // ===== BOSS遗物选择 =====
+    // ===== BOSS船体改造选择 =====
     handleBossRelicClick(pos) {
         const data = this.state.data;
         const runData = data.runData;
@@ -819,7 +819,7 @@ export const Input = {
                 if (this.hitTest(pos, rect)) {
                     if (typeof GameAudio !== 'undefined') GameAudio.playWin();
                     runData.relics.push(rect.data);
-                    showPlaceholderToast(`获得BOSS遗物：${rect.data.name}`);
+                    showPlaceholderToast(`获得BOSS船体改造：${rect.data.name}`);
                     data.processing = true;
                     if (rect.data.effect?.type === 'remove_four_cards') {
                         setTimeout(() => {
@@ -831,7 +831,7 @@ export const Input = {
                             switchScreen(this.state, 'card_select', {
                                 runData,
                                 title: rect.data.name,
-                                desc: '选择牌组内4张卡牌删除',
+                                desc: '选择矿舱内4块矿石删除',
                                 cards: runData.deck,
                                 backText: '完成',
                                 selectMode: 'boss_remove_four',
@@ -852,7 +852,7 @@ export const Input = {
                             switchScreen(this.state, 'card_select', {
                                 runData,
                                 title: rect.data.name,
-                                desc: '选择牌组内一张卡牌复制4张加入牌组',
+                                desc: '选择矿舱内一块矿石复制4块加入矿舱',
                                 cards: runData.deck,
                                 backText: '跳过',
                                 selectMode: 'boss_copy_four',
@@ -933,7 +933,7 @@ export const Input = {
         }
     },
 
-    // ===== 商店 =====
+    // ===== 精炼厂 =====
     handleShopHover(pos, state) {
         if (state.data.strategyOptionRects) {
             for (const rect of state.data.strategyOptionRects) {
@@ -991,7 +991,7 @@ export const Input = {
         const runData = data.runData;
         if (data.processing) return;
 
-        // 计策系统已废弃，忽略计策二选一弹窗点击
+        // 叠牌系统已废弃，忽略叠牌二选一弹窗点击
         if (data.strategyOptions && data.strategyOptionRects) {
             data.strategyOptions = null;
             data.strategyOptionRects = null;
@@ -1008,17 +1008,17 @@ export const Input = {
                         if (rect.type === 'card') {
                             const newCard = createCardInstance(rect.item.defId);
                             runData.deck.push(newCard);
-                            showPlaceholderToast(`获得卡牌：${newCard.name}`);
+                            showPlaceholderToast(`获得矿石：${newCard.name}`);
                         } else if (rect.type === 'relic') {
                             const relic = { ...rect.item };
                             delete relic.price;
                             delete relic.bought;
                             runData.relics.push(relic);
-                            showPlaceholderToast(`获得遗物：${relic.name}`);
+                            showPlaceholderToast(`获得船体改造：${relic.name}`);
                         }
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else {
-                        showPlaceholderToast('金币不足！');
+                        showPlaceholderToast('银元不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
                     }
                     return;
@@ -1037,39 +1037,39 @@ export const Input = {
                                 data.stock = runData.shopStock;
                                 runData.shopRefreshCost += 1;
                                 if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                                showPlaceholderToast('商店已刷新（使用免费次数）');
+                                showPlaceholderToast('精炼厂已刷新（使用免费次数）');
                             } else if (runData.shopFriendRefreshAvailable) {
                                 runData.shopFriendRefreshAvailable = false;
                                 refreshShopStock(runData);
                                 data.stock = runData.shopStock;
                                 runData.shopRefreshCost += 1;
                                 if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                                showPlaceholderToast('朋友证生效：商店已免费刷新');
+                                showPlaceholderToast('朋友证生效：精炼厂已免费刷新');
                             } else {
                                 runData.gold -= rect.cost;
                                 refreshShopStock(runData);
                                 data.stock = runData.shopStock;
                                 runData.shopRefreshCost += 1;
                                 if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
-                                showPlaceholderToast('商店已刷新');
+                                showPlaceholderToast('精炼厂已刷新');
                             }
                         } else if (rect.key === 'remove_card') {
-                            if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                            if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                             const removeCost = runData.shopRemoveCost || 2;
                             switchScreen(this.state, 'card_select', {
-                                runData, title: '🗑️ 删牌服务', desc: `选择牌组内一张卡牌移除（消耗${removeCost}金币，每次翻倍）`,
+                                runData, title: '🗑️ 移除矿石服务', desc: `选择矿舱内一块矿石移除（消耗${removeCost}银元，每次翻倍）`,
                                 cards: runData.deck, backText: '取消', selectMode: 'shop_remove',
                                 returnScreen: 'shop', returnData: data
                             });
                         } else if (rect.key === 'upgrade_card') {
-                            if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                            if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                             switchScreen(this.state, 'card_select', {
-                                runData, title: '⬆️ 数值强化', desc: '选择牌组内一张卡牌，数值永久+5（费用按单卡独立计算）',
+                                runData, title: '⬆️ 数值强化', desc: '选择矿舱内一块矿石，数值永久+5（费用按单卡独立计算）',
                                 cards: runData.deck, backText: '取消', selectMode: 'shop_upgrade',
                                 returnScreen: 'shop', returnData: data
                             });
                         } else if (rect.key === 'buy_strategy') {
-                            if (runData.gold < 4) { showPlaceholderToast('金币不足！'); return; }
+                            if (runData.gold < 4) { showPlaceholderToast('银元不足！'); return; }
                             runData.gold -= 4;
                             const strategies = ['attempt_push', 'left_assault', 'right_assault', 'mid_assault', 'steady_push', 'plan_left', 'plan_right', 'plan_mid', 'forceful_push'];
                             // 二选一
@@ -1081,7 +1081,7 @@ export const Input = {
                             return;
                         }
                     } else {
-                        showPlaceholderToast('金币不足！');
+                        showPlaceholderToast('银元不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
                     }
                     return;
@@ -1092,7 +1092,7 @@ export const Input = {
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
             runData.shopStock = null;
             if (data.postBattle && runData.pendingEventPool) {
-                // 战后流程：商店结束后进入事件
+                // 战后流程：精炼厂结束后进入事件
                 const eventOptions = generatePostBattleEvents(runData);
                 switchScreen(this.state, 'event', {
                     runData, options: eventOptions, postBattle: true
@@ -1104,7 +1104,7 @@ export const Input = {
         }
     },
 
-    // ===== 铁匠 =====
+    // ===== 船坞 =====
     handleBlacksmithHover(pos, state) {
         if (state.data.blacksmithRects) {
             for (const rect of state.data.blacksmithRects) {
@@ -1134,11 +1134,11 @@ export const Input = {
             for (const rect of data.blacksmithRects) {
                 if (this.hitTest(pos, rect)) {
                     if (rect.item.type === 'upgrade_slot' && runData.blacksmithSlotUpgraded) {
-                        showPlaceholderToast('同一铁匠仅能强化一次倍率格');
+                        showPlaceholderToast('同一船坞仅能强化一次铸造台');
                         return;
                     }
                     if (!rect.canAfford) {
-                        showPlaceholderToast('金币不足！');
+                        showPlaceholderToast('银元不足！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
                         return;
                     }
@@ -1151,11 +1151,11 @@ export const Input = {
                         delete relic.price;
                         delete relic.bought;
                         runData.relics.push(relic);
-                        showPlaceholderToast(`获得遗物：${item.name}`);
+                        showPlaceholderToast(`获得船体改造：${item.name}`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'upgrade_slot') {
                         if (runData.blacksmithSlotUpgraded) {
-                            showPlaceholderToast('同一铁匠仅能强化一次倍率格');
+                            showPlaceholderToast('同一船坞仅能强化一次铸造台');
                             return;
                         }
                         runData.gold -= rect.item.cost;
@@ -1167,11 +1167,11 @@ export const Input = {
                         showPlaceholderToast(`第${slotIndex + 1}格倍率+1！（随机）`);
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     } else if (rect.item.type === 'enchant') {
-                        if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                        if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                         const keyword = rect.item.keyword || null;
                         const kwName = KEYWORDS[keyword] ? KEYWORDS[keyword].name : keyword;
                         switchScreen(this.state, 'card_select', {
-                            runData, title: `✨ 附魔【${kwName}】`, desc: '选择牌组内一张卡牌，为其添加词条',
+                            runData, title: `✨ 附魔【${kwName}】`, desc: '选择矿舱内一块矿石，为其添加词条',
                             cards: runData.deck, backText: '取消', selectMode: 'blacksmith_enchant',
                             returnScreen: 'blacksmith', returnData: data,
                             enchantKeyword: keyword, enchantCost: rect.item.cost
@@ -1185,7 +1185,7 @@ export const Input = {
                         refreshBlacksmithStock(runData);
                         data.stock = runData.blacksmithStock;
                         runData.blacksmithRefreshCost += 1;
-                        showPlaceholderToast('铁匠铺已刷新！');
+                        showPlaceholderToast('船坞铺已刷新！');
                         if (typeof GameAudio !== 'undefined') GameAudio.playCardPlace();
                     }
                     return;
@@ -1196,7 +1196,7 @@ export const Input = {
         if (data.backBtnRect && this.hitTest(pos, data.backBtnRect)) {
             runData.blacksmithStock = null;
             if (data.postBattle && runData.pendingEventPool) {
-                // 战后流程：铁匠结束后进入事件
+                // 战后流程：船坞结束后进入事件
                 const eventOptions = generatePostBattleEvents(runData);
                 switchScreen(this.state, 'event', {
                     runData, options: eventOptions, postBattle: true
@@ -1267,40 +1267,40 @@ export const Input = {
 
         switch (effect) {
             case 'buff_card':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: `选择牌组内一张卡牌，数值永久+${param || 5}`,
+                    desc: `选择矿舱内一块矿石，数值永久+${param || 5}`,
                     cards: runData.deck, backText: '离开', selectMode: 'event_buff',
                     returnScreen: 'map', returnData: data, eventParam: param || 5
                 });
                 return;
             case 'enchant_grow':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: '选择一张卡牌，使其获得【成长1】',
+                    desc: '选择一块矿石，使其获得【淬火1】',
                     cards: runData.deck, backText: '离开', selectMode: 'event_enchant_grow',
                     returnScreen: 'map', returnData: data
                 });
                 return;
             case 'gain_gold':
                 runData.gold += (param || 4);
-                showPlaceholderToast(`获得 ${param || 4} 金币！`);
+                showPlaceholderToast(`获得 ${param || 4} 银元！`);
                 this._finishEvent(runData);
                 return;
             case 'gain_souls':
                 runData.gold += (param || 1);
-                showPlaceholderToast(`获得 ${param || 1} 金币！`);
+                showPlaceholderToast(`获得 ${param || 1} 银元！`);
                 this._finishEvent(runData);
                 return;
             case 'gamble':
                 if (Math.random() < 0.5) {
                     runData.gold += 3;
-                    showPlaceholderToast('赌局胜利！获得 3 金币！');
+                    showPlaceholderToast('赌局胜利！获得 3 银元！');
                 } else {
                     runData.gold = Math.max(0, runData.gold - 2);
-                    showPlaceholderToast('赌局失败...失去 2 金币');
+                    showPlaceholderToast('赌局失败...失去 2 银元');
                 }
                 this._finishEvent(runData);
                 return;
@@ -1308,7 +1308,7 @@ export const Input = {
                 {
                     const relic = this._pickRandomRelic(['common']);
                     if (relic) runData.relics.push(relic);
-                    showPlaceholderToast(relic ? `获得遗物：${relic.name}` : '没有可获得的遗物');
+                    showPlaceholderToast(relic ? `获得船体改造：${relic.name}` : '没有可获得的船体改造');
                 }
                 this._finishEvent(runData);
                 return;
@@ -1316,27 +1316,27 @@ export const Input = {
                 {
                     const relic = this._pickRandomRelic(['epic']);
                     if (relic) runData.relics.push(relic);
-                    showPlaceholderToast(relic ? `获得遗物：${relic.name}` : '没有可获得的遗物');
+                    showPlaceholderToast(relic ? `获得船体改造：${relic.name}` : '没有可获得的船体改造');
                 }
                 this._finishEvent(runData);
                 return;
             case 'random_strategy_level':
                 {
-                    // 计策系统已废弃，改为获得1金币
+                    // 叠牌系统已废弃，改为获得1银元
                     runData.gold = (runData.gold || 0) + 1;
-                    showPlaceholderToast('获得1金币');
+                    showPlaceholderToast('获得1银元');
                     this._finishEvent(runData);
                 }
                 return;
             case 'self_blacksmith':
                 {
                     const sbParam = param || { goldCost: 2, slotBonus: 1 };
-                    if (runData.gold < sbParam.goldCost) { showPlaceholderToast('金币不足！'); return; }
+                    if (runData.gold < sbParam.goldCost) { showPlaceholderToast('银元不足！'); return; }
                     runData.gold -= sbParam.goldCost;
                     const availSlots = [0, 1, 2];
                     const randSlot = availSlots[Math.floor(Math.random() * availSlots.length)];
                     runData.slotUpgrades[randSlot] = (runData.slotUpgrades[randSlot] || 0) + sbParam.slotBonus;
-                    showPlaceholderToast(`第${randSlot + 1}格倍率+${sbParam.slotBonus}！（消耗${sbParam.goldCost}金币）`);
+                    showPlaceholderToast(`第${randSlot + 1}格倍率+${sbParam.slotBonus}！（消耗${sbParam.goldCost}银元）`);
                     this._finishEvent(runData);
                 }
                 return;
@@ -1346,7 +1346,7 @@ export const Input = {
                     const cardInstances = cardDefs.map(defId => createCardInstance(defId));
                     switchScreen(this.state, 'card_select', {
                         runData, title: opt.name || '及时的帮助',
-                        desc: '选择一张卡牌加入牌组',
+                        desc: '选择一块矿石加入矿舱',
                         cards: cardInstances, backText: '放弃', selectMode: 'event_pick_card',
                         returnScreen: 'map', returnData: data
                     });
@@ -1358,16 +1358,16 @@ export const Input = {
                     const card = createCardInstance(defId);
                     if (card) {
                         runData.deck.push(card);
-                        showPlaceholderToast(`获得卡牌：${card.name}`);
+                        showPlaceholderToast(`获得矿石：${card.name}`);
                     }
                     this._finishEvent(runData);
                 }
                 return;
             case 'free_remove_card':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name || '求牌乞丐',
-                    desc: '选择一张牌免费移除',
+                    desc: '选择一块矿石免费移除',
                     cards: runData.deck, backText: '离开', selectMode: 'event_remove_free',
                     returnScreen: 'map', returnData: data
                 });
@@ -1375,19 +1375,19 @@ export const Input = {
             case 'buy_random_relic':
                 {
                     const cost = param || 4;
-                    if (runData.gold < cost) { showPlaceholderToast('金币不足！'); return; }
+                    if (runData.gold < cost) { showPlaceholderToast('银元不足！'); return; }
                     runData.gold -= cost;
                     const relic = this._pickRandomRelic(['common', 'rare', 'epic']);
                     if (relic) runData.relics.push(relic);
-                    showPlaceholderToast(relic ? `获得遗物：${relic.name}` : '没有可获得的遗物');
+                    showPlaceholderToast(relic ? `获得船体改造：${relic.name}` : '没有可获得的船体改造');
                     this._finishEvent(runData);
                 }
                 return;
             case 'transform_card':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name || '乱涂乱画',
-                    desc: '选择一张卡牌随机转换为另一张卡牌',
+                    desc: '选择一块矿石随机转换为另一块矿石',
                     cards: runData.deck, backText: '离开', selectMode: 'event_transform',
                     returnScreen: 'map', returnData: data
                 });
@@ -1401,22 +1401,22 @@ export const Input = {
                             count++;
                         }
                     }
-                    showPlaceholderToast(count > 0 ? `${count} 张成长牌成长2次！` : '牌组中没有成长牌');
+                    showPlaceholderToast(count > 0 ? `${count} 块淬火牌淬火2次！` : '矿舱中没有淬火牌');
                     this._finishEvent(runData);
                 }
                 return;
             case 'enchant_spread':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name || '盲目岩壁',
-                    desc: '选择一张卡牌获得【蔓延】词条',
+                    desc: '选择一块矿石获得【碎屑】词条',
                     cards: runData.deck, backText: '离开', selectMode: 'event_enchant_spread',
                     returnScreen: 'map', returnData: data
                 });
                 return;
             case 'next_monster_hp_down':
                 runData.nextMonsterHpPenalty = (runData.nextMonsterHpPenalty || 0) + (param || 200);
-                showPlaceholderToast(`下一场战斗怪物血量-${param || 200}`);
+                showPlaceholderToast(`下一场战斗敌舰血量-${param || 200}`);
                 this._finishEvent(runData);
                 return;
             case 'next_battle_hearts_plus':
@@ -1427,10 +1427,10 @@ export const Input = {
             case 'next_shop_system':
                 {
                     const systems = ['neutral', 'big_number', 'growth'];
-                    const names = { neutral: '中立', big_number: '大数字', growth: '成长' };
+                    const names = { neutral: '中立', big_number: '大数字', growth: '淬火' };
                     const system = systems[Math.floor(Math.random() * systems.length)];
                     runData.nextShopCardSystem = system;
-                    showPlaceholderToast(`预言家生效：下次商店卡牌刷新为${names[system]}体系`);
+                    showPlaceholderToast(`预言家生效：下次精炼厂矿石刷新为${names[system]}体系`);
                     this._finishEvent(runData);
                 }
                 return;
@@ -1439,8 +1439,8 @@ export const Input = {
                     const options = pickExcavatedRelicOptions()
                         .map(r => ({ name: r.name, desc: r.desc || r.description, effect: 'direct_relic', param: r }));
                     switchScreen(this.state, 'event', {
-                        runData, title: opt.name || '出土遗物',
-                        desc: '选择一件中级遗物',
+                        runData, title: opt.name || '出土船体改造',
+                        desc: '选择一件中阶船体改造',
                         options,
                         returnScreen: 'map', returnData: data
                     });
@@ -1452,10 +1452,10 @@ export const Input = {
                 this._finishEvent(runData);
                 return;
             case 'enchant_mighty':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name || '轻语岩壁',
-                    desc: '选择一张卡牌获得【伟力】词条',
+                    desc: '选择一块矿石获得【熔核】词条',
                     cards: runData.deck, backText: '离开', selectMode: 'event_enchant_mighty',
                     returnScreen: 'map', returnData: data
                 });
@@ -1467,22 +1467,22 @@ export const Input = {
                 this._startEventBattle(runData, 'elite');
                 return;
             case 'remove_for_souls':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: `选择一张卡牌移除，获得 ${param || 3} 金币`,
+                    desc: `选择一块矿石移除，获得 ${param || 3} 银元`,
                     cards: runData.deck, backText: '离开', selectMode: 'event_remove_for_souls',
                     returnScreen: 'map', returnData: data, eventParam: param || 3
                 });
                 return;
             case 'buy_random_card':
-                if (runData.gold < (param || 1)) { showPlaceholderToast('金币不足！'); return; }
+                if (runData.gold < (param || 1)) { showPlaceholderToast('银元不足！'); return; }
                 runData.gold -= (param || 1);
                 const pool = ['war_training', 'brute_force', 'ponder', 'vine_climb', 'clear_mind'];
                 const randomDef = pool[Math.floor(Math.random() * pool.length)];
                 const newCard = createCardInstance(randomDef);
                 runData.deck.push(newCard);
-                showPlaceholderToast(`获得卡牌：${newCard.name}`);
+                showPlaceholderToast(`获得矿石：${newCard.name}`);
                 this._finishEvent(runData);
                 return;
             case 'gain_random_card':
@@ -1490,14 +1490,14 @@ export const Input = {
                 const freeRandomDef = freePool[Math.floor(Math.random() * freePool.length)];
                 const freeCard = createCardInstance(freeRandomDef);
                 runData.deck.push(freeCard);
-                showPlaceholderToast(`获得卡牌：${freeCard.name}`);
+                showPlaceholderToast(`获得矿石：${freeCard.name}`);
                 this._finishEvent(runData);
                 return;
             case 'duplicate_card':
-                if (runData.deck.length === 0) { showPlaceholderToast('牌组为空！'); return; }
+                if (runData.deck.length === 0) { showPlaceholderToast('矿舱为空！'); return; }
                 switchScreen(this.state, 'card_select', {
                     runData, title: opt.name,
-                    desc: '选择牌组内一张卡牌复制加入牌组',
+                    desc: '选择矿舱内一块矿石复制加入矿舱',
                     cards: runData.deck, backText: '离开', selectMode: 'event_duplicate',
                     returnScreen: 'map', returnData: data
                 });
@@ -1505,7 +1505,7 @@ export const Input = {
             case 'direct_relic':
                 if (param) {
                     runData.relics.push(param);
-                    showPlaceholderToast(`获得遗物：${param.name}`);
+                    showPlaceholderToast(`获得船体改造：${param.name}`);
                 }
                 this._finishEvent(runData);
                 return;
@@ -1556,7 +1556,7 @@ export const Input = {
             ? Object.keys(STAGE_CONFIG).filter(k => k === `${runData.act}-7`)
             : Object.keys(STAGE_CONFIG).filter(k => k.startsWith(actPrefix) && STAGE_CONFIG[k].type === type);
         if (stageKeys.length === 0) {
-            showPlaceholderToast('附近没有合适的怪物！');
+            showPlaceholderToast('附近没有合适的敌舰！');
             this._finishEvent(runData);
             return;
         }
@@ -1661,7 +1661,7 @@ export const Input = {
 
     // ===== 战斗输入 =====
     handleBattleMouseDown(pos) {
-        // 检测查看牌组按钮（任何阶段都可点击）
+        // 检测查看矿舱按钮（任何阶段都可点击）
         if (this.state.data && this.state.data.deckViewBtnRect && this.hitTest(pos, this.state.data.deckViewBtnRect)) {
             this.toggleDeckView();
             return;
@@ -1688,7 +1688,7 @@ export const Input = {
             return;
         }
 
-        // 优先检测是否点击了倍率格内的卡牌（入场卡牌拖动）
+        // 优先检测是否点击了铸造台内的矿石（入场矿石拖动）
         const slotCardInfo = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
         if (slotCardInfo && isCardDraggableFromSlot(slotCardInfo.card)) {
             this.isDragging = false;
@@ -1720,7 +1720,7 @@ export const Input = {
     },
 
     handleBattleMouseMove(pos) {
-        // 检测查看牌组按钮悬停
+        // 检测查看矿舱按钮悬停
         if (this.state.data && this.state.data.deckViewBtnRect && this.hitTest(pos, this.state.data.deckViewBtnRect)) {
             this.state.data.hoverDeckViewBtn = true;
             this.canvas.style.cursor = 'pointer';
@@ -1746,7 +1746,7 @@ export const Input = {
             return;
         }
 
-        // 处理入场卡牌拖动
+        // 处理入场矿石拖动
         if (this.isDraggingSlotCard && this.draggedSlotCard) {
             this.state.dragX = pos.x;
             this.state.dragY = pos.y;
@@ -1782,7 +1782,7 @@ export const Input = {
             const isOverPlayer = pos.x >= 0 && pos.x <= 200 && pos.y >= 40 && pos.y <= 240;
             const slotHeader = this._getSlotHeaderAt(pos);
 
-            // 优先检测倍率格内的卡牌悬停（避免被格子悬停抢走）
+            // 优先检测铸造台内的矿石悬停（避免被格子悬停抢走）
             const slotCard = getSlotCardAt(this.renderer, pos.x, pos.y, this.state.slots);
             if (slotCard) {
                 this.state.selectedCard = null;
@@ -1837,7 +1837,7 @@ export const Input = {
                 this.updatePlayerTooltip(pos.x, pos.y);
                 this._playHoverSound();
             } else {
-                // 检测遗物悬停
+                // 检测船体改造悬停
                 const relicHover = this._checkRelicHover(pos);
                 if (relicHover) {
                     this.state.selectedCard = null;
@@ -1848,7 +1848,7 @@ export const Input = {
                     this.updateRelicTooltip(relicHover.relic, pos.x, pos.y);
                     this._playHoverSound();
                 } else {
-                    // 检测计策项悬停
+                    // 检测叠牌项悬停
                     if (this.state.data && this.state.data.strategyRowRects) {
                         for (const row of this.state.data.strategyRowRects) {
                             if (this.hitTest(pos, row)) {
@@ -1992,9 +1992,9 @@ export const Input = {
                 setTimeout(() => {
                     if (this.state.phase !== 'ended') return;
                     if (isWin) {
-                        this.state.message = '💀 击杀成功！自动重置战斗';
+                        this.state.message = '💀 击沉成功！自动重置海战';
                     } else {
-                        this.state.message = '💔 战斗失败！已自动恢复血量';
+                        this.state.message = '💔 海战失败！已自动恢复血量';
                     }
                     this.state.messageTimer = 90;
                     setTimeout(() => {
@@ -2038,7 +2038,7 @@ export const Input = {
                         if (this.state._originalStageIndex !== undefined) {
                             runData.stageIndex = this.state._originalStageIndex;
                         }
-                        showPlaceholderToast(`战斗胜利！获得 ${reward} 金币`);
+                        showPlaceholderToast(`战斗胜利！获得 ${reward} 银元`);
                         this._finishEvent(runData);
                         return;
                     }
@@ -2083,7 +2083,7 @@ export const Input = {
         const rColor = rarityColors[card.rarity] || '#ccc';
 
         let html = `<h4>${card.name} <span style="color:${rColor};font-size:13px;font-weight:normal">[${rLabel}]</span></h4>`;
-        html += `<p>基础点数: <b>${getCardBaseValue(card)}</b> | 尺寸: ${card.size}格</p>`;
+        html += `<p>基础强度: <b>${getCardBaseValue(card)}</b> | 尺寸: ${card.size}格</p>`;
         html += `<p style="color:#ddd">${card.description}</p>`;
         if (card.keywords && card.keywords.length > 0) {
             html += '<div style="margin-top:10px;border-top:1px solid #443322;padding-top:8px">';
@@ -2117,7 +2117,7 @@ export const Input = {
         const tooltip = document.getElementById('tooltip');
         const monster = this.state.monster;
         let html = `<h4>${monster.name}</h4>`;
-        html += `<p>类型: ${monster.type === 'boss' ? 'BOSS' : monster.type === 'elite' ? '精英' : '普通'} | HP: ${monster.hp}/${monster.maxHp}</p>`;
+        html += `<p>类型: ${monster.type === 'boss' ? 'BOSS' : monster.type === 'elite' ? '私掠舰' : '普通'} | HP: ${monster.hp}/${monster.maxHp}</p>`;
         html += `<p>${monster.description}</p>`;
         if (monster.keywordDesc) {
             html += `<p style="color:#ffaaaa;margin-top:6px;">☠️ ${monster.keywordDesc}</p>`;
@@ -2135,9 +2135,9 @@ export const Input = {
         const slot = this.state.slots[slotIdx];
         const totalCards = slot.cards.length;
         const effMul = getSlotEffectiveMultiplier(slot, this.state);
-        let html = `<h4>倍率格 ${slotIdx + 1}</h4>`;
+        let html = `<h4>铸造台 ${slotIdx + 1}</h4>`;
         html += `<p>当前倍率: <b style="color:#ffd700">${effMul}X</b></p>`;
-        html += `<p>当前驻场: <b style="color:#ffcc88">${totalCards}</b> 张</p>`;
+        html += `<p>当前驻台: <b style="color:#ffcc88">${totalCards}</b> 块</p>`;
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 300);
@@ -2151,14 +2151,14 @@ export const Input = {
         const bd = getCardDamageBreakdown(card, slotIdx, this.state);
         const state = this.state;
 
-        // ===== 上半侧：卡牌效果 =====
+        // ===== 上半侧：矿石效果 =====
         const rarityLabels = { white: '普通', blue: '稀有', gold: '传说' };
         const rarityColors = { white: '#ccc', blue: '#4488ff', gold: '#ffd700' };
         const rLabel = rarityLabels[card.rarity] || '';
         const rColor = rarityColors[card.rarity] || '#ccc';
 
         let html = `<h4>${card.name} <span style="color:${rColor};font-size:13px;font-weight:normal">[${rLabel}]</span></h4>`;
-        html += `<p>基础点数: <b>${bd.baseValue}</b> | 尺寸: ${card.size}格 | 格${slotIdx + 1}</p>`;
+        html += `<p>基础强度: <b>${bd.baseValue}</b> | 尺寸: ${card.size}格 | 格${slotIdx + 1}</p>`;
         html += `<p style="color:#ddd">${card.description}</p>`;
 
         if (card.keywords && card.keywords.length > 0) {
@@ -2182,17 +2182,17 @@ export const Input = {
         // ===== 下半侧：伤害计算 =====
         html += `<p style="font-size:13px;color:#ffd700;font-weight:bold;margin-bottom:8px">伤害计算</p>`;
 
-        // --- 阶段1：有效点数 ---
+        // --- 阶段1：有效强度 ---
         const effectiveSteps = bd.steps.filter(s => s.phase === 'effective');
-        const otherEffSteps = effectiveSteps.filter(s => s.source !== '基础点数');
+        const otherEffSteps = effectiveSteps.filter(s => s.source !== '基础强度');
 
-        // 基础点数
+        // 基础强度
         html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
-        html += `<span style="color:#ccc">基础点数</span>`;
+        html += `<span style="color:#ccc">基础强度</span>`;
         html += `<span style="color:#fff;font-weight:bold">${bd.baseValue}</span>`;
         html += `</div>`;
 
-        // 有效点数阶段的各个加成
+        // 有效强度阶段的各个加成
         for (const step of otherEffSteps) {
             const isPositive = step.amount >= 0;
             const color = isPositive ? '#2ecc71' : '#ff6666';
@@ -2200,7 +2200,7 @@ export const Input = {
 
             let sourceName = step.source;
 
-            // 特殊处理奉献效果，显示来源卡牌名
+            // 特殊处理预热效果，显示来源矿石名
             if (step.detail === 'dedicate_aura') {
                 const slot = state.slots[slotIdx];
                 const cards = slot.cards;
@@ -2208,7 +2208,7 @@ export const Input = {
                 if (myIdx > 0) {
                     const belowCard = cards[myIdx - 1];
                     if (belowCard.keywords.includes('dedicate')) {
-                        sourceName = `奉献（${belowCard.name}）`;
+                        sourceName = `预热（${belowCard.name}）`;
                     }
                 }
             } else if (step.detail === 'yellow_domain_aura') {
@@ -2229,15 +2229,15 @@ export const Input = {
             html += `</div>`;
         }
 
-        // 有效点数小计
+        // 有效强度小计
         if (otherEffSteps.length > 0) {
             html += `<div style="border-top:1px dashed #554433;margin:4px 0;padding-top:4px;display:flex;justify-content:space-between">`;
-            html += `<span style="color:#ccc;font-size:12px">有效点数</span>`;
+            html += `<span style="color:#ccc;font-size:12px">有效强度</span>`;
             html += `<span style="color:#ffd700;font-weight:bold">${bd.effectiveValue}</span>`;
             html += `</div>`;
         }
 
-        // --- 阶段2：最终点数 ---
+        // --- 阶段2：最终强度 ---
         const finalSteps = bd.steps.filter(s => s.phase === 'final');
 
         if (finalSteps.length > 0) {
@@ -2245,7 +2245,7 @@ export const Input = {
 
             for (const step of finalSteps) {
                 if (step.operation === 'multiply') {
-                    // 乘法效果（如伟力翻倍）
+                    // 乘法效果（如熔核翻倍）
                     html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
                     html += `<span style="color:#aaa">× ${step.source}</span>`;
                     html += `<span style="color:#ffaa44">×2</span>`;
@@ -2262,7 +2262,7 @@ export const Input = {
             }
 
             html += `<div style="border-top:1px dashed #554433;margin:4px 0;padding-top:4px;display:flex;justify-content:space-between">`;
-            html += `<span style="color:#ccc;font-size:12px">最终点数</span>`;
+            html += `<span style="color:#ccc;font-size:12px">最终强度</span>`;
             html += `<span style="color:#ffd700;font-weight:bold">${bd.finalValue}</span>`;
             html += `</div>`;
             html += `</div>`;
@@ -2295,7 +2295,7 @@ export const Input = {
         html += `<div style="margin-top:8px;border-top:1px solid #554433;padding-top:8px">`;
 
         html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px">`;
-        html += `<span style="color:#ccc">最终点数 × 最终倍率</span>`;
+        html += `<span style="color:#ccc">最终强度 × 最终倍率</span>`;
         html += `<span style="color:#fff">${bd.finalValue} × ${bd.slotMultiplier} = <b style="color:#ffd700">${bd.cardOutput}</b></span>`;
         html += `</div>`;
 
@@ -2329,10 +2329,10 @@ export const Input = {
         const remaining = Math.max(0, state.monster.hp - totalDmg);
         let html = `<h4>结束回合</h4>`;
         if (totalDmg >= state.monster.hp) {
-            html += `<p style="color:#2ecc71">💀 伤害足够击杀怪物！</p>`;
+            html += `<p style="color:#2ecc71">💀 伤害足够击杀敌舰！</p>`;
         } else {
             html += `<p>本回合伤害: <b>${totalDmg}</b></p>`;
-            html += `<p>怪物剩余: <b style="color:#ff6666">${remaining}</b> HP</p>`;
+            html += `<p>敌舰剩余: <b style="color:#ff6666">${remaining}</b> HP</p>`;
             html += `<p style="color:#ff6666;margin-top:4px">⚠️ 未击杀将失去 1 生命值</p>`;
         }
         tooltip.innerHTML = html;
@@ -2348,7 +2348,7 @@ export const Input = {
         const player = this.state.player;
         let html = `<h4>${player.name}</h4>`;
         html += `<p>❤️ 生命: ${player.hearts}/${player.maxHearts}</p>`;
-        html += `<p>🏛️ 遗物: <b style="color:#cc9955">${(this.state.runDataRef?.relics?.length || 0)} 件</b></p>`;
+        html += `<p>🏛️ 船体改造: <b style="color:#cc9955">${(this.state.runDataRef?.relics?.length || 0)} 件</b></p>`;
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
         const x = Math.min(clientX + 20, window.innerWidth - 300);
@@ -2397,7 +2397,7 @@ export const Input = {
         if (item.type === 'buy_relic') {
             html = `<h4>${item.data.name}</h4><p>${item.data.desc}</p>`;
         } else if (item.type === 'upgrade_slot') {
-            html = `<h4>强化倍率格：${item.name}</h4><p>将该格子的倍率永久+1</p>`;
+            html = `<h4>强化铸造台：${item.name}</h4><p>将该格子的倍率永久+1</p>`;
         } else if (item.type === 'enchant') {
             html = `<h4>${item.name}</h4><p>${item.subText}</p>`;
         } else if (item.type === 'refresh') {
@@ -2463,7 +2463,7 @@ export const Input = {
         const screen = state.screen;
         const runData = state.runDataRef || (state.data && state.data.runData);
         if (!runData) return false;
-        // 在以下界面可以查看牌组
+        // 在以下界面可以查看矿舱
         const allowedScreens = ['battle', 'map', 'shop', 'blacksmith', 'event', 'treasure', 'post_battle', 'card_pick', 'boss_relic', 'act_transition', 'card_select'];
         return allowedScreens.includes(screen);
     },

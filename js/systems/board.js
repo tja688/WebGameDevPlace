@@ -1,10 +1,10 @@
 /**
- * 生死烛局 - 牌桌系统（第二版）
- * 
+ * Heave! - 牌桌系统（第二版）
+ *
  * 负责：
- * 1. 卡牌放置规则校验
- * 2. 打出卡牌（触发效果系统）
- * 3. 伤害计算（含计策加成）
+ * 1. 矿石放置规则校验
+ * 2. 投矿（触发效果系统）
+ * 3. 伤害计算（含叠牌加成）
  * 4. 放置预览
  */
 
@@ -55,7 +55,7 @@ export function getCardFinalValue(card, state) {
     });
     FX.fire(Trigger.ON_CALC_FINAL, ctx);
 
-    // 叠牌加成：所在格卡牌点数
+    // 叠牌加成：所在格矿石点数
     const slotIndex = ctx.getCardSlotIndex ? ctx.getCardSlotIndex(card) : -1;
     if (slotIndex >= 0) {
         const slot = state.slots[slotIndex];
@@ -69,7 +69,7 @@ export function getCardFinalValue(card, state) {
 export function getSlotEffectiveMultiplier(slot, state) {
     let mul = slot.multiplier + (slot.roundMultiplierBonus || 0);
 
-    // 叠牌加成：倍率格点数
+    // 叠牌加成：铸造台点数
     const stacking = getStackingBonus(slot.cards.length);
     mul += stacking.slotBonus;
 
@@ -81,7 +81,7 @@ export function getSlotEffectiveMultiplier(slot, state) {
     return ctx.value;
 }
 
-// ===== 计策加成计算（已废弃，计策系统改为叠牌加成）=====
+// ===== 叠牌加成计算（已废弃，叠牌系统改为熔炼加成）=====
 
 export function getStrategySlotBonuses(state) {
     state.currentStrategy = null;
@@ -106,7 +106,7 @@ export function calculateTotalBoardDamage(state) {
         }
         total += slotDamage * slotMul;
     }
-    // 额外指数（遗物加成等）
+    // 额外指数（船体改造加成等）
     let extraMultiplier = state.runDataRef?.extraMultiplier || 1;
 
     return Math.floor(total * extraMultiplier);
@@ -119,17 +119,17 @@ export function canPlaceCard(card, slot, state) {
         return { ok: false, reason: '多格卡暂未实现' };
     }
     if (card.retainDisabledThisTurn) {
-        return { ok: false, reason: '该卡牌本回合被禁用' };
+        return { ok: false, reason: '该矿石本回合被禁用' };
     }
     return { ok: true };
 }
 
-// ===== 判断卡牌是否可二次拖动（持久驻场卡） =====
+// ===== 判断矿石是否可二次拖动（持久驻台矿） =====
 
 export function isCardDraggableFromSlot(card) {
-    // 扩散牌等一次性效果卡不可拖动
+    // 矿渣牌等一次性效果矿不可拖动
     if (card.defId === 'diffusion') return false;
-    // 标记为不可拖动的衍生卡（如某些怪物生成的临时卡）
+    // 标记为不可拖动的衍生物（如某些敌舰生成的临时矿）
     if (card.isDerived && card.defId === 'cheat_card') return false;
     return true;
 }
@@ -156,7 +156,7 @@ function resolveSlotMove(state, card, fromSlotIndex, toSlotIndex, insertIndex) {
     };
 }
 
-// ===== 移动已入场卡牌 =====
+// ===== 移动已入场矿石 =====
 
 export function moveSlotCard(card, fromSlotIndex, toSlotIndex, insertIndex, state) {
     if (!isCardDraggableFromSlot(card)) return false;
@@ -177,13 +177,13 @@ export function moveSlotCard(card, fromSlotIndex, toSlotIndex, insertIndex, stat
         insertIndex: move.targetIndex
     });
 
-    // 检测计策变化
+    // 检测叠牌变化
     state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
 
     return true;
 }
 
-// ===== 获取拖动预览（用于入场卡牌拖动时的实时计算） =====
+// ===== 获取拖动预览（用于入场矿石拖动时的实时计算） =====
 
 export function getSlotDragPreview(card, fromSlotIndex, toSlotIndex, insertIndex, state) {
     // 创建临时状态副本
@@ -216,7 +216,7 @@ export function getSlotDragPreview(card, fromSlotIndex, toSlotIndex, insertIndex
     };
 }
 
-// ===== 打出卡牌 =====
+// ===== 投矿 =====
 
 export function playCardToSlot(card, slotIndex, state) {
     const slot = state.slots[slotIndex];
@@ -242,19 +242,19 @@ export function playCardToSlot(card, slotIndex, state) {
         slotIndex
     });
 
-    // 对战记录：出牌事件
+    // 对战记录：投矿事件
     addBattleLog(state, 'play_card', {
         cardName: card.name,
         slotIndex,
         baseValue: card.baseValue || 0,
-        text: `打出【${card.name}】到格${slotIndex + 1}`
+        text: `投矿【${card.name}】到铸造台${slotIndex + 1}`
     });
 
-    // 怪奇舞者——踢踏舞：第一张打出的卡牌随机打出在任意倍率格并留场
+    // 狂浪号——踢踏舞：第一张投出的矿石随机投矿到任意铸造台并驻台
     if (!state.firstCardPlayedThisTurn && state.monster.firstCardRandomSlotRemain) {
         const randomSlot = Math.floor(Math.random() * state.slots.length);
         if (randomSlot !== slotIndex) {
-            // 将卡牌从原slot移到随机slot
+            // 将矿石从原slot移到随机slot
             const oldIdx = slot.cards.findIndex(c => c.uuid === card.uuid);
             if (oldIdx !== -1) {
                 slot.cards.splice(oldIdx, 1);
@@ -268,10 +268,10 @@ export function playCardToSlot(card, slotIndex, state) {
                 toSlot: randomSlot,
                 monsterName: state.monster.name
             });
-            logCombat(state, `${state.monster.name} 的踢踏舞生效：${card.name} 被随机打到了第 ${randomSlot + 1} 格！`);
-            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 踢踏舞：${card.name}→格${randomSlot + 1}` });
+            logCombat(state, `${state.monster.name} 的踢踏舞生效：${card.name} 被随机投矿到了第 ${randomSlot + 1} 铸造台！`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 踢踏舞：${card.name}→铸造台${randomSlot + 1}` });
         }
-        // 赋予留场效果
+        // 赋予驻台效果
         if (!card.keywords.includes('remain')) {
             card.keywords.push('remain');
             card._tempRemainAdded = true;
@@ -279,7 +279,7 @@ export function playCardToSlot(card, slotIndex, state) {
         state.monster.firstCardSlotIndex = randomSlot;
     }
 
-    // 记录本回合第一张打出的牌（用于怪物技能）
+    // 记录本回合第一张投出的矿（用于敌舰技能）
     if (!state.firstCardPlayedThisTurn) {
         state.firstCardPlayedThisTurn = card;
         if (state.monster.firstCardSlotIndex < 0) {
@@ -290,7 +290,7 @@ export function playCardToSlot(card, slotIndex, state) {
         state.firstCardPlayedThisBattle = card;
     }
 
-    // 怪物技能：第一张打出牌直接进弃牌堆（不触发ON_PLAY）
+    // 敌舰技能：第一张投出的矿直接进矿渣堆（不触发ON_PLAY）
     if (state.monster.firstCardDiscard && state.firstCardPlayedThisTurn === card) {
         const idx = slot.cards.findIndex(c => c.uuid === card.uuid);
         if (idx !== -1) {
@@ -303,8 +303,8 @@ export function playCardToSlot(card, slotIndex, state) {
                 slotIndex,
                 monsterName: state.monster.name
             });
-            logCombat(state, `${state.monster.name} 的技能生效：第一张打出的 ${discarded.name} 直接进入弃牌堆！`);
-            addBattleLog(state, 'monster_skill', { text: `${state.monster.name}：${discarded.name}被丢弃` });
+            logCombat(state, `${state.monster.name} 的技能生效：第一张投矿的 ${discarded.name} 直接进入矿渣堆！`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name}：${discarded.name}被丢入矿渣堆` });
             state.slotFlashes.push({ slotIndex, timer: 20 });
             if (typeof GameAudio !== 'undefined') GameAudio.playCardInvalid();
             return true;
@@ -320,7 +320,7 @@ export function playCardToSlot(card, slotIndex, state) {
 
     state.slotFlashes.push({ slotIndex, timer: 20 });
 
-    // 视觉特效：卡牌放置火花
+    // 视觉特效：矿石放置火花
     if (typeof FX !== 'undefined') {
         if (!state.pendingPlaceEffects) state.pendingPlaceEffects = [];
         state.pendingPlaceEffects.push({ slotIndex, color: card.accentColor || '#ffd700' });
@@ -339,10 +339,10 @@ export function playCardToSlot(card, slotIndex, state) {
         }
     }
 
-    // 检测计策变化；条件不满足时必须立刻清空旧计策
+    // 检测叠牌变化；条件不满足时必须立刻清空旧叠牌
     state.currentStrategy = detectStrategy(state.slots, state.runDataRef?.strategyLevels);
 
-    // 蘑菇儿子——孢子云：每打出三张卡牌，打出一张【扩散】到任意倍率格
+    // 孢雾号——孢子云：每投矿三张矿石，投矿一张【矿渣】到任意铸造台
     if (state.monster.playDiffusionEvery3 > 0) {
         state.monster.cardsPlayedThisTurn++;
         if (state.monster.cardsPlayedThisTurn % state.monster.playDiffusionEvery3 === 0) {
@@ -357,8 +357,8 @@ export function playCardToSlot(card, slotIndex, state) {
                     slotIndex: randomSlot,
                     monsterName: state.monster.name
                 });
-                logCombat(state, `${state.monster.name} 的孢子云生效：一张【扩散】被打出到了第 ${randomSlot + 1} 格！`);
-                addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 孢子云：扩散→格${randomSlot + 1}` });
+                logCombat(state, `${state.monster.name} 的孢子云生效：一张【矿渣】被投矿到了第 ${randomSlot + 1} 铸造台！`);
+                addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 孢子云：矿渣→铸造台${randomSlot + 1}` });
                 state.slotFlashes.push({ slotIndex: randomSlot, timer: 20 });
             }
         }

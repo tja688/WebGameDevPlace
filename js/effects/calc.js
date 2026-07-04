@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（重构版）
+ * Heave! - 数值计算效果 (ON_CALC_VALUE / ON_CALC_FINAL)（重构版）
  *
  * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */
@@ -11,7 +11,7 @@ import { Trigger, Priority } from '../core/constants.js';
 
 // ===== ON_CALC_VALUE：计算有效点数（光环、加成阶段） =====
 
-// 奉献（dedicate）光环：所在格中，位于本牌正上方（数组中紧邻下一张）的卡牌获得本牌一半点数
+// 预热（dedicate）光环：所在格中，位于本牌正上方（数组中紧邻下一张）的矿石获得本牌一半点数
 registerEffect({
     id: 'dedicate_aura',
     triggers: Trigger.ON_CALC_VALUE,
@@ -29,7 +29,7 @@ registerEffect({
         const cards = slot.cards;
         const myIdx = cards.findIndex(c => c.uuid === ctx.card.uuid);
         if (myIdx < 0) return;
-        // 检查本牌正下方（数组中紧邻前一张）是否有奉献牌
+        // 检查本牌正下方（数组中紧邻前一张）是否有预热矿石
         if (myIdx === 0) return;
         const belowCard = cards[myIdx - 1];
         if (!belowCard.keywords.includes('dedicate')) return;
@@ -40,7 +40,7 @@ registerEffect({
         if (bonus > 0) {
             const isPermanentDedicate = ctx.state.runDataRef?.relics?.some(r => r.effect?.type === 'dedicate_permanent' && (!disabledKey || (r.id || r.name) !== disabledKey));
             if (isPermanentDedicate) {
-                // 永久奉献：通过永久加成实现（光环阶段只加一次，避免重复）
+                // 永久预热：通过永久加成实现（光环阶段只加一次，避免重复）
                 // 为了避免每次计算都累加，使用一个标记记录已应用
                 if (!ctx.card._dedicatePermanentApplied) {
                     ctx.card._dedicatePermanentApplied = [];
@@ -57,7 +57,7 @@ registerEffect({
     }
 });
 
-// 黄色领域（yellow_domain）光环：无奉献词条的卡牌，其上方卡牌获得-1/2点数
+// 黄色领域（yellow_domain）光环：无预热特性的矿石，其上方矿石获得-1/2点数
 registerEffect({
     id: 'yellow_domain_aura',
     triggers: Trigger.ON_CALC_VALUE,
@@ -137,7 +137,7 @@ registerEffect({
 
 // ===== ON_CALC_FINAL：计算最终点数（翻倍、惩罚阶段） =====
 
-// 伟力（mighty）：将本牌点数翻倍
+// 熔核（mighty）：将本牌点数翻倍
 registerEffect({
     id: 'mighty',
     triggers: Trigger.ON_CALC_FINAL,
@@ -148,7 +148,7 @@ registerEffect({
     }
 });
 
-// 最左最右格-5（怪物技能）
+// 最左最右格-5（敌舰技能）
 registerEffect({
     id: 'edge_penalty_5',
     triggers: Trigger.ON_CALC_FINAL,
@@ -165,7 +165,7 @@ registerEffect({
     }
 });
 
-// 最左格-10（怪物技能）
+// 最左格-10（敌舰技能）
 registerEffect({
     id: 'left_penalty_10',
     triggers: Trigger.ON_CALC_FINAL,
@@ -182,7 +182,7 @@ registerEffect({
     }
 });
 
-// 数值最高倍率格-1（怪物技能）
+// 数值最高铸造台-1（敌舰技能）
 registerEffect({
     id: 'max_slot_penalty',
     triggers: Trigger.ON_SLOT_CALC,
@@ -205,7 +205,7 @@ registerEffect({
     }
 });
 
-// 数值最低倍率格-1（怪物技能）
+// 数值最低铸造台-1（敌舰技能）
 registerEffect({
     id: 'min_slot_penalty',
     triggers: Trigger.ON_SLOT_CALC,
@@ -228,7 +228,7 @@ registerEffect({
     }
 });
 
-// 每回合第一张打出牌点数-5（怪物技能）
+// 每回合第一张打出矿石点数-5（敌舰技能）
 registerEffect({
     id: 'first_card_value_penalty',
     triggers: Trigger.ON_CALC_FINAL,
@@ -244,7 +244,7 @@ registerEffect({
     }
 });
 
-// 骷髅骑士——亡者：所有卡牌点数-2
+// 铁甲私掠舰——铁甲：所有矿石点数-2
 registerEffect({
     id: 'all_card_penalty_2',
     triggers: Trigger.ON_CALC_FINAL,
@@ -256,7 +256,7 @@ registerEffect({
     }
 });
 
-// 骷髅骑士——惊人伟力：无计策生效时，倍率格点数-10（计策系统已废弃，此效果不再触发）
+// 铁甲私掠舰——破阵号角：无计策生效时，铸造台点数-10（计策系统已废弃，此效果不再触发）
 registerEffect({
     id: 'no_strategy_slot_penalty_10',
     triggers: Trigger.ON_SLOT_CALC,
@@ -265,7 +265,7 @@ registerEffect({
     execute: () => {}
 });
 
-// 骷髅骑士——武技：上回合计策再次生效时，倍率格点数-5（计策系统已废弃，此效果不再触发）
+// 铁甲私掠舰——武技：上回合计策再次生效时，铸造台点数-5（计策系统已废弃，此效果不再触发）
 registerEffect({
     id: 'prev_strategy_penalty_5',
     triggers: Trigger.ON_SLOT_CALC,
@@ -274,7 +274,7 @@ registerEffect({
     execute: () => {}
 });
 
-// 独臂巨人——左侧虚弱：最左侧倍率格点数+1
+// 碎舷号——左舷薄弱：最左侧铸造台点数+1
 registerEffect({
     id: 'left_slot_bonus_1',
     triggers: Trigger.ON_SLOT_CALC,
@@ -285,7 +285,7 @@ registerEffect({
     }
 });
 
-// 独臂巨人——中丢石：打出在最中间倍率格上的卡牌点数-5
+// 碎舷号——船首重甲：打出在最中间铸造台上的矿石点数-5
 registerEffect({
     id: 'center_card_penalty_5',
     triggers: Trigger.ON_CALC_FINAL,
@@ -303,7 +303,7 @@ registerEffect({
     }
 });
 
-// 怪奇舞者——战舞：没打出在每回合第一张卡牌所在倍率格的卡牌点数-5
+// 狂浪号——战舞：没打出在每回合第一张矿石所在铸造台的矿石点数-5
 registerEffect({
     id: 'not_first_slot_penalty_5',
     triggers: Trigger.ON_CALC_FINAL,
@@ -325,7 +325,7 @@ registerEffect({
 
 // ===== 新增卡牌计算效果 =====
 
-// 战旗（battle_banner）：相邻两侧倍率格卡牌点数+5
+// 锚章（anchor_badge）：相邻两侧铸造台矿石点数+5
 registerEffect({
     id: 'battle_banner_aura',
     triggers: Trigger.ON_CALC_VALUE,
@@ -340,7 +340,7 @@ registerEffect({
         const targetSlot = ctx.getCardSlotIndex(ctx.card);
         for (const slot of ctx.state.slots) {
             if (Math.abs(slot.index - targetSlot) === 1) {
-                const banners = slot.cards.filter(c => c.defId === 'battle_banner');
+                const banners = slot.cards.filter(c => c.defId === 'anchor_badge');
                 if (banners.length > 0) {
                     ctx.value += 5 * banners.length;
                 }
@@ -349,7 +349,7 @@ registerEffect({
     }
 });
 
-// 完美借力（perfect_borrow）：获得相邻两侧倍率格点数最高卡牌之和
+// 完美借力（perfect_borrow）：获得相邻两侧铸造台点数最高矿石之和
 registerEffect({
     id: 'perfect_borrow_effect',
     triggers: Trigger.ON_CALC_FINAL,
@@ -376,12 +376,12 @@ registerEffect({
     }
 });
 
-// 一人成军（one_man_army）：获得当前抽牌堆内所有卡牌点数之和
+// 独钻（solo_drill）：获得当前矿舱内所有矿石点数之和
 registerEffect({
     id: 'one_man_army_effect',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_MIGHTY - 1,
-    condition: (ctx) => ctx.card && ctx.card.defId === 'one_man_army',
+    condition: (ctx) => ctx.card && ctx.card.defId === 'solo_drill',
     execute: (ctx) => {
         let total = 0;
         for (const c of ctx.state.deck) {
@@ -390,25 +390,25 @@ registerEffect({
         }
         ctx.value += total;
         if (total > 0) {
-            ctx.log(`${ctx.card.name} 一人成军触发，获得当前抽牌堆点数之和 ${total}`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 一人成军：+${total}` });
+            ctx.log(`${ctx.card.name} 独钻触发，获得当前矿舱点数之和 ${total}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 独钻：+${total}` });
         }
     }
 });
 
-// 训练成果（training_result）：本局每打出过一张成长牌，点数+2
+// 淬火成果（quench_result）：本局每打出过一块淬火矿石，点数+2
 registerEffect({
     id: 'training_result_effect',
     triggers: Trigger.ON_CALC_FINAL,
     priority: Priority.VALUE_AURA + 4,
-    condition: (ctx) => ctx.card && ctx.card.defId === 'training_result',
+    condition: (ctx) => ctx.card && ctx.card.defId === 'quench_result',
     execute: (ctx) => {
         const count = ctx.state.runDataRef?.growthCardsPlayedThisRun || 0;
         if (count > 0) {
             const bonus = count * 2;
             ctx.value += bonus;
-            ctx.log(`${ctx.card.name} 训练成果触发，本局已打出${count}张成长牌，点数+${bonus}`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 训练成果：+${bonus}` });
+            ctx.log(`${ctx.card.name} 淬火成果触发，本局已打出${count}块淬火矿石，点数+${bonus}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 淬火成果：+${bonus}` });
         }
     }
 });

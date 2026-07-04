@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 商店与库存数据（第二版）
+ * Heave! - 精炼厂与库存数据（第二版）
  *
  * 经济系统按 6.经济系统.md 实现
  */
@@ -81,9 +81,9 @@ const CARD_SYSTEM_POOLS = {
 };
 
 /**
- * 创建商店库存
- * - 5张卡牌可选
- * - 3件遗物可选
+ * 创建精炼厂库存
+ * - 5张矿石可选
+ * - 3件船体改造可选
  */
 export function createShopStock(runData = null) {
     const cards = [];
@@ -124,12 +124,12 @@ export function createShopStock(runData = null) {
 }
 
 /**
- * 创建铁匠库存
- * - 不卖遗物（第二版设计）
- * - 附魔词条选项（2个随机词条，本铁匠每个词条只能敲一次）
+ * 创建船坞库存
+ * - 不卖船体改造（第二版设计）
+ * - 附魔词条选项（2个随机词条，本船坞每个词条只能敲一次）
  */
 export function createBlacksmithStock(excludeEnchantKeywords = []) {
-    // 第二版：铁匠不卖遗物
+    // 第二版：船坞不卖船体改造
     const relics = [];
 
     // 附魔词条：提供两个不重复选项，刷新时尽量避开上一组

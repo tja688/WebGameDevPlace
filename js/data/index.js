@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 数据层统一入口
+ * Heave! - 数据层统一入口
  * 
  * 所有游戏静态数据和数据工厂函数从此导出
  */
@@ -76,7 +76,7 @@ export function clearDataOverrides() {
 }
 
 /**
- * 创建卡牌实例
+ * 创建矿石实例
  */
 export function createCardInstance(defId) {
     const def = CARD_DEFS[defId];
@@ -105,18 +105,18 @@ export function createCardInstance(defId) {
 }
 
 /**
- * 给卡牌添加词条，统一处理重复和词条上限。
+ * 给矿石添加词条，统一处理重复和词条上限。
  */
 export function addKeywordToCard(card, keyword, options = {}) {
     if (!card || !keyword) {
-        return { ok: false, reason: '缺少卡牌或词条' };
+        return { ok: false, reason: '缺少矿石或词条' };
     }
     if (!card.keywords) card.keywords = [];
     if (card.keywords.includes(keyword)) {
-        return { ok: false, reason: '该卡牌已有相同词条' };
+        return { ok: false, reason: '该矿石已有相同词条' };
     }
     if (card.keywords.length >= MAX_KEYWORDS_PER_CARD) {
-        return { ok: false, reason: `该卡牌词条已达上限（${MAX_KEYWORDS_PER_CARD}个）` };
+        return { ok: false, reason: `该矿石词条已达上限（${MAX_KEYWORDS_PER_CARD}个）` };
     }
 
     card.keywords.push(keyword);
@@ -131,7 +131,7 @@ export function addKeywordToCard(card, keyword, options = {}) {
 }
 
 /**
- * 根据职业定义创建初始牌组
+ * 根据职业定义创建初始矿舱
  */
 export function createDeck(classDef) {
     const deck = [];

@@ -16,9 +16,9 @@ export const TUTORIAL_GROUPS = {
     intro: {
         steps: [
             {
-                title: '欢迎来到生死烛局',
+                title: '欢迎来到Heave!',
                 body: [
-                    '欢迎来到《生死烛局》原型验证测试！目前版本仅为玩法验证，画面表现与正式demo会有较大差距，还请多多包涵。正式版本正在引擎内努力开发中，你的意见将是我们最宝贵的财富，祝你游玩愉快！'
+                    '欢迎来到《Heave!》原型验证测试！目前版本仅为玩法验证，画面表现与正式demo会有较大差距，还请多多包涵。正式版本正在引擎内努力开发中，你的意见将是我们最宝贵的财富，祝你游玩愉快！'
                 ],
                 panel: 'center',
                 wide: true
@@ -28,25 +28,25 @@ export const TUTORIAL_GROUPS = {
     battle_turn_1: {
         steps: [
             {
-                title: '怪物区',
+                title: '敌舰区',
                 body: [
-                    '怪物的血量和特殊技能在此显示。累积点数超越血量即可击杀。'
+                    '敌舰的血量和特殊技能在此显示。累积强度超越血量即可击杀。'
                 ],
                 targets: ['monster'],
                 panel: 'bottom'
             },
             {
-                title: '放置区',
+                title: '铸造台',
                 body: [
-                    '将卡牌拖动到此处打出。随着卡牌放置数量增加，会提供倍率和点数加成，具体规则见左侧提示。'
+                    '将矿石拖动到此处投入。随着矿石熔炼数量增加，会提供倍率和强度加成，具体规则见左侧提示。'
                 ],
                 targets: ['board'],
                 panel: 'left'
             },
             {
-                title: '手牌区',
+                title: '精炼盘',
                 body: [
-                    '每回合抽取的卡牌。点击拖动到放置区打出，点回合结束结算。'
+                    '每回合抽取的矿石。点击拖动到铸造台投入，点回合结束结算。'
                 ],
                 targets: ['hand'],
                 panel: 'top'
@@ -65,10 +65,10 @@ export const TUTORIAL_GROUPS = {
     shop_first: {
         steps: [
             {
-                title: '商店用于战后强化',
+                title: '精炼厂用于战后强化',
                 body: [
-                    '击败普通怪物后总是会进入商店，这里提供各种方面的强化手段（目前遗物没有效果请不要买）。',
-                    '合理安排自己获得的金币强化自己是取胜的关键。'
+                    '击败普通敌舰后总是会进入精炼厂，这里提供各种方面的强化手段（目前船体改造没有效果请不要买）。',
+                    '合理安排自己获得的银元强化自己是取胜的关键。'
                 ],
                 targets: ['shop_goods', 'shop_services'],
                 panel: 'bottom'
@@ -80,7 +80,7 @@ export const TUTORIAL_GROUPS = {
             {
                 title: '事件选择',
                 body: [
-                    '在商店结束后，还会有一次事件选择，选择你喜欢的强化来就可以了。'
+                    '在精炼厂结束后，还会有一次事件选择，选择你喜欢的强化来就可以了。'
                 ],
                 targets: ['event_options'],
                 panel: 'bottom'

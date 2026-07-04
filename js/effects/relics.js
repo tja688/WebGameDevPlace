@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 遗物效果系统
+ * Heave! - 遗物效果系统
  *
  * 所有遗物效果通过 registerEffect 注册到对应触发时机。
  * 遍历 runData.relics 数组来判断玩家拥有哪些遗物。
@@ -24,7 +24,7 @@ function getRelic(state, effectType) {
     return getPlayerRelics(state).find(r => r.effect?.type === effectType);
 }
 
-// ===== 1. 稳固中心/右翼/左翼：指定倍率格点数+1 =====
+// ===== 1. 稳固中心/右翼/左翼：指定铸造台点数+1 =====
 registerEffect({
     id: 'relic_slot_bonus',
     triggers: Trigger.ON_SLOT_CALC,
@@ -42,7 +42,7 @@ registerEffect({
     }
 });
 
-// ===== 2. 优秀中心/左翼/右翼：指定格卡牌点数+5 =====
+// ===== 2. 优秀中心/左翼/右翼：指定铸造台矿石点数+5 =====
 registerEffect({
     id: 'relic_slot_card_bonus',
     triggers: Trigger.ON_CALC_VALUE,
@@ -62,7 +62,7 @@ registerEffect({
     }
 });
 
-// ===== 3. 中心/左翼/右翼战术：指定格堆叠大于阈值时倍率点数+1 =====
+// ===== 3. 中心/左翼/右翼战术：指定铸造台堆叠大于阈值时倍率点数+1 =====
 registerEffect({
     id: 'relic_crowd_slot_bonus_single',
     triggers: Trigger.ON_SLOT_CALC,
@@ -81,7 +81,7 @@ registerEffect({
     }
 });
 
-// ===== 4. 持续作战：每回合第一张卡牌点数+10 =====
+// ===== 4. 持续作战：每回合第一张矿石点数+10 =====
 registerEffect({
     id: 'relic_first_card_per_turn_bonus',
     triggers: Trigger.ON_CALC_FINAL,
@@ -98,7 +98,7 @@ registerEffect({
     }
 });
 
-// ===== 5. 闪电战：每场战斗第一张卡牌点数+20 =====
+// ===== 5. 闪电战：每场海战第一张矿石点数+20 =====
 registerEffect({
     id: 'relic_first_card_per_battle_bonus',
     triggers: Trigger.ON_CALC_FINAL,
@@ -115,7 +115,7 @@ registerEffect({
     }
 });
 
-// ===== 6. 保留重心：每场战斗第一张带保留词条的卡牌点数+20 =====
+// ===== 6. 余烬重心：每场海战第一张带余烬特性的矿石点数+20 =====
 registerEffect({
     id: 'relic_first_retain_bonus_mark',
     triggers: Trigger.ON_PLAY,
@@ -128,7 +128,7 @@ registerEffect({
     },
     execute: (ctx) => {
         ctx.state.firstRetainBonusCardUuid = ctx.card.uuid;
-        ctx.log(`保留重心锁定：${ctx.card.name}`);
+        ctx.log(`余烬重心锁定：${ctx.card.name}`);
     }
 });
 
@@ -148,7 +148,7 @@ registerEffect({
     }
 });
 
-// ===== 7. 无脑战术：未触发计策时所有倍率格点数+2（计策系统已废弃，改为常驻+2）=====
+// ===== 7. 无脑战术：未触发计策时所有铸造台点数+2（计策系统已废弃，改为常驻+2）=====
 registerEffect({
     id: 'relic_no_strategy_slot_bonus',
     triggers: Trigger.ON_SLOT_CALC,
@@ -161,7 +161,7 @@ registerEffect({
     }
 });
 
-// ===== 8. 高级镭射枪/多叠：每回合减少怪物血量50 =====
+// ===== 8. 高级镭射枪/多叠：每回合减少敌舰装甲50 =====
 registerEffect({
     id: 'relic_turn_monster_damage',
     triggers: Trigger.ON_TURN_START,
@@ -181,7 +181,7 @@ registerEffect({
             hpAfter: ctx.state.monster.hp,
             reason: 'relic_turn_monster_damage'
         });
-        ctx.log(`高级镭射枪生效：怪物受到 ${totalDamage} 点伤害`);
+        ctx.log(`高级镭射枪生效：敌舰受到 ${totalDamage} 点伤害`);
         if (ctx.state.monster.hp <= 0 && ctx.state.phase === 'playing') {
             ctx.state.phase = 'ended';
             ctx.state.result = 'win';
@@ -191,7 +191,7 @@ registerEffect({
     }
 });
 
-// ===== 9. 省吃俭用：每场战斗第一张卡牌获得留场 =====
+// ===== 9. 省吃俭用：每场海战第一张矿石获得驻台 =====
 registerEffect({
     id: 'relic_first_card_remain',
     triggers: Trigger.ON_PLAY,
@@ -208,11 +208,11 @@ registerEffect({
             ctx.card.keywords = [...ctx.card.keywords, 'remain'];
             ctx.card._tempRemainAdded = true;
         }
-        ctx.log(`省吃俭用生效：${ctx.card.name} 获得留场`);
+        ctx.log(`省吃俭用生效：${ctx.card.name} 获得驻台`);
     }
 });
 
-// ===== 10. 绝境发力：第三回合开始抽一张牌 =====
+// ===== 10. 绝境发力：第三回合开始抽取一块矿石 =====
 registerEffect({
     id: 'relic_third_turn_draw',
     triggers: Trigger.ON_TURN_START,
@@ -223,11 +223,11 @@ registerEffect({
     },
     execute: (ctx) => {
         drawCards(ctx.state, 1);
-        ctx.log('绝境发力生效：第三回合抽一张牌');
+        ctx.log('绝境发力生效：第三回合抽取一块矿石');
     }
 });
 
-// ===== 11. 抽一张（高级遗物）：每回合多抽一张牌 =====
+// ===== 11. 抽取一块（高级遗物）：每回合多抽取一块矿石 =====
 registerEffect({
     id: 'relic_extra_draw',
     triggers: Trigger.ON_TURN_START,
@@ -246,7 +246,7 @@ registerEffect({
         }
         if (totalDraw > 0) {
             drawCards(ctx.state, totalDraw);
-            ctx.log(`抽一张生效：额外抽 ${totalDraw} 张牌`);
+            ctx.log(`抽取一块生效：额外抽取 ${totalDraw} 块矿石`);
         }
     }
 });

@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 效果系统核心（重构版）
+ * Heave! - 效果系统核心（重构版）
  *
  * 设计哲学：
  * 1. 无 class、无 Map、无 Set —— 纯对象 + 数组 + 函数
@@ -93,7 +93,7 @@ export function fireEffects(trigger, ctx) {
         }
     }
 
-    // 回响：ON_PLAY 时，若卡牌有 echo 词条，效果再触发一次
+    // 重铸：ON_PLAY 时，若矿石有 echo 词条，效果再触发一次
     if (trigger === Trigger.ON_PLAY && ctx.card && ctx.card.keywords.includes('echo')) {
         for (const h of handlers) {
             if (ctx.cancelled) break;
@@ -117,8 +117,8 @@ export function fireEffects(trigger, ctx) {
 }
 
 /**
- * 获取某张卡牌应触发的所有效果ID（基于关键词和专属效果）
- * @param {object} card - 卡牌实例（纯对象）
+ * 获取某张矿石应触发的所有效果ID（基于关键词和专属效果）
+ * @param {object} card - 矿石实例（纯对象）
  * @returns {string[]}
  */
 export function getCardEffectIds(card) {
@@ -176,7 +176,7 @@ export function createEffectContext({
             }
         },
 
-        /** 获取卡牌当前所在格子索引 */
+        /** 获取矿石当前所在格子索引 */
         getCardSlotIndex(targetCard = this.card) {
             if (!targetCard) return -1;
             for (const slot of this.state.slots) {
@@ -193,12 +193,12 @@ export function createEffectContext({
             return (targetCard.baseValue || 0) + (targetCard.permanentBonus || 0) + (targetCard.battleBonus || 0) + (targetCard.tempBonus || 0);
         },
 
-        /** 获取所有在牌桌上的卡牌 */
+        /** 获取所有在牌桌上的矿石 */
         getBoardCards() {
             return this.state.slots.flatMap(s => s.cards);
         },
 
-        /** 构建卡牌到格子的映射表 */
+        /** 构建矿石到格子的映射表 */
         buildCardSlotMap() {
             const map = {};
             for (const slot of this.state.slots) {
@@ -217,19 +217,19 @@ export function createEffectContext({
             return results;
         },
 
-        /** 获取某格最上方的卡牌 */
+        /** 获取某格最上方的矿石 */
         getTopCard(slotIndex) {
             const slot = this.state.slots[slotIndex];
             if (!slot || slot.cards.length === 0) return null;
             return slot.cards[slot.cards.length - 1];
         },
 
-        /** 从牌组中查找指定条件的卡牌 */
+        /** 从矿舱中查找指定条件的矿石 */
         findCardsInDeck(predicate) {
             return this.state.deck.filter(predicate);
         },
 
-        /** 从手牌中移除指定卡牌 */
+        /** 从精炼盘中移除指定矿石 */
         removeFromHand(card) {
             const idx = this.state.hand.findIndex(c => c.uuid === card.uuid);
             if (idx !== -1) {
@@ -239,12 +239,12 @@ export function createEffectContext({
             return false;
         },
 
-        /** 将卡牌放入弃牌堆 */
+        /** 将矿石放入矿渣堆 */
         moveToDiscard(card) {
             this.state.discard.push(card);
         },
 
-        /** 将卡牌放回牌组 */
+        /** 将矿石放回矿舱 */
         moveToDeck(card) {
             this.state.deck.push(card);
         }
@@ -297,7 +297,7 @@ export function getHandlersForTrigger(trigger) {
     return (_triggerMap[trigger] || []).slice();
 }
 
-// ===== 成长数值计算（训练体系） =====
+// ===== 淬火数值计算（训练体系） =====
 
 export function calculateGrowAmount(card, slotIndex, state) {
     const slot = state.slots[slotIndex];
@@ -305,7 +305,7 @@ export function calculateGrowAmount(card, slotIndex, state) {
 
     let amount = card.keywords.includes('grow') ? (card.growAmount || 1) : 0;
 
-    // 集体训练：后续同格卡牌获得成长2
+    // 集体训练：后续同格矿石获得淬火2
     if (slot.groupTrainingActive) {
         amount = Math.max(amount, 2);
     }
@@ -314,18 +314,18 @@ export function calculateGrowAmount(card, slotIndex, state) {
 
     const triggerAmount = amount;
 
-    // 猛训练：后续同格卡牌的成长效果多触发一次
+    // 猛训练：后续同格矿石的淬火效果多触发一次
     if (slot.intenseTrainingActive) {
         amount += triggerAmount;
     }
 
-    // 训练核心：成长效果多触发一次
+    // 训练核心：淬火效果多触发一次
     const disabledKey = state.monster?.disabledRelicKey;
     if (state.runDataRef?.relics?.some(r => r.effect?.type === 'grow_double' && (!disabledKey || (r.id || r.name) !== disabledKey))) {
         amount += triggerAmount;
     }
 
-    // 训练痕迹：相邻倍率格卡牌的成长效果多触发一次
+    // 锻痕：相邻铸造台矿石的淬火效果多触发一次
     const adjacentSlots = state.slots.filter(s => Math.abs(s.index - slotIndex) === 1);
     for (const adjacent of adjacentSlots) {
         if (adjacent.cards.some(c => c.defId === 'training_trace')) {

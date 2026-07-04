@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 主入口
+ * Heave! - 主入口
  */
 
 import { createGameState, startBattle } from './core/state.js';
@@ -117,14 +117,14 @@ function bindKeys() {
             return; // Playground 不响应全局快捷键
         }
 
-        // V键：查看牌组
+        // V键：查看矿舱
         if (e.key === 'v' || e.key === 'V') {
             if (typeof Input !== 'undefined' && Input.toggleDeckView) {
                 Input.toggleDeckView();
             }
         }
 
-        // ESC键：关闭牌组视图
+        // ESC键：关闭矿舱视图
         if (e.key === 'Escape') {
             if (window.gameState.data && window.gameState.data.viewingDeck) {
                 if (typeof Input !== 'undefined' && Input.toggleDeckView) {

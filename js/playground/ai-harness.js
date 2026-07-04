@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - AI Playtest Harness
+ * Heave! - AI Playtest Harness
  *
  * 设计目标：
  * 1. 提供稳定的 JSON-in / JSON-out API，供 AI 批量调用
@@ -95,11 +95,11 @@ export const AITest = {
     },
 
     /**
-     * 快速验证：给定卡牌配置 + 动作，返回执行后的关键状态
-     * 用于 AI 快速迭代测试新卡牌/词条
+     * 快速验证：给定矿石配置 + 动作，返回执行后的关键状态
+     * 用于 AI 快速迭代测试新矿石/词条
      */
     quickTest({
-        cardName = '测试卡牌',
+        cardName = '测试矿石',
         baseValue = 10,
         keywords = [],
         extraEffects = [],
@@ -137,7 +137,7 @@ export const AITest = {
             assertions: []
         };
 
-        // 放置已有卡牌
+        // 放置已有矿石
         for (const ec of existingCards) {
             scenario.setup.slots[ec.slotIndex].cards = ec.cards.map(c => ({
                 name: c.name || '占位',

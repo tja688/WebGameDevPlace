@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 核心工具函数
+ * Heave! - 核心工具函数
  */
 
 export function generateUUID() {

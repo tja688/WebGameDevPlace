@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 打出时效果 (ON_PLAY)（重构版）
+ * Heave! - 打出时效果 (ON_PLAY)（重构版）
  *
  * 所有效果处理器为纯对象，通过 registerEffect 注册。
  */
@@ -9,7 +9,7 @@ import { Trigger, Priority } from '../core/constants.js';
 import { drawCards, recordTimeline, addBattleLog } from '../core/battle-core.js';
 import { createCardInstance } from '../data/index.js';
 
-// ===== 1. 格子加成（学徒铸造/大师铸造/辅助训练等一次性加成） =====
+// ===== 1. 格子加成（学徒铸造/大师铸造/助锻矿等一次性加成） =====
 registerEffect({
     id: 'slot_bonus',
     triggers: Trigger.ON_PLAY,
@@ -17,31 +17,31 @@ registerEffect({
     condition: (ctx) => ctx.slotIndex >= 0,
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 学徒铸造/大师铸造：给下一张同格卡牌永久加点
+        // 学徒铸造/大师铸造：给下一张同格矿石永久加点
         if (slot.apprenticeForgeBonus && slot.apprenticeForgeBonus > 0) {
             ctx.card.battleBonus = (ctx.card.battleBonus || 0) + slot.apprenticeForgeBonus;
-            ctx.log(`学徒铸造生效：${ctx.card.name} 本场战斗永久+${slot.apprenticeForgeBonus}`);
+            ctx.log(`学徒铸造生效：${ctx.card.name} 本场海战永久+${slot.apprenticeForgeBonus}`);
             slot.apprenticeForgeBonus = 0;
         }
         if (slot.masterForgeBonus && slot.masterForgeBonus > 0) {
             ctx.card.battleBonus = (ctx.card.battleBonus || 0) + slot.masterForgeBonus;
-            ctx.log(`大师铸造生效：${ctx.card.name} 本场战斗永久+${slot.masterForgeBonus}`);
+            ctx.log(`大师铸造生效：${ctx.card.name} 本场海战永久+${slot.masterForgeBonus}`);
             slot.masterForgeBonus = 0;
         }
-        // 辅助训练：给下一张同格卡牌成长1
+        // 助锻矿：给下一块同格矿石淬火1
         if (slot.supportTrainingActive) {
             ctx.card.keywords = ctx.card.keywords || [];
             if (!ctx.card.keywords.includes('grow')) {
                 ctx.card.keywords = [...ctx.card.keywords, 'grow'];
             }
             ctx.card.growAmount = (ctx.card.growAmount || 1);
-            ctx.log(`辅助训练生效：${ctx.card.name} 获得成长1`);
+            ctx.log(`助锻矿生效：${ctx.card.name} 获得淬火1`);
             slot.supportTrainingActive = false;
         }
     }
 });
 
-// ===== 2. 连携（chain）：抽牌 =====
+// ===== 2. 共生（chain）：抽取矿石 =====
 registerEffect({
     id: 'chain',
     triggers: Trigger.ON_PLAY,
@@ -50,12 +50,12 @@ registerEffect({
     execute: (ctx) => {
         const count = ctx.card.chainCount || 1;
         drawCards(ctx.state, count);
-        ctx.log(`${ctx.card.name} 连携效果触发，抽${count}张牌`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 连携：抽${count}张牌` });
+        ctx.log(`${ctx.card.name} 共生效果触发，抽取${count}块矿石`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 共生：抽取${count}块矿石` });
     }
 });
 
-// ===== 3. 双生（twin）：复制加入手牌（无双生） =====
+// ===== 3. 双晶（twin）：复制加入精炼盘（无双晶） =====
 registerEffect({
     id: 'twin',
     triggers: Trigger.ON_PLAY,
@@ -69,7 +69,7 @@ registerEffect({
         copy.growAmount = ctx.card.growAmount;
         copy.chainCount = ctx.card.chainCount;
         copy.isDerived = true;
-        // 复制牌移除双生词条，避免无限复制
+        // 复制矿石移除双晶词条，避免无限复制
         // 从实例keywords过滤，保留运行时添加的词条
         copy.keywords = (ctx.card.keywords || []).filter(k => k !== 'twin');
         ctx.state.hand.push(copy);
@@ -80,19 +80,19 @@ registerEffect({
             cardDefId: copy.defId,
             reason: 'twin'
         });
-        ctx.log(`${ctx.card.name} 双生效果触发，复制加入手牌（已移除双生）`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 双生：复制加入手牌` });
+        ctx.log(`${ctx.card.name} 双晶效果触发，复制加入精炼盘（已移除双晶）`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 双晶：复制加入精炼盘` });
     }
 });
 
-// ===== 4. 蔓延（spread）：加入扩散牌 =====
+// ===== 4. 碎屑（spread）：加入矿渣 =====
 registerEffect({
     id: 'spread',
     triggers: Trigger.ON_PLAY,
     priority: Priority.DRAW - 10,
     condition: (ctx) => ctx.card.keywords.includes('spread'),
     execute: (ctx) => {
-        const diffusion = createCardInstance('diffusion');
+        const diffusion = createCardInstance('slag');
         diffusion.isDerived = true;
         ctx.state.hand.push(diffusion);
         recordTimeline(ctx.state, 'create_card_in_hand', {
@@ -102,12 +102,12 @@ registerEffect({
             cardDefId: diffusion.defId,
             reason: 'spread'
         });
-        ctx.log(`${ctx.card.name} 蔓延效果触发，加入一张扩散牌`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 蔓延：加入扩散牌` });
+        ctx.log(`${ctx.card.name} 碎屑效果触发，加入一块矿渣`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 碎屑：加入矿渣` });
     }
 });
 
-// ===== 5. 人面草：香甜诱饵——中间格成长1 =====
+// ===== 5. 藤蔓号：缠海藻——中间格淬火1 =====
 registerEffect({
     id: 'center_grow_1',
     triggers: Trigger.ON_PLAY,
@@ -122,12 +122,12 @@ registerEffect({
             reason: 'center_grow_1',
             slotIndex: ctx.slotIndex
         });
-        ctx.log(`人面草的香甜诱饵生效：${ctx.card.name} 成长了！永久点数+1`);
-        addBattleLog(ctx.state, 'monster_skill', { text: `香甜诱饵：${ctx.card.name} 永久+1` });
+        ctx.log(`藤蔓号的缠海藻生效：${ctx.card.name} 淬火了！永久点数+1`);
+        addBattleLog(ctx.state, 'monster_skill', { text: `缠海藻：${ctx.card.name} 永久+1` });
     }
 });
 
-// ===== 7. 成长（grow）：永久加点 =====
+// ===== 7. 淬火（grow）：永久加点 =====
 registerEffect({
     id: 'grow',
     triggers: Trigger.ON_PLAY,
@@ -144,26 +144,26 @@ registerEffect({
             reason: 'grow',
             slotIndex: ctx.slotIndex
         });
-        ctx.log(`${ctx.card.name} 成长了！永久点数+${amount}`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 成长：永久+${amount}` });
+        ctx.log(`${ctx.card.name} 淬火了！永久点数+${amount}`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 淬火：永久+${amount}` });
         if (typeof GameAudio !== 'undefined') GameAudio.playGrow();
         if (!ctx.state.pendingGrowthEffects) ctx.state.pendingGrowthEffects = [];
         ctx.state.pendingGrowthEffects.push({ slotIndex: ctx.slotIndex });
-        // 记录本局打出的成长牌数量（用于训练成果）
+        // 记录本局打出的淬火矿石数量（用于淬火成果）
         if (ctx.state.runDataRef) {
             ctx.state.runDataRef.growthCardsPlayedThisRun = (ctx.state.runDataRef.growthCardsPlayedThisRun || 0) + 1;
         }
-        // 训练搭子：从牌组打出到相同倍率格
-        const partnerIdx = ctx.state.deck.findIndex(c => c.defId === 'training_partner');
+        // 锻伴：从矿舱投入到相同铸造台
+        const partnerIdx = ctx.state.deck.findIndex(c => c.defId === 'forge_partner');
         if (partnerIdx >= 0) {
             const partner = ctx.state.deck.splice(partnerIdx, 1)[0];
             ctx.state.slots[ctx.slotIndex].cards.push(partner);
-            ctx.log(`训练搭子响应成长，从牌组打出到第${ctx.slotIndex + 1}格`);
+            ctx.log(`锻伴响应淬火，从矿舱投入到第${ctx.slotIndex + 1}铸造台`);
         }
     }
 });
 
-// 遗物：对应倍率格卡牌永久+1，累计到阈值后永久强化该格倍率
+// 遗物：对应铸造台矿石永久+1，累计到阈值后永久强化该铸造台倍率
 registerEffect({
     id: 'relic_slot_grow',
     triggers: Trigger.ON_PLAY,
@@ -193,8 +193,8 @@ registerEffect({
                 ctx.state.runDataRef.relicSlotGrowth[key] -= growPer;
                 ctx.state.runDataRef.slotUpgrades[ctx.slotIndex] = (ctx.state.runDataRef.slotUpgrades[ctx.slotIndex] || 0) + (relic.effect.slotBonus || 1);
                 ctx.state.slots[ctx.slotIndex].multiplier += (relic.effect.slotBonus || 1);
-                ctx.log(`${relic.name} 累计成长达标，第${ctx.slotIndex + 1}格倍率+${relic.effect.slotBonus || 1}`);
-                addBattleLog(ctx.state, 'relic', { relicName: relic.name, text: `第${ctx.slotIndex + 1}格倍率+${relic.effect.slotBonus || 1}` });
+                ctx.log(`${relic.name} 累计淬火达标，第${ctx.slotIndex + 1}铸造台倍率+${relic.effect.slotBonus || 1}`);
+                addBattleLog(ctx.state, 'relic', { relicName: relic.name, text: `第${ctx.slotIndex + 1}铸造台倍率+${relic.effect.slotBonus || 1}` });
             }
             ctx.log(`${relic.name} 生效：${ctx.card.name} 永久+1`);
             addBattleLog(ctx.state, 'relic', { relicName: relic.name, text: `${ctx.card.name} 永久+1` });
@@ -202,12 +202,12 @@ registerEffect({
     }
 });
 
-// ===== 6. 传令（messenger）：从牌组拿一张入手牌 =====
+// ===== 6. 传令矿（dispatch_ore）：从矿舱拿一块入手精炼盘 =====
 registerEffect({
     id: 'messenger_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.DRAW,
-    condition: (ctx) => ctx.card.defId === 'messenger',
+    condition: (ctx) => ctx.card.defId === 'dispatch_ore',
     execute: (ctx) => {
         if (ctx.state.deck.length > 0) {
             const idx = Math.floor(Math.random() * ctx.state.deck.length);
@@ -220,20 +220,20 @@ registerEffect({
                 cardDefId: card.defId,
                 reason: 'messenger'
             });
-            ctx.log(`${ctx.card.name} 传令效果触发，从牌组抽来 ${card.name}`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 传令：抽来${card.name}` });
+            ctx.log(`${ctx.card.name} 传令矿效果触发，从矿舱抽来 ${card.name}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 传令矿：抽来${card.name}` });
         } else {
-            ctx.log(`${ctx.card.name} 传令效果触发，但牌组已空`);
+            ctx.log(`${ctx.card.name} 传令矿效果触发，但矿舱已空`);
         }
     }
 });
 
-// ===== 7. 豪华装备（luxury_gear）：已在倍率格时相邻两侧倍率+1 =====
+// ===== 7. 钢钻（steel_drill）：已在铸造台时相邻两侧倍率+1 =====
 registerEffect({
     id: 'luxury_gear_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SLOT_MODIFIER,
-    condition: (ctx) => ctx.card.defId === 'luxury_gear',
+    condition: (ctx) => ctx.card.defId === 'steel_drill',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         for (const s of ctx.state.slots) {
@@ -246,22 +246,22 @@ registerEffect({
                     amount: 1,
                     reason: 'luxury_gear'
                 });
-                ctx.log(`${ctx.card.name} 提升了第${s.index + 1}格倍率！`);
-                addBattleLog(ctx.state, 'other', { text: `${ctx.card.name}：第${s.index + 1}格倍率+1` });
+                ctx.log(`${ctx.card.name} 提升了第${s.index + 1}铸造台倍率！`);
+                addBattleLog(ctx.state, 'other', { text: `${ctx.card.name}：第${s.index + 1}铸造台倍率+1` });
             }
         }
     }
 });
 
-// ===== 8. 我思故我在（cogito_ergo_sum）：已在倍率格时所在格点数x2 =====
+// ===== 8. 我思故我在（cogito）：已在铸造台时所在铸造台点数x2 =====
 registerEffect({
     id: 'cogito_ergo_sum_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL,
-    condition: (ctx) => ctx.card.defId === 'cogito_ergo_sum',
+    condition: (ctx) => ctx.card.defId === 'cogito',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
-        // 防止同回合同格多次叠加导致倍数不稳定
+        // 防止同回合同铸造台多次叠加导致倍数不稳定
         if (!slot.cogitoAppliedThisTurn) {
             slot.cogitoAppliedThisTurn = true;
             slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + slot.multiplier;
@@ -272,31 +272,31 @@ registerEffect({
                 amount: slot.multiplier,
                 reason: 'cogito_ergo_sum'
             });
-            ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}格倍率翻倍！`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name}：第${ctx.slotIndex + 1}格倍率翻倍` });
+            ctx.log(`${ctx.card.name} 让第${ctx.slotIndex + 1}铸造台倍率翻倍！`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name}：第${ctx.slotIndex + 1}铸造台倍率翻倍` });
         } else {
-            ctx.log(`${ctx.card.name} 效果未叠加（本回合同格已翻倍过）`);
+            ctx.log(`${ctx.card.name} 效果未叠加（本回合同铸造台已翻倍过）`);
         }
     }
 });
 
-// ===== 9. 训练痕迹（training_trace）：相邻两侧成长效果多触发一次 =====
+// ===== 9. 锻痕（forge_trace）：相邻两侧淬火效果多触发一次 =====
 registerEffect({
     id: 'training_trace_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'training_trace',
+    condition: (ctx) => ctx.card.defId === 'forge_trace',
     execute: (ctx) => {
-        ctx.log(`${ctx.card.name} 入场：相邻倍率格后续成长效果多触发一次`);
+        ctx.log(`${ctx.card.name} 入场：相邻铸造台后续淬火效果多触发一次`);
     }
 });
 
-// ===== 10. 猛训练（intense_training）：后续同格成长效果多触发一次 =====
+// ===== 10. 猛淬火（intense_forge）：后续同格淬火效果多触发一次 =====
 registerEffect({
     id: 'intense_training_mark',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 5,
-    condition: (ctx) => ctx.card.defId === 'intense_training',
+    condition: (ctx) => ctx.card.defId === 'intense_forge',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.intenseTrainingActive = true;
@@ -306,16 +306,16 @@ registerEffect({
             slotIndex: ctx.slotIndex,
             flag: 'intenseTrainingActive'
         });
-        ctx.log(`${ctx.card.name} 猛训练效果激活！后续同格卡牌成长效果多触发一次`);
+        ctx.log(`${ctx.card.name} 猛淬火效果激活！后续同格矿石淬火效果多触发一次`);
     }
 });
 
-// ===== 11. 集体训练（group_training）：后续同格卡牌获得成长2 =====
+// ===== 11. 批量淬火（batch_quench）：后续同格矿石获得淬火2 =====
 registerEffect({
     id: 'group_training_mark',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 5,
-    condition: (ctx) => ctx.card.defId === 'group_training',
+    condition: (ctx) => ctx.card.defId === 'batch_quench',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.groupTrainingActive = true;
@@ -325,18 +325,18 @@ registerEffect({
             slotIndex: ctx.slotIndex,
             flag: 'groupTrainingActive'
         });
-        ctx.log(`${ctx.card.name} 集体训练效果激活！后续同格卡牌获得成长2`);
+        ctx.log(`${ctx.card.name} 批量淬火效果激活！后续同格矿石获得淬火2`);
     }
 });
 
 // ===== 新增卡牌效果 =====
 
-// 先手优势：本回合第一张牌，点数+5并获得留场
+// 先手矿：本回合第一张矿石，点数+5并获得驻台
 registerEffect({
     id: 'first_advantage_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'first_advantage',
+    condition: (ctx) => ctx.card.defId === 'first_ore',
     execute: (ctx) => {
         if (ctx.card === ctx.state.firstCardPlayedThisTurn) {
             ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 5;
@@ -345,28 +345,28 @@ registerEffect({
                 ctx.card.keywords = [...ctx.card.keywords, 'remain'];
                 ctx.card._tempRemainAdded = true;
             }
-            ctx.log(`${ctx.card.name} 先手优势触发！点数+5并获得留场`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 先手优势：+5并获得留场` });
+            ctx.log(`${ctx.card.name} 先手矿触发！点数+5并获得驻台`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 先手矿：+5并获得驻台` });
         }
     }
 });
 
-// 殿后：打出后手牌为空时，点数+10
+// 殿后矿：打出后精炼盘为空时，点数+10
 registerEffect({
     id: 'rear_guard_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'rear_guard',
+    condition: (ctx) => ctx.card.defId === 'rear_ore',
     execute: (ctx) => {
         if (ctx.state.hand.length === 0) {
             ctx.card.tempBonus = (ctx.card.tempBonus || 0) + 10;
-            ctx.log(`${ctx.card.name} 殿后触发！手牌为空，点数+10`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 殿后：+10` });
+            ctx.log(`${ctx.card.name} 殿后矿触发！精炼盘为空，点数+10`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 殿后矿：+10` });
         }
     }
 });
 
-// 锦上添花：任意倍率格有3张牌时，从牌组移到手牌
+// 镀银：任意铸造台有3块矿石时，从矿舱移到精炼盘
 registerEffect({
     id: 'icing_on_cake_effect',
     triggers: Trigger.ON_PLAY,
@@ -375,7 +375,7 @@ registerEffect({
     execute: (ctx) => {
         const hasThree = ctx.state.slots.some(s => s.cards.length >= 3);
         if (hasThree && ctx.state.deck.length > 0) {
-            const idx = ctx.state.deck.findIndex(c => c.defId === 'icing_on_cake');
+            const idx = ctx.state.deck.findIndex(c => c.defId === 'silver_plate');
             if (idx < 0) return;
             const card = ctx.state.deck.splice(idx, 1)[0];
             ctx.state.hand.push(card);
@@ -386,33 +386,33 @@ registerEffect({
                 cardDefId: card.defId,
                 reason: 'icing_on_cake'
             });
-            ctx.log(`锦上添花触发，${card.name} 从牌组移到手牌`);
-            addBattleLog(ctx.state, 'other', { text: `锦上添花：${card.name}移入手牌` });
+            ctx.log(`镀银触发，${card.name} 从矿舱移到精炼盘`);
+            addBattleLog(ctx.state, 'other', { text: `镀银：${card.name}移入精炼盘` });
         }
     }
 });
 
-// 顺手的事：获得1金币
+// 压舱石：获得1银元
 registerEffect({
     id: 'easy_money_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'easy_money',
+    condition: (ctx) => ctx.card.defId === 'ballast_stone',
     execute: (ctx) => {
         if (ctx.state.runDataRef) {
             ctx.state.runDataRef.gold = (ctx.state.runDataRef.gold || 0) + 1;
-            ctx.log(`${ctx.card.name} 顺手的事触发，获得1金币`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 顺手的事：+1金币` });
+            ctx.log(`${ctx.card.name} 压舱石触发，获得1银元`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 压舱石：+1银元` });
         }
     }
 });
 
-// 灵活调度：所在倍率格点数+1（计策系统已废弃，改为常驻效果）
+// 灵活调度矿：所在铸造台点数+1（计策系统已废弃，改为常驻效果）
 registerEffect({
     id: 'flexible_dispatch_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SLOT_MODIFIER,
-    condition: (ctx) => ctx.card.defId === 'flexible_dispatch',
+    condition: (ctx) => ctx.card.defId === 'flexible_ore',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) + 1;
@@ -423,12 +423,12 @@ registerEffect({
             amount: 1,
             reason: 'flexible_dispatch'
         });
-        ctx.log(`${ctx.card.name} 灵活调度触发，第${ctx.slotIndex + 1}格倍率+1`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 灵活调度：第${ctx.slotIndex + 1}格倍率+1` });
+        ctx.log(`${ctx.card.name} 灵活调度矿触发，第${ctx.slotIndex + 1}铸造台倍率+1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 灵活调度矿：第${ctx.slotIndex + 1}铸造台倍率+1` });
     }
 });
 
-// 丑陋炫耀：所在倍率格基础点数之和超过100，抽一张牌
+// 丑陋炫耀：所在铸造台基础点数之和超过100，抽取一块矿石
 registerEffect({
     id: 'ugly_showoff_effect',
     triggers: Trigger.ON_PLAY,
@@ -439,18 +439,18 @@ registerEffect({
         const totalBase = slot.cards.reduce((sum, c) => sum + (c.baseValue || 0), 0);
         if (totalBase > 100) {
             drawCards(ctx.state, 1);
-            ctx.log(`${ctx.card.name} 丑陋炫耀触发，倍率格基础点数${totalBase}超过100，抽一张牌`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 丑陋炫耀：抽一张牌` });
+            ctx.log(`${ctx.card.name} 丑陋炫耀触发，铸造台基础点数${totalBase}超过100，抽取一块矿石`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 丑陋炫耀：抽取一块矿石` });
         }
     }
 });
 
-// 何须智慧：已在倍率格，所在倍率格点数-1
+// 何需谋略：已在铸造台，所在铸造台点数-1
 registerEffect({
     id: 'no_wisdom_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SLOT_MODIFIER,
-    condition: (ctx) => ctx.card.defId === 'no_wisdom',
+    condition: (ctx) => ctx.card.defId === 'no_strategy',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.roundMultiplierBonus = (slot.roundMultiplierBonus || 0) - 1;
@@ -461,43 +461,43 @@ registerEffect({
             amount: -1,
             reason: 'no_wisdom'
         });
-        ctx.log(`${ctx.card.name} 何须智慧触发，第${ctx.slotIndex + 1}格倍率-1`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 何须智慧：第${ctx.slotIndex + 1}格倍率-1` });
+        ctx.log(`${ctx.card.name} 何需谋略触发，第${ctx.slotIndex + 1}铸造台倍率-1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 何需谋略：第${ctx.slotIndex + 1}铸造台倍率-1` });
     }
 });
 
-// 合力：将手牌一张随机卡牌放回牌组
+// 合锻：将精炼盘一块随机矿石放回矿舱
 registerEffect({
     id: 'combined_force_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'combined_force',
+    condition: (ctx) => ctx.card.defId === 'combined_forge',
     execute: (ctx) => {
         if (ctx.state.hand.length > 0) {
             const idx = Math.floor(Math.random() * ctx.state.hand.length);
             const card = ctx.state.hand.splice(idx, 1)[0];
             ctx.state.deck.push(card);
-            ctx.log(`${ctx.card.name} 合力触发，将 ${card.name} 放回牌组`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 合力：${card.name}放回牌组` });
+            ctx.log(`${ctx.card.name} 合锻触发，将 ${card.name} 放回矿舱`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 合锻：${card.name}放回矿舱` });
         }
     }
 });
 
-// 学徒铸造：下一张同格卡牌本场战斗永久+5
+// 学徒铸造：下一张同格矿石本场海战永久+5
 registerEffect({
     id: 'apprentice_forge_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 5,
-    condition: (ctx) => ctx.card.defId === 'apprentice_forge',
+    condition: (ctx) => ctx.card.defId === 'apprentice_cast',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.apprenticeForgeBonus = (slot.apprenticeForgeBonus || 0) + 5;
-        ctx.log(`${ctx.card.name} 学徒铸造激活！下一张同格卡牌本场战斗永久+5`);
+        ctx.log(`${ctx.card.name} 学徒铸造激活！下一张同格矿石本场海战永久+5`);
         addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 学徒铸造：下一张同格+5` });
     }
 });
 
-// 肉体智慧：所在倍率格基础点数之和超过100，所在格点数+1
+// 肉体智慧：所在铸造台基础点数之和超过100，所在铸造台点数+1
 registerEffect({
     id: 'body_wisdom_effect',
     triggers: Trigger.ON_PLAY,
@@ -515,60 +515,60 @@ registerEffect({
                 amount: 1,
                 reason: 'body_wisdom'
             });
-            ctx.log(`${ctx.card.name} 肉体智慧触发，第${ctx.slotIndex + 1}格倍率+1`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 肉体智慧：第${ctx.slotIndex + 1}格倍率+1` });
+            ctx.log(`${ctx.card.name} 肉体智慧触发，第${ctx.slotIndex + 1}铸造台倍率+1`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 肉体智慧：第${ctx.slotIndex + 1}铸造台倍率+1` });
         }
     }
 });
 
-// 预借：本牌本次战斗点数永久-10
+// 透支矿：本牌本次海战点数永久-10
 registerEffect({
     id: 'borrow_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'borrow',
+    condition: (ctx) => ctx.card.defId === 'overdraft',
     execute: (ctx) => {
         ctx.card.battleBonus = (ctx.card.battleBonus || 0) - 10;
-        ctx.log(`${ctx.card.name} 预借触发，本次战斗永久点数-10`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 预借：永久-10` });
+        ctx.log(`${ctx.card.name} 透支矿触发，本次海战永久点数-10`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 透支矿：永久-10` });
     }
 });
 
-// 大师铸造：下一张同格卡牌本场战斗永久+10
+// 大师铸造：下一张同格矿石本场海战永久+10
 registerEffect({
     id: 'master_forge_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 5,
-    condition: (ctx) => ctx.card.defId === 'master_forge',
+    condition: (ctx) => ctx.card.defId === 'master_cast',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.masterForgeBonus = (slot.masterForgeBonus || 0) + 10;
-        ctx.log(`${ctx.card.name} 大师铸造激活！下一张同格卡牌本场战斗永久+10`);
+        ctx.log(`${ctx.card.name} 大师铸造激活！下一张同格矿石本场海战永久+10`);
         addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 大师铸造：下一张同格+10` });
     }
 });
 
-// 熟练预借：本牌本次战斗点数永久-5
+// 熟练透支：本牌本次海战点数永久-5
 registerEffect({
     id: 'skilled_borrow_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 10,
-    condition: (ctx) => ctx.card.defId === 'skilled_borrow',
+    condition: (ctx) => ctx.card.defId === 'skilled_overdraft',
     execute: (ctx) => {
         ctx.card.battleBonus = (ctx.card.battleBonus || 0) - 5;
-        ctx.log(`${ctx.card.name} 熟练预借触发，本次战斗永久点数-5`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 熟练预借：永久-5` });
+        ctx.log(`${ctx.card.name} 熟练透支触发，本次海战永久点数-5`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 熟练透支：永久-5` });
     }
 });
 
-// 训练集合：将牌组内所有同名牌打出在本牌所在倍率格
+// 锻集：将矿舱内所有同名矿石打出在本牌所在铸造台
 registerEffect({
     id: 'training_set_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 5,
-    condition: (ctx) => ctx.card.defId === 'training_set',
+    condition: (ctx) => ctx.card.defId === 'forge_set',
     execute: (ctx) => {
-        const sameCards = ctx.state.deck.filter(c => c.defId === 'training_set');
+        const sameCards = ctx.state.deck.filter(c => c.defId === 'forge_set');
         let count = 0;
         for (const c of sameCards) {
             const idx = ctx.state.deck.indexOf(c);
@@ -579,45 +579,45 @@ registerEffect({
             }
         }
         if (count > 0) {
-            ctx.log(`${ctx.card.name} 训练集合触发，从牌组打出${count}张同名卡牌到第${ctx.slotIndex + 1}格`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 训练集合：打出${count}张到格${ctx.slotIndex + 1}` });
+            ctx.log(`${ctx.card.name} 锻集触发，从矿舱打出${count}块同名矿石到第${ctx.slotIndex + 1}铸造台`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 锻集：打出${count}块到铸造台${ctx.slotIndex + 1}` });
         }
     }
 });
 
-// 辅助训练：已在倍率格，下一张同格卡牌获得成长1
+// 助锻矿：已在铸造台，下一张同格矿石获得淬火1
 registerEffect({
     id: 'support_training_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SPECIAL + 5,
-    condition: (ctx) => ctx.card.defId === 'support_training',
+    condition: (ctx) => ctx.card.defId === 'assist_forge',
     execute: (ctx) => {
         const slot = ctx.state.slots[ctx.slotIndex];
         slot.supportTrainingActive = true;
-        ctx.log(`${ctx.card.name} 辅助训练激活！下一张同格卡牌获得成长1`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 辅助训练：下一张同格获得成长1` });
+        ctx.log(`${ctx.card.name} 助锻矿激活！下一张同格矿石获得淬火1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 助锻矿：下一张同格获得淬火1` });
     }
 });
 
-// 30小时训练：成长数+1
+// 三十次淬火：淬火数+1
 registerEffect({
     id: 'training_30h_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.GROW - 5,
-    condition: (ctx) => ctx.card.defId === 'training_30h',
+    condition: (ctx) => ctx.card.defId === 'thirty_quench',
     execute: (ctx) => {
         ctx.card.growAmount = (ctx.card.growAmount || 1) + 1;
-        ctx.log(`${ctx.card.name} 30小时训练触发，成长数+1`);
-        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 30小时训练：成长数+1` });
+        ctx.log(`${ctx.card.name} 三十次淬火触发，淬火数+1`);
+        addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 三十次淬火：淬火数+1` });
     }
 });
 
-// 激素训练：每有10点数给所在倍率格点数+1
+// 激素淬火：每有10点数给所在铸造台点数+1
 registerEffect({
     id: 'steroid_training_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.SLOT_MODIFIER,
-    condition: (ctx) => ctx.card.defId === 'steroid_training',
+    condition: (ctx) => ctx.card.defId === 'steroid_quench',
     execute: (ctx) => {
         const val = ctx.getCardBaseValue(ctx.card);
         const bonus = Math.floor(val / 10);
@@ -631,18 +631,18 @@ registerEffect({
                 amount: bonus,
                 reason: 'steroid_training'
             });
-            ctx.log(`${ctx.card.name} 激素训练触发，当前点数${val}，第${ctx.slotIndex + 1}格倍率+${bonus}`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 激素训练：第${ctx.slotIndex + 1}格倍率+${bonus}` });
+            ctx.log(`${ctx.card.name} 激素淬火触发，当前点数${val}，第${ctx.slotIndex + 1}铸造台倍率+${bonus}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 激素淬火：第${ctx.slotIndex + 1}铸造台倍率+${bonus}` });
         }
     }
 });
 
-// 规律训练：从牌组拿一张成长卡牌入手牌
+// 规律淬火：从矿舱拿一块淬火矿石入精炼盘
 registerEffect({
     id: 'regular_training_effect',
     triggers: Trigger.ON_PLAY,
     priority: Priority.DRAW - 5,
-    condition: (ctx) => ctx.card.defId === 'regular_training',
+    condition: (ctx) => ctx.card.defId === 'regular_quench',
     execute: (ctx) => {
         const growCards = ctx.state.deck.filter(c => c.keywords && c.keywords.includes('grow'));
         if (growCards.length > 0) {
@@ -658,8 +658,8 @@ registerEffect({
                 cardDefId: card.defId,
                 reason: 'regular_training'
             });
-            ctx.log(`${ctx.card.name} 规律训练触发，从牌组抽来 ${card.name}`);
-            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 规律训练：抽来${card.name}` });
+            ctx.log(`${ctx.card.name} 规律淬火触发，从矿舱抽来 ${card.name}`);
+            addBattleLog(ctx.state, 'other', { text: `${ctx.card.name} 规律淬火：抽来${card.name}` });
         }
     }
 });

@@ -1,319 +1,319 @@
 /**
- * 生死烛局 - 卡牌定义（第二版）
+ * Heave! - 矿石定义（第二版）
  *
  * 数值模型：
- * - 白卡基础 10，蓝卡基础 20，金卡基础 40
- * - 高级词条（伟力/回响）：点数 = 1/2 基础
- * - 中级词条（奉献/连携/双生）：点数 = 3/4 基础（向上取整）
- * - 低级词条（留场/蔓延/成长/保留/合群/齐心）：点数 = 基础
+ * - 粗矿基础 10，精炼矿基础 20，纯金矿基础 40
+ * - 高级词条（熔核/重铸）：点数 = 1/2 基础
+ * - 中级词条（预热/共生/双晶）：点数 = 3/4 基础（向上取整）
+ * - 低级词条（驻台/碎屑/淬火/余烬/合群/齐心）：点数 = 基础
  * - 无词条：点数 = 3/2 基础
  * - 词条带数字2视为更高一级成本
  */
 
 export const CARD_DEFS = {
     // ===== 老兵初始卡组 =====
-    unity_strike: {
-        id: 'unity_strike',
-        name: '齐心协力',
+    teamwork_ore: {
+        id: 'teamwork_ore',
+        name: '齐心协力矿',
         baseValue: 10,
         size: 1,
         keywords: ['grow'],
         rarity: 'white',
-        description: '成长：每次打出后永久+1点数',
+        description: '淬火：每次投入后永久+1强度',
         color: '#8B4513',
         accentColor: '#CD853F',
         iconType: 'sword'
     },
-    support_strike: {
-        id: 'support_strike',
-        name: '辅助打击',
+    assist_ore: {
+        id: 'assist_ore',
+        name: '助燃矿',
         baseValue: 8,
         size: 1,
         keywords: ['dedicate'],
         rarity: 'white',
-        description: '奉献：在场上时，堆叠在它上方的第一张卡牌获得本牌一半的点数（向下取整）',
+        description: '预热：在台上时，熔炼在它上方的第一块矿石获得本矿一半的强度（向下取整）',
         color: '#E67E22',
         accentColor: '#D35400',
         iconType: 'shield'
     },
-    veteran_ambition: {
-        id: 'veteran_ambition',
-        name: '老兵雄心',
+    veteran_ore: {
+        id: 'veteran_ore',
+        name: '老兵的矿脉',
         baseValue: 5,
         size: 1,
         keywords: ['mighty'],
         rarity: 'white',
-        description: '伟力：打出时，将本牌点数翻倍',
+        description: '熔核：投入时，将本矿强度翻倍',
         color: '#FF6B6B',
         accentColor: '#FF4444',
         iconType: 'sword'
     },
 
-    // ===== 无体系通用卡 =====
-    vine_climb: {
-        id: 'vine_climb',
-        name: '爬藤',
+    // ===== 通用矿脉 =====
+    vine_ore: {
+        id: 'vine_ore',
+        name: '爬藤矿',
         baseValue: 10,
         size: 1,
         keywords: ['spread'],
         rarity: 'white',
-        description: '蔓延：将一张点数为0的【扩散】加入你的手牌',
+        description: '碎屑：将一块强度为0的【矿渣】加入你的精炼盘',
         color: '#2ECC71',
         accentColor: '#27AE60',
         iconType: 'magic'
     },
-    ponder: {
-        id: 'ponder',
-        name: '思考',
+    probe_ore: {
+        id: 'probe_ore',
+        name: '探矿',
         baseValue: 8,
         size: 1,
         keywords: ['chain'],
         rarity: 'white',
-        description: '连携：打出时，抽一张牌',
+        description: '共生：投入时，抽取一块矿石',
         color: '#3498DB',
         accentColor: '#5DADE2',
         iconType: 'magic'
     },
-    prepare_battle: {
-        id: 'prepare_battle',
-        name: '备战',
+    ember_ore: {
+        id: 'ember_ore',
+        name: '余烬矿',
         baseValue: 10,
         size: 1,
         keywords: ['retain'],
         rarity: 'white',
-        description: '保留：回合结束时，本牌保留在手牌中不返回牌组',
+        description: '余烬：回合结束时，本矿保留在精炼盘中不返回矿舱',
         color: '#E74C3C',
         accentColor: '#C0392B',
         iconType: 'shield'
     },
-    hold_position: {
-        id: 'hold_position',
-        name: '坚守',
+    tungsten_core: {
+        id: 'tungsten_core',
+        name: '钨芯',
         baseValue: 10,
         size: 1,
         keywords: ['remain'],
         rarity: 'white',
-        description: '留场：回合结束时本牌不移入弃牌堆，继续留在倍率格上',
+        description: '驻台：回合结束时本矿不移入矿渣堆，继续留在铸造台上',
         color: '#3498DB',
         accentColor: '#2980B9',
         iconType: 'shield'
     },
-    brute_force: {
-        id: 'brute_force',
-        name: '蛮力',
+    crude_iron: {
+        id: 'crude_iron',
+        name: '粗铁',
         baseValue: 15,
         size: 1,
         keywords: [],
         rarity: 'white',
-        description: '纯粹的蛮力打击',
+        description: '粗犷沉重的原铁，纯度不高但份量十足',
         color: '#8B0000',
         accentColor: '#FF4444',
         iconType: 'sword'
     },
-    common_goal: {
-        id: 'common_goal',
-        name: '共同目标',
+    same_cast: {
+        id: 'same_cast',
+        name: '同铸',
         baseValue: 10,
         size: 1,
         keywords: ['unison'],
         rarity: 'white',
-        description: '齐心：在场上时，本牌所在倍率格每有一张其他卡牌，则本牌点数+1',
+        description: '齐心：在台上时，本矿所在铸造台每有一块其他矿石，则本矿强度+1',
         color: '#00CED1',
         accentColor: '#00AAAA',
         iconType: 'sword'
     },
-    friendly_chat: {
-        id: 'friendly_chat',
-        name: '友好交流',
+    friendly_vein: {
+        id: 'friendly_vein',
+        name: '友好矿脉',
         baseValue: 10,
         size: 1,
         keywords: ['social'],
         rarity: 'white',
-        description: '合群：在场上时，本牌相邻倍率格每有一张其他卡牌，则本牌点数+1',
+        description: '合群：在台上时，本矿相邻铸造台每有一块其他矿石，则本矿强度+1',
         color: '#F39C12',
         accentColor: '#E67E22',
         iconType: 'sword'
     },
-    first_advantage: {
-        id: 'first_advantage',
-        name: '先手优势',
+    first_ore: {
+        id: 'first_ore',
+        name: '先手矿',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['first_advantage_effect'],
         rarity: 'white',
-        description: '如果本牌是本回合打出的第一张牌，则本牌点数+5并获得留场',
+        description: '如果本矿是本回合投入的第一块矿石，则强度+5并获得驻台',
         color: '#E74C3C',
         accentColor: '#C0392B',
         iconType: 'sword'
     },
-    battle_banner: {
-        id: 'battle_banner',
-        name: '战旗',
+    anchor_badge: {
+        id: 'anchor_badge',
+        name: '船锚徽记',
         baseValue: 5,
         size: 1,
         keywords: [],
         extraEffects: ['battle_banner_effect'],
         rarity: 'white',
-        description: '相邻两侧倍率格卡牌点数+5',
+        description: '相邻两侧铸造台矿石强度+5',
         color: '#E67E22',
         accentColor: '#D35400',
         iconType: 'shield'
     },
-    rear_guard: {
-        id: 'rear_guard',
-        name: '殿后',
+    rear_ore: {
+        id: 'rear_ore',
+        name: '殿后矿',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['rear_guard_effect'],
         rarity: 'white',
-        description: '打出本牌后手牌为空时，本牌点数+10',
+        description: '投入本矿后精炼盘为空时，本矿强度+10',
         color: '#3498DB',
         accentColor: '#2980B9',
         iconType: 'shield'
     },
-    icing_on_cake: {
-        id: 'icing_on_cake',
-        name: '锦上添花',
+    silver_plate: {
+        id: 'silver_plate',
+        name: '镀银',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['icing_on_cake_effect'],
         rarity: 'white',
-        description: '当任意倍率格上有三张卡牌，则将本牌从牌组移到手牌',
+        description: '当任一铸造台上有三块矿石，则将本矿从矿舱移到精炼盘',
         color: '#9B59B6',
         accentColor: '#8E44AD',
         iconType: 'magic'
     },
-    easy_money: {
-        id: 'easy_money',
-        name: '顺手的事',
+    ballast_stone: {
+        id: 'ballast_stone',
+        name: '压舱石',
         baseValue: 8,
         size: 1,
         keywords: [],
         extraEffects: ['easy_money_effect'],
         rarity: 'white',
-        description: '打出时，获得一金币',
+        description: '投入时，获得一银元',
         color: '#F1C40F',
         accentColor: '#F39C12',
         iconType: 'star'
     },
-    big_brute_force: {
-        id: 'big_brute_force',
-        name: '大蛮力',
+    big_crude_iron: {
+        id: 'big_crude_iron',
+        name: '大块粗铁',
         baseValue: 30,
         size: 1,
         keywords: [],
         rarity: 'blue',
-        description: '更强大的蛮力打击',
+        description: '更大更重的粗铁块，纯粹吨位',
         color: '#1B4F72',
         accentColor: '#5DADE2',
         iconType: 'sword'
     },
-    clear_mind: {
-        id: 'clear_mind',
-        name: '理清头绪',
+    clear_vein: {
+        id: 'clear_vein',
+        name: '理清矿脉',
         baseValue: 10,
         size: 1,
         keywords: ['chain'],
         chainCount: 2,
         rarity: 'blue',
-        description: '连携2：打出时，抽两张牌',
+        description: '共生2：投入时，抽取两块矿石',
         color: '#3498DB',
         accentColor: '#5DADE2',
         iconType: 'magic'
     },
-    extreme_think: {
-        id: 'extreme_think',
-        name: '极限思考',
+    extreme_probe: {
+        id: 'extreme_probe',
+        name: '极限探矿',
         baseValue: 5,
         size: 1,
         keywords: ['twin', 'chain'],
         rarity: 'blue',
-        description: '双生：打出时，将一张本牌的无双生词条复制加入手牌；连携：打出时，抽一张牌',
+        description: '双晶：投入时复制加入精炼盘；共生：投入时抽取一块矿石',
         color: '#1ABC9C',
         accentColor: '#16A085',
         iconType: 'magic'
     },
-    flexible_dispatch: {
-        id: 'flexible_dispatch',
-        name: '灵活调度',
+    flexible_ore: {
+        id: 'flexible_ore',
+        name: '灵活调度矿',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['flexible_dispatch_effect'],
         rarity: 'blue',
-        description: '如果触发计策，则本牌所在倍率格点数+1',
+        description: '投入时，本矿所在铸造台倍率+1',
         color: '#2ECC71',
         accentColor: '#27AE60',
         iconType: 'magic'
     },
-    lend_hand: {
-        id: 'lend_hand',
-        name: '搭把手',
+    dual_crystal: {
+        id: 'dual_crystal',
+        name: '双晶矿',
         baseValue: 10,
         size: 1,
         keywords: ['twin', 'dedicate'],
         rarity: 'blue',
-        description: '双生：打出时，将一张本牌的无双生词条复制加入手牌；奉献：在场上时，堆叠在它上方的第一张卡牌获得本牌一半点数',
+        description: '双晶：投入时，复制一块本矿的无双晶特性复制品加入精炼盘；预热：在台上时，熔炼在它上方的矿石获得本矿一半强度',
         color: '#1ABC9C',
         accentColor: '#16A085',
         iconType: 'shield'
     },
-    messenger: {
-        id: 'messenger',
-        name: '传令',
+    dispatch_ore: {
+        id: 'dispatch_ore',
+        name: '传令矿',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['messenger_effect'],
         rarity: 'blue',
-        description: '打出时，从牌组里拿一张卡牌放入手牌',
+        description: '投入时，从矿舱里拿一块矿石放入精炼盘',
         color: '#1B4F72',
         accentColor: '#5DADE2',
         iconType: 'magic'
     },
-    luxury_gear: {
-        id: 'luxury_gear',
-        name: '豪华装备',
+    steel_drill: {
+        id: 'steel_drill',
+        name: '精钢钻头',
         baseValue: 20,
         size: 1,
         keywords: [],
         extraEffects: ['luxury_gear_effect'],
         rarity: 'gold',
-        description: '若本牌已在倍率格，将相邻两侧倍率点数+1',
+        description: '若本矿已在铸造台，将相邻两侧铸造台倍率+1',
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'star'
     },
-    ultimate_brute: {
-        id: 'ultimate_brute',
-        name: '终极蛮力',
+    dark_iron: {
+        id: 'dark_iron',
+        name: '玄铁锭',
         baseValue: 60,
         size: 1,
         keywords: [],
         rarity: 'gold',
-        description: '极致的蛮力打击',
+        description: '极致沉重的玄铁，最大单体矿石',
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'sword'
     },
-    cogito_ergo_sum: {
-        id: 'cogito_ergo_sum',
+    cogito: {
+        id: 'cogito',
         name: '我思故我在',
         baseValue: 0,
         size: 1,
         keywords: [],
         extraEffects: ['cogito_ergo_sum_effect'],
         rarity: 'gold',
-        description: '若本牌已在倍率格，将本牌所在倍率格点数×2',
+        description: '若本矿已在铸造台，将本矿所在铸造台倍率×2',
         color: '#9B59B6',
         accentColor: '#8E44AD',
         iconType: 'star'
     },
 
-    // ===== 大数字体系 =====
+    // ===== 重铸矿脉 =====
     ugly_showoff: {
         id: 'ugly_showoff',
         name: '丑陋炫耀',
@@ -322,46 +322,46 @@ export const CARD_DEFS = {
         keywords: [],
         extraEffects: ['ugly_showoff_effect'],
         rarity: 'white',
-        description: '打出时，若本牌所在倍率格卡牌基础点数之和超过100，则抽一张牌',
+        description: '投入时，若本矿所在铸造台矿石基础强度之和超过100，则抽取一块矿石',
         color: '#8E44AD',
         accentColor: '#9B59B6',
         iconType: 'magic'
     },
-    no_wisdom: {
-        id: 'no_wisdom',
-        name: '何须智慧',
+    no_strategy: {
+        id: 'no_strategy',
+        name: '何需谋略',
         baseValue: 30,
         size: 1,
         keywords: [],
         extraEffects: ['no_wisdom_effect'],
         rarity: 'white',
-        description: '若本牌已在倍率格，则本牌所在倍率格点数-1',
+        description: '若本矿已在铸造台，则本矿所在铸造台倍率-1',
         color: '#7F8C8D',
         accentColor: '#95A5A6',
         iconType: 'sword'
     },
-    combined_force: {
-        id: 'combined_force',
-        name: '合力',
+    combined_forge: {
+        id: 'combined_forge',
+        name: '合锻',
         baseValue: 30,
         size: 1,
         keywords: [],
         extraEffects: ['combined_force_effect'],
         rarity: 'white',
-        description: '打出时，将手牌一张随机卡牌放回牌组',
+        description: '投入时，将精炼盘一块随机矿石放回矿舱',
         color: '#C0392B',
         accentColor: '#E74C3C',
         iconType: 'sword'
     },
-    apprentice_forge: {
-        id: 'apprentice_forge',
+    apprentice_cast: {
+        id: 'apprentice_cast',
         name: '学徒铸造',
         baseValue: 5,
         size: 1,
         keywords: [],
         extraEffects: ['apprentice_forge_effect'],
         rarity: 'white',
-        description: '下一张打出在本牌所在倍率格的卡牌本场战斗点数永久+5',
+        description: '下一块投入在本矿所在铸造台的矿石本场海战强度永久+5',
         color: '#D35400',
         accentColor: '#E67E22',
         iconType: 'gear'
@@ -374,33 +374,33 @@ export const CARD_DEFS = {
         keywords: [],
         extraEffects: ['body_wisdom_effect'],
         rarity: 'white',
-        description: '打出时，若本牌所在倍率格卡牌基础点数之和超过100，则本牌所在倍率格点数+1',
+        description: '投入时，若本矿所在铸造台矿石基础强度之和超过100，则本矿所在铸造台倍率+1',
         color: '#16A085',
         accentColor: '#1ABC9C',
         iconType: 'shield'
     },
-    borrow: {
-        id: 'borrow',
-        name: '预借',
+    overdraft: {
+        id: 'overdraft',
+        name: '透支矿',
         baseValue: 30,
         size: 1,
         keywords: [],
         extraEffects: ['borrow_effect'],
         rarity: 'white',
-        description: '打出时，本牌在本次战斗点数永久-10',
+        description: '投入时，本矿在本次海战强度永久-10',
         color: '#2C3E50',
         accentColor: '#34495E',
         iconType: 'shadow'
     },
-    master_forge: {
-        id: 'master_forge',
+    master_cast: {
+        id: 'master_cast',
         name: '大师铸造',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['master_forge_effect'],
         rarity: 'blue',
-        description: '下一张打出在本牌所在倍率格的卡牌本场战斗点数永久+10',
+        description: '下一块投入在本矿所在铸造台的矿石本场海战强度永久+10',
         color: '#8E44AD',
         accentColor: '#9B59B6',
         iconType: 'gear'
@@ -413,224 +413,224 @@ export const CARD_DEFS = {
         keywords: [],
         extraEffects: ['perfect_borrow_effect'],
         rarity: 'blue',
-        description: '打出时，获得相邻两侧倍率格点数最高卡牌之和的点数',
+        description: '投入时，获得相邻两侧铸造台强度最高矿石之和的强度',
         color: '#2980B9',
         accentColor: '#3498DB',
         iconType: 'magic'
     },
-    skilled_borrow: {
-        id: 'skilled_borrow',
-        name: '熟练预借',
+    skilled_overdraft: {
+        id: 'skilled_overdraft',
+        name: '熟练透支',
         baseValue: 40,
         size: 1,
         keywords: [],
         extraEffects: ['skilled_borrow_effect'],
         rarity: 'blue',
-        description: '打出时，本牌在本次战斗点数永久-5',
+        description: '投入时，本矿在本次海战强度永久-5',
         color: '#27AE60',
         accentColor: '#2ECC71',
         iconType: 'shadow'
     },
-    one_man_army: {
-        id: 'one_man_army',
-        name: '一人成军',
+    solo_drill: {
+        id: 'solo_drill',
+        name: '独钻',
         baseValue: 0,
         size: 1,
         keywords: ['retain'],
         extraEffects: ['one_man_army_effect'],
         rarity: 'gold',
-        description: '保留：回合结束时，本牌保留在手牌中不返回牌组；获得当前牌组内所有卡牌点数之和的点数',
+        description: '余烬：回合结束时保留在精炼盘中；获得当前矿舱内所有矿石强度之和的强度',
         color: '#B7950B',
         accentColor: '#F4D03F',
         iconType: 'star'
     },
 
-    // ===== 生长体系 =====
-    war_training: {
-        id: 'war_training',
-        name: '战时训练',
+    // ===== 淬火矿脉 =====
+    war_quench: {
+        id: 'war_quench',
+        name: '战时淬火',
         baseValue: 8,
         size: 1,
         keywords: ['grow'],
         growAmount: 2,
         rarity: 'white',
-        description: '成长2：每次打出后永久+2点数',
+        description: '淬火2：每次投入后永久+2强度',
         color: '#8B4513',
         accentColor: '#CD853F',
         iconType: 'sword'
     },
-    training_trace: {
-        id: 'training_trace',
-        name: '训练痕迹',
+    forge_trace: {
+        id: 'forge_trace',
+        name: '锻痕',
         baseValue: 0,
         size: 1,
         keywords: [],
         extraEffects: ['training_trace_effect'],
         rarity: 'white',
-        description: '若本牌已在倍率格，则打出在相邻两侧倍率格卡牌的成长效果多触发一次',
+        description: '若本矿已在铸造台，则投入在相邻两侧铸造台矿石的淬火效果多触发一次',
         color: '#8B4513',
         accentColor: '#CD853F',
         iconType: 'shield'
     },
-    intense_training: {
-        id: 'intense_training',
-        name: '猛训练',
+    intense_forge: {
+        id: 'intense_forge',
+        name: '猛锻',
         baseValue: 5,
         size: 1,
         keywords: [],
         extraEffects: ['intense_training_effect'],
         rarity: 'white',
-        description: '若本牌已在倍率格，则后续打出在同倍率格卡牌的成长效果多触发一次',
+        description: '若本矿已在铸造台，则后续投入在同铸造台矿石的淬火效果多触发一次',
         color: '#1B4F72',
         accentColor: '#5DADE2',
         iconType: 'gear'
     },
-    group_training: {
-        id: 'group_training',
-        name: '集体训练',
+    batch_quench: {
+        id: 'batch_quench',
+        name: '集体淬火',
         baseValue: 20,
         size: 1,
         keywords: [],
         extraEffects: ['group_training_effect'],
         rarity: 'gold',
-        description: '若本牌已在倍率格，则后续打出在同倍率格的卡牌获得成长2',
+        description: '若本矿已在铸造台，则后续投入在同铸造台的矿石获得淬火2',
         color: '#7D6608',
         accentColor: '#F4D03F',
         iconType: 'star'
     },
-    training_partner: {
-        id: 'training_partner',
-        name: '训练搭子',
+    forge_partner: {
+        id: 'forge_partner',
+        name: '锻伴',
         baseValue: 5,
         size: 1,
         keywords: ['grow'],
         growAmount: 2,
         extraEffects: ['training_partner_effect'],
         rarity: 'white',
-        description: '成长2：每次打出后永久+2点数；当打出一张带有成长词条的卡牌时，将本牌从牌组里打出到相同倍率格',
+        description: '淬火2：每次投入后永久+2强度；当投入一块带有淬火特性的矿石时，将本矿从矿舱里投入到相同铸造台',
         color: '#A0522D',
         accentColor: '#CD853F',
         iconType: 'sword'
     },
-    training_set: {
-        id: 'training_set',
-        name: '训练集合',
+    forge_set: {
+        id: 'forge_set',
+        name: '锻集',
         baseValue: 0,
         size: 1,
         keywords: ['grow'],
         growAmount: 2,
         extraEffects: ['training_set_effect'],
         rarity: 'white',
-        description: '成长2：每次打出后永久+2点数；打出时，将牌组内所有同名牌打出在本牌所在倍率格',
+        description: '淬火2：每次投入后永久+2强度；投入时，将矿舱内所有同名矿投入在本矿所在铸造台',
         color: '#8B4513',
         accentColor: '#CD853F',
         iconType: 'magic'
     },
-    support_training: {
-        id: 'support_training',
-        name: '辅助训练',
+    assist_forge: {
+        id: 'assist_forge',
+        name: '助锻矿',
         baseValue: 10,
         size: 1,
         keywords: [],
         extraEffects: ['support_training_effect'],
         rarity: 'white',
-        description: '若本牌已在倍率格，则下一张打出在本牌所在倍率格上卡牌获得成长1',
+        description: '若本矿已在铸造台，则下一块投入在本矿所在铸造台上的矿石获得淬火1',
         color: '#E67E22',
         accentColor: '#D35400',
         iconType: 'shield'
     },
-    training_30h: {
-        id: 'training_30h',
-        name: '30小时训练',
+    thirty_quench: {
+        id: 'thirty_quench',
+        name: '三十次淬火',
         baseValue: 10,
         size: 1,
         keywords: ['grow'],
         extraEffects: ['training_30h_effect'],
         rarity: 'blue',
-        description: '成长：每次打出后永久+1点数；打出时，本牌成长数+1',
+        description: '淬火：每次投入后永久+1强度；投入时，本矿淬火数+1',
         color: '#1B4F72',
         accentColor: '#5DADE2',
         iconType: 'gear'
     },
-    steroid_training: {
-        id: 'steroid_training',
-        name: '激素训练',
+    steroid_quench: {
+        id: 'steroid_quench',
+        name: '激素淬火',
         baseValue: 0,
         size: 1,
         keywords: ['grow'],
         growAmount: 2,
         extraEffects: ['steroid_training_effect'],
         rarity: 'blue',
-        description: '成长2：每次打出后永久+2点数；打出时，本牌每有10点数就给所在倍率格点数+1',
+        description: '淬火2：每次投入后永久+2强度；投入时，本矿每有10强度就给所在铸造台倍率+1',
         color: '#C0392B',
         accentColor: '#E74C3C',
         iconType: 'gear'
     },
-    regular_training: {
-        id: 'regular_training',
-        name: '规律训练',
+    regular_quench: {
+        id: 'regular_quench',
+        name: '规律淬火',
         baseValue: 10,
         size: 1,
         keywords: ['grow'],
         extraEffects: ['regular_training_effect'],
         rarity: 'blue',
-        description: '成长：每次打出后永久+1点数；打出时，从牌组里拿一张带有成长词条的卡牌放入手牌',
+        description: '淬火：每次投入后永久+1强度；投入时，从矿舱里拿一块带有淬火特性的矿石放入精炼盘',
         color: '#27AE60',
         accentColor: '#2ECC71',
         iconType: 'magic'
     },
-    training_result: {
-        id: 'training_result',
-        name: '训练成果',
+    quench_result: {
+        id: 'quench_result',
+        name: '淬火成果',
         baseValue: 0,
         size: 1,
         keywords: ['grow'],
         extraEffects: ['training_result_effect'],
         rarity: 'gold',
-        description: '成长：每次打出后永久+1点数；本局游戏每打出过一次带有成长词条的卡牌，本牌点数+2',
+        description: '淬火：每次投入后永久+1强度；本局游戏每投入过一次带有淬火特性的矿石，本矿强度+2',
         color: '#B7950B',
         accentColor: '#F4D03F',
         iconType: 'star'
     },
 
-    // ===== 衍生牌 =====
-    diffusion: {
-        id: 'diffusion',
-        name: '扩散',
+    // ===== 衍生物 =====
+    slag: {
+        id: 'slag',
+        name: '矿渣',
         baseValue: 0,
         size: 1,
         keywords: [],
         rarity: 'white',
-        description: '点数为0的扩散牌',
+        description: '强度为0的碎屑衍生物',
         color: '#888888',
         accentColor: '#aaaaaa',
         iconType: 'shadow'
     },
-    cheat_card: {
-        id: 'cheat_card',
-        name: '作弊卡',
+    contraband: {
+        id: 'contraband',
+        name: '私货',
         baseValue: 50,
         size: 1,
         keywords: [],
         rarity: 'gold',
-        description: '一张强力的临时卡牌',
+        description: '一块强力的临时矿石（黑市走私品）',
         color: '#FFD700',
         accentColor: '#FFA500',
         iconType: 'magic'
     }
 };
 
-// 战后三选一牌的卡池
+// 战后三选一矿石的矿池
 export const CARD_REWARD_POOL = [
-    'vine_climb', 'ponder', 'prepare_battle', 'hold_position', 'brute_force',
-    'common_goal', 'friendly_chat', 'first_advantage', 'battle_banner', 'rear_guard',
-    'icing_on_cake', 'easy_money', 'big_brute_force', 'clear_mind', 'extreme_think',
-    'flexible_dispatch', 'lend_hand', 'messenger', 'luxury_gear', 'ultimate_brute',
-    'cogito_ergo_sum', 'war_training', 'training_trace', 'intense_training', 'group_training',
-    'ugly_showoff', 'no_wisdom', 'combined_force', 'apprentice_forge', 'body_wisdom',
-    'borrow', 'master_forge', 'perfect_borrow', 'skilled_borrow', 'one_man_army',
-    'training_partner', 'training_set', 'support_training', 'training_30h',
-    'steroid_training', 'regular_training', 'training_result'
+    'vine_ore', 'probe_ore', 'ember_ore', 'tungsten_core', 'crude_iron',
+    'same_cast', 'friendly_vein', 'first_ore', 'anchor_badge', 'rear_ore',
+    'silver_plate', 'ballast_stone', 'big_crude_iron', 'clear_vein', 'extreme_probe',
+    'flexible_ore', 'dual_crystal', 'dispatch_ore', 'steel_drill', 'dark_iron',
+    'cogito', 'war_quench', 'forge_trace', 'intense_forge', 'batch_quench',
+    'ugly_showoff', 'no_strategy', 'combined_forge', 'apprentice_cast', 'body_wisdom',
+    'overdraft', 'master_cast', 'perfect_borrow', 'skilled_overdraft', 'solo_drill',
+    'forge_partner', 'forge_set', 'assist_forge', 'thirty_quench',
+    'steroid_quench', 'regular_quench', 'quench_result'
 ];
 
 const CARD_REWARD_RARITY_WEIGHTS = [

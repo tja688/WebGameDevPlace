@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 视觉特效系统 (Visual FX System)
+ * Heave! - 视觉特效系统 (Visual FX System)
  * 
  * 职责：纯视觉效果，与游戏逻辑完全解耦。
  * 所有效果都是"锦上添花"，移除后不影响游戏运行。
@@ -462,7 +462,7 @@ export const FX = {
             gravity: -0.05, spread: Math.PI * 2, glow: true
         });
         this.floatingText.add({
-            x, y, text: '+成长', color: '#2ecc71',
+            x, y, text: '+淬火', color: '#2ecc71',
             fontSize: 16, vy: -1.5, life: 40
         });
     },

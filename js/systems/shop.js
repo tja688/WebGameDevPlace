@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 商店系统
+ * Heave! - 精炼厂系统
  */
 
 import { createShopStock, createBlacksmithStock } from '../data/index.js';
@@ -22,7 +22,7 @@ export function getOrCreateBlacksmithStock(runData) {
         runData.blacksmithStock = createBlacksmithStock();
         runData.blacksmithRefreshCost = 5;
         runData.blacksmithFriendRefreshAvailable = !!runData.relics?.some(r => r.effect?.type === 'first_refresh_free');
-        // 重置本铁匠已敲词条记录
+        // 重置本船坞已敲词条记录
         runData.blacksmithEnchantedKeywords = [];
     }
     return runData.blacksmithStock;

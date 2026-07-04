@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 游戏状态管理（第二版）
+ * Heave! - 游戏状态管理（第二版）
  */
 
 import { shuffleArray } from './utils.js';
@@ -63,17 +63,17 @@ export function createRunData(classId) {
         shopStock: null,
         blacksmithStock: null,
         slotUpgrades: {},
-        // 商店费用追踪
+        // 精炼厂费用追踪
         shopUpgradeCost: 1,         // 数值强化基础费用（兼容旧存档）
-        shopUpgradeCosts: {},       // 每张卡牌的强化费用 {cardId: cost}
+        shopUpgradeCosts: {},       // 每块矿石的强化费用 {cardId: cost}
         shopRefreshCost: 5,
         shopRefreshCount: 0,
-        shopRemoveCost: 2,          // 删牌服务费用（每次翻倍）
+        shopRemoveCost: 2,          // 移除矿石服务费用（每次翻倍）
         shopFriendRefreshAvailable: false,
         nextShopCardSystem: null,
-        // 铁匠费用追踪
-        blacksmithSlotCosts: [4, 4, 4], // 兼容旧存档；当前随机强化统一4金币
-        blacksmithSlotUpgraded: false,  // 当前铁匠房是否已使用过倍率格强化
+        // 船坞费用追踪
+        blacksmithSlotCosts: [4, 4, 4], // 兼容旧存档；当前随机强化统一4银元
+        blacksmithSlotUpgraded: false,  // 当前船坞房是否已使用过铸造台强化
         blacksmithEnchantCost: 2,       // 当前附魔费用（按稀有度）
         blacksmithRefreshCost: 5,
         blacksmithRefreshCount: 0,
@@ -82,10 +82,10 @@ export function createRunData(classId) {
         // 战后事件
         pendingPostBattle: null,
         pendingGoldGained: 0,
-        // 计策强化等级
+        // 叠牌强化等级
         strategyLevels: {},
-        // 跨层保留
-        extraMultiplier: 1   // 额外指数（遗物加成）
+        // 跨航段余烬
+        extraMultiplier: 1   // 额外指数（船体改造加成）
     };
 }
 

@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 战斗界面渲染（视觉升级版）
+ * Heave! - 战斗界面渲染（视觉升级版）
  */
 
 import {
@@ -42,7 +42,7 @@ export function drawBattle(renderer, ctx, state) {
 }
 
 // ============================================================
-// 怪物区域
+// 敌舰区域
 // ============================================================
 
 function drawMonsterArea(renderer, ctx, state) {
@@ -59,7 +59,7 @@ function drawMonsterArea(renderer, ctx, state) {
     ctx.ellipse(mx, my + 75, 70 * breathScale, 18 * breathScale, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 怪物绘制
+    // 敌舰绘制
     drawMonster(ctx, monster, mx, my, colors, t);
 
     // 名称 - 发光文字
@@ -72,7 +72,7 @@ function drawMonsterArea(renderer, ctx, state) {
     });
 
     // 类型徽章
-    const typeLabels = { normal: '普通', elite: '精英', boss: 'BOSS' };
+    const typeLabels = { normal: '普通', elite: '私掠舰', boss: 'BOSS' };
     const typeColors = { normal: '#8B4513', elite: '#8B008B', boss: '#8B0000' };
     const typeBgColors = { normal: '#3a2211', elite: '#3a113a', boss: '#3a1111' };
     const typeLabel = typeLabels[monster.type] || '';
@@ -149,7 +149,7 @@ function estimateLines(ctx, text, maxWidth) {
 }
 
 // ============================================================
-// 怪物绘制（保留原有形状，增强质感）
+// 敌舰绘制（保留原有形状，增强质感）
 // ============================================================
 
 function drawMonster(ctx, monster, x, y, colors, t) {
@@ -639,7 +639,7 @@ function drawPlayerArea(renderer, ctx, state) {
 }
 
 // ============================================================
-// 遗物栏（右上角，类似杀戮尖塔）
+// 船体改造栏（右上角，类似杀戮尖塔）
 // ============================================================
 
 function drawRelicsBar(renderer, ctx, state) {
@@ -708,11 +708,11 @@ function drawStrategyPanel(renderer, ctx, state) {
     ctx.fillStyle = '#f0d29a';
     ctx.font = 'bold 16px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('叠牌加成', x + 14, y + 26);
+    ctx.fillText('熔炼加成', x + 14, y + 26);
 
     ctx.fillStyle = '#9f8b72';
     ctx.font = '12px Microsoft YaHei';
-    ctx.fillText(`当前堆叠 ${counts.join('-')} | 共 ${totalCards}张`, x + 14, y + 48);
+    ctx.fillText(`当前熔炼 ${counts.join('-')} | 共 ${totalCards}块`, x + 14, y + 48);
 
     // 规则速查表
     let rowY = y + 72;
@@ -723,17 +723,17 @@ function drawStrategyPanel(renderer, ctx, state) {
     ctx.fillStyle = '#9f8b72';
     ctx.font = 'bold 11px Microsoft YaHei';
     ctx.textAlign = 'left';
-    ctx.fillText('当某倍率格堆叠一定数量卡牌后：', x + 14, rowY + 10);
+    ctx.fillText('当某铸造台熔炼一定数量矿石后：', x + 14, rowY + 10);
 
     ctx.fillStyle = '#bca98b';
     ctx.font = '10px Microsoft YaHei';
     const rules = [
-        '2张: 本倍率格倍率+1',
-        '4张: 本格所有卡牌基础数值+1',
-        '6张: 本倍率格倍率+1',
-        '8张: 本格所有卡牌基础数值+1',
-        '10张: 本倍率格倍率+1',
-        '12张: 本格所有卡牌基础数值+1...'
+        '2块: 本铸造台倍率+1',
+        '4块: 本台所有矿石基础数值+1',
+        '6块: 本铸造台倍率+1',
+        '8块: 本台所有矿石基础数值+1',
+        '10块: 本铸造台倍率+1',
+        '12块: 本台所有矿石基础数值+1...'
     ];
     let ruleY = rowY + 26;
     for (const rule of rules) {
@@ -945,7 +945,7 @@ function drawAdventureCheatPanel(renderer, ctx, state) {
 }
 
 // ============================================================
-// 倍率牌桌
+// 铸造台
 // ============================================================
 
 function drawBoardArea(renderer, ctx, state) {
@@ -982,7 +982,7 @@ function drawBoardArea(renderer, ctx, state) {
         });
         data.slotHeaderRects.push({ x, y: y - 40, w: slotW, h: 36, slotIndex: i });
 
-        // 倍率文字 —— 显示当前倍率格加成信息
+        // 倍率文字 —— 显示当前铸造台加成信息
         const effMul = getSlotEffectiveMultiplier(slot, state);
         const bonus = getStackingBonus(slot.cards.length);
         const headerParts = [`×${effMul}`];
@@ -1000,7 +1000,7 @@ function drawBoardArea(renderer, ctx, state) {
         // 格子底座
         const isHovered = state.hoveredSlot === i;
         const canDrop = state.draggedCard && canPlaceCard(state.draggedCard, slot, state).ok;
-        // 入场卡牌拖动时，目标格高亮
+        // 入场矿石拖动时，目标格高亮
         const isSlotDragTarget = isDraggingSlotCard && dragInsertSlotIndex === i;
 
         const tileOptions = {
@@ -1026,7 +1026,7 @@ function drawBoardArea(renderer, ctx, state) {
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 8, y + 8, slotW - 16, slotH - 16);
 
-        // 卡牌渲染（带挤开位移效果）
+        // 矿石渲染（带挤开位移效果）
         const cardH = 34;
         const cardGap = 4;
         const startCardY = y + 10;
@@ -1034,7 +1034,7 @@ function drawBoardArea(renderer, ctx, state) {
         for (let c = 0; c < slot.cards.length; c++) {
             const card = slot.cards[c];
 
-            // 如果正在拖动此卡牌，跳过（会在单独层绘制）
+            // 如果正在拖动此矿石，跳过（会在单独层绘制）
             if (isDraggingSlotCard && draggedSlotCard && draggedSlotCard.uuid === card.uuid) {
                 continue;
             }
@@ -1044,7 +1044,7 @@ function drawBoardArea(renderer, ctx, state) {
             const cw = slotW - 20;
             const ch = cardH;
 
-            // 挤开位移效果：当拖动卡牌到本格时，插入位置处的卡牌向两侧偏移
+            // 挤开位移效果：当拖动矿石到本格时，插入位置处的卡牌向两侧偏移
             if (isSlotDragTarget && dragInsertCardIndex >= 0) {
                 const offset = 8; // 挤开距离
                 if (c >= dragInsertCardIndex) {
@@ -1076,8 +1076,8 @@ function drawBoardArea(renderer, ctx, state) {
             ctx.fill();
         }
 
-        // 倍率格中间描述标签（可遮盖）
-        const slotNames = ['左侧倍率格', '中间倍率格', '右侧倍率格'];
+        // 铸造台中间描述标签（可遮盖）
+        const slotNames = ['左侧铸造台', '中间铸造台', '右侧铸造台'];
         const slotLabel = slotNames[i];
         ctx.font = 'bold 14px Microsoft YaHei';
         const labelMetrics = ctx.measureText(slotLabel);
@@ -1098,13 +1098,13 @@ function drawBoardArea(renderer, ctx, state) {
 }
 
 function drawMiniCard(ctx, card, x, y, w, h, state, stackIndex, slotIndex) {
-    // 堆叠偏移阴影
+    // 熔炼偏移阴影
     if (stackIndex > 0) {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(x + 2, y + 2, w, h);
     }
 
-    // 卡牌背景
+    // 矿石背景
     const grad = ctx.createLinearGradient(x, y, x, y + h);
     grad.addColorStop(0, card.color);
     grad.addColorStop(1, darkenColor(card.color, -35));
@@ -1137,7 +1137,7 @@ function drawMiniCard(ctx, card, x, y, w, h, state, stackIndex, slotIndex) {
         tagX += 36;
     }
 
-    // 卡牌条末尾显示当前卡牌总伤害
+    // 矿石条末尾显示当前矿石总伤害
     const slot = state.slots[slotIndex];
     if (slot) {
         const cardDmg = calculateCardOutput(card, slot, state);
@@ -1153,7 +1153,7 @@ function drawMiniCard(ctx, card, x, y, w, h, state, stackIndex, slotIndex) {
 }
 
 // ============================================================
-// 手牌区域
+// 精炼盘区域
 // ============================================================
 
 function drawHandArea(renderer, ctx, state) {
@@ -1162,7 +1162,7 @@ function drawHandArea(renderer, ctx, state) {
 
     const layout = getHandLayout(renderer, hand.length);
 
-    // 抽卡动画（美化版：ease-out 缓动、旋转、缩放曲线、拖尾粒子）
+    // 抽取动画（美化版：ease-out 缓动、旋转、缩放曲线、拖尾粒子）
     if (state.drawAnimations && state.drawAnimations.length > 0) {
         for (let i = state.drawAnimations.length - 1; i >= 0; i--) {
             const anim = state.drawAnimations[i];
@@ -1263,7 +1263,7 @@ function drawCard(ctx, card, x, y, w, h, state, options = {}) {
         ctx.shadowBlur = 10;
     }
 
-    // 卡牌主体 - 圆角矩形
+    // 矿石主体 - 圆角矩形
     const grad = ctx.createLinearGradient(x, y, x, y + h);
     grad.addColorStop(0, card.color);
     grad.addColorStop(1, darkenColor(card.color, -35));
@@ -1328,7 +1328,7 @@ function drawCard(ctx, card, x, y, w, h, state, options = {}) {
         tagY += 22;
     }
 
-    // 保留词条角标
+    // 余烬词条角标
     if (card.keywords.includes('retain')) {
         const badgeR = 14;
         const badgeX = x + w - badgeR - 6;
@@ -1344,15 +1344,15 @@ function drawCard(ctx, card, x, y, w, h, state, options = {}) {
         ctx.font = 'bold 10px Microsoft YaHei';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('留', badgeX, badgeY);
+        ctx.fillText('余', badgeX, badgeY);
         ctx.textBaseline = 'alphabetic';
     }
 
-    // 格子数
+    // 台数
     ctx.fillStyle = '#aaa';
     ctx.font = '11px Microsoft YaHei';
     ctx.textAlign = 'right';
-    ctx.fillText(`${card.size}格`, x + w - 10, y + h - 10);
+    ctx.fillText(`${card.size}台`, x + w - 10, y + h - 10);
 
     // 稀有度光效覆盖
     if (rarity === 'gold') {
@@ -1521,7 +1521,7 @@ function drawUI(renderer, ctx, state) {
         ctx.fillStyle = isHover ? '#ffcc88' : '#ffd700';
         ctx.font = 'bold 13px Microsoft YaHei';
         ctx.textAlign = 'center';
-        ctx.fillText(`📜 牌组 ${runData.deck.length}`, deckBtnX + deckBtnW / 2, deckBtnY + deckBtnH / 2 + 4);
+        ctx.fillText(`📜 矿舱 ${runData.deck.length}`, deckBtnX + deckBtnW / 2, deckBtnY + deckBtnH / 2 + 4);
         if (state.data) state.data.deckViewBtnRect = { x: deckBtnX, y: deckBtnY, w: deckBtnW, h: deckBtnH };
     }
 }
@@ -1577,7 +1577,7 @@ function drawDragCard(renderer, ctx, state) {
     ctx.restore();
 }
 
-// ===== 入场卡牌拖动渲染 =====
+// ===== 入场矿石拖动渲染 =====
 
 function drawSlotDragCard(renderer, ctx, state) {
     const Input = window.GameInput || {};
@@ -1621,7 +1621,7 @@ function drawSlotDragCard(renderer, ctx, state) {
     ctx.restore();
 }
 
-// ===== 入场卡牌拖动时的动态伤害预览面板 =====
+// ===== 入场矿石拖动时的动态伤害预览面板 =====
 
 function drawSlotDragPreview(renderer, ctx, state) {
     const Input = window.GameInput || {};
@@ -1655,16 +1655,16 @@ function drawSlotDragPreview(renderer, ctx, state) {
     ctx.fillStyle = preview.willKill ? '#2ecc71' : '#ffd700';
     ctx.font = 'bold 15px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText(`预计总计: ${preview.totalDamage} | 怪物剩余: ${preview.monsterRemaining}`, mx, my - 6);
+    ctx.fillText(`预计总计: ${preview.totalDamage} | 敌舰剩余: ${preview.monsterRemaining}`, mx, my - 6);
 
     ctx.fillStyle = preview.willKill ? '#2ecc71' : '#ffaa44';
     ctx.font = '13px Microsoft YaHei';
     if (preview.willKill) {
-        ctx.fillText('💀 伤害足够击杀怪物！', mx, my + 18);
+        ctx.fillText('💀 伤害足够击杀敌舰！', mx, my + 18);
     } else {
         const diff = preview.totalDamage - state.turnDamage;
         const sign = diff >= 0 ? '+' : '';
-        ctx.fillText(`本卡输出: ${preview.cardOutput} | 总伤害变化: ${sign}${diff}`, mx, my + 18);
+        ctx.fillText(`本矿输出: ${preview.cardOutput} | 总伤害变化: ${sign}${diff}`, mx, my + 18);
     }
 }
 
@@ -1678,7 +1678,7 @@ function drawSlotFlashes(renderer, ctx, state) {
         state.pendingPlaceEffects = [];
     }
 
-    // 处理待生成的成长特效
+    // 处理待生成的淬火特效
     if (state.pendingGrowthEffects && state.pendingGrowthEffects.length > 0) {
         for (const eff of state.pendingGrowthEffects) {
             const r = getSlotRect(renderer, eff.slotIndex, state.slots.length);
@@ -1794,7 +1794,7 @@ export function getSlotIndexAt(renderer, px, py, slotCount) {
 }
 
 /**
- * 检测鼠标是否指向倍率格内的某张卡牌
+ * 检测鼠标是否指向铸造台内的某块矿石
  * @returns {object|null} { slotIndex, cardIndex, card, rect }
  */
 export function getSlotCardAt(renderer, px, py, slots) {

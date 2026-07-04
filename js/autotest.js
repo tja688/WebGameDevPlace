@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 自动测试与调试工具（第二版）
+ * Heave! - 自动测试与调试工具（第二版）
  */
 
 if (typeof window === 'undefined') {
@@ -30,7 +30,7 @@ const AutoTest = {
             if (this.state.screen === 'battle') {
                 this.autoPlayOptimal();
             } else {
-                this.log('仅在战斗界面可用');
+                this.log('仅在海战界面可用');
             }
         });
 
@@ -52,8 +52,8 @@ const AutoTest = {
                 while (this.state.deck.length < 5) {
                     this.state.deck.push(createCardInstance('brute_force'));
                 }
-                logCombat(this.state, '调试: 牌库已补满');
-                this.log('牌库已补满');
+                logCombat(this.state, '调试: 矿舱已补满');
+                this.log('矿舱已补满');
             }
         });
 
@@ -62,7 +62,7 @@ const AutoTest = {
                 this.state.monster.hp = 0;
                 this.state.phase = 'ended';
                 this.state.result = 'win';
-                this.log('秒杀怪物');
+                this.log('秒杀敌舰');
                 Input.checkBattleEnd();
             }
         });
@@ -76,7 +76,7 @@ const AutoTest = {
 
         document.getElementById('btn-reset-battle')?.addEventListener('click', () => {
             restartGame();
-            this.log('战斗已重置');
+            this.log('海战已重置');
         });
 
         document.getElementById('btn-set-mul')?.addEventListener('click', () => {
@@ -142,23 +142,23 @@ const AutoTest = {
         }
 
         if (played === 0) {
-            this.log('无牌可出，自动结束回合');
+            this.log('无矿可出，自动结束回合');
             endTurn(this.state);
             this.checkEnd();
         } else {
-            this.log(`自动出牌完成，共打出 ${played} 张`);
+            this.log(`自动出矿完成，共打出 ${played} 张`);
         }
     },
 
     cheatHand() {
         if (this.state.screen !== 'battle') return;
         const choice = prompt(
-            '输入想要的手牌组合（用逗号分隔）：\n' +
+            '输入想要的精炼盘组合（用逗号分隔）：\n' +
             '1=蛮力, 2=思考, 3=爬藤\n' +
             '4=备战, 5=坚守, 6=共同目标, 7=友好交流\n' +
             '8=大蛮力, 9=理清头绪, 10=搭把手, 11=传令\n' +
             '12=豪华装备, 13=终极蛮力, 14=我思故我在\n' +
-            '15=战时训练, 16=训练痕迹, 17=猛训练, 18=集体训练\n' +
+            '15=战时训练, 16=锻痕, 17=猛训练, 18=集体训练\n' +
             '例如: 1,1,3,2,15',
             '1,1,3,2,15'
         );
@@ -181,7 +181,7 @@ const AutoTest = {
         for (const id of ids) {
             this.state.hand.push(createCardInstance(id));
         }
-        this.log(`手牌已修改: ${ids.length} 张`);
+        this.log(`精炼盘已修改: ${ids.length} 张`);
     },
 
     runSmokeTest() {
@@ -190,7 +190,7 @@ const AutoTest = {
         drawCards(testState, 5);
 
         console.assert(testState.player.hearts === 4, '初始生命应为4');
-        console.assert(testState.slots[1].multiplier === 1, '中间格应为1X');
+        console.assert(testState.slots[1].multiplier === 1, '中间铸造台应为1X');
         this.log('测试1 通过: 初始状态正确');
 
         const brute = testState.hand.find(c => c.defId === 'brute_force');
@@ -205,7 +205,7 @@ const AutoTest = {
         if (vet) {
             playCardToSlot(vet, 0, testState);
             const val = calculateTotalBoardDamage(testState);
-            this.log('测试3 通过: 老兵雄心伟力翻倍正确');
+            this.log('测试3 通过: 老兵雄心熔核翻倍正确');
         }
 
         this.log('=== 冒烟测试结束 ===');
@@ -239,14 +239,14 @@ window.fullHand = function(type = 'brute_force', count = 5) {
 window.setMonsterHp = function(hp) {
     if (!window.gameState || window.gameState.screen !== 'battle') return;
     window.gameState.monster.hp = hp;
-    AutoTest.log(`怪物HP设为 ${hp}`);
+    AutoTest.log(`敌舰HP设为 ${hp}`);
 };
 
 window.testCombat = function() {
     AutoTest.runSmokeTest();
 };
 
-// 模拟多场自动战斗，统计胜率
+// 模拟多场自动海战，统计胜率
 window.simulateBattles = function(count = 100, verbose = false) {
     let wins = 0;
     let totalTurns = 0;

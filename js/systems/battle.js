@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 战斗系统（第二版）
+ * Heave! - 战斗系统（第二版）
  * 
  * 负责：
  * 1. 从RunData初始化战斗
@@ -135,24 +135,24 @@ export function initBattleFromRun(runData) {
 
     if (nextMonsterHpPenalty > 0) {
         delete runData.nextMonsterHpPenalty;
-        logCombat(state, `场外援助生效：${state.monster.name} 血量减少 ${nextMonsterHpPenalty}`);
-        addBattleLog(state, 'other', { text: `场外援助：${state.monster.name} 血量-${nextMonsterHpPenalty}` });
+        logCombat(state, `顺风波及生效：${state.monster.name} 装甲值减少 ${nextMonsterHpPenalty}`);
+        addBattleLog(state, 'other', { text: `顺风波及：${state.monster.name} 装甲值-${nextMonsterHpPenalty}` });
     }
     if (nextBattleHeartBonus > 0) {
         delete runData.nextBattleHeartBonus;
-        logCombat(state, `残破克隆镜生效：本场战斗生命值 +${nextBattleHeartBonus}`);
-        addBattleLog(state, 'other', { text: `残破克隆镜：生命值+${nextBattleHeartBonus}` });
+        logCombat(state, `残破克隆镜生效：本场海战备用锚 +${nextBattleHeartBonus}`);
+        addBattleLog(state, 'other', { text: `残破克隆镜：备用锚+${nextBattleHeartBonus}` });
     }
 
-    // 解析怪物技能
+    // 解析敌舰技能
     parseMonsterSkills(state.monster);
 
-    // 骷髅骑士：第一回合随机指定上回合计策（计策系统已废弃，保留空逻辑）
+    // 骷髅骑士：第一回合随机指定上回合叠牌（叠牌系统已废弃，保留空逻辑）
     if (state.monster.prevStrategyPenalty > 0) {
         state.monster.prevStrategyId = null;
     }
 
-    // 盗贼：遗物偷取——随机禁用一件本场战斗内的遗物效果
+    // 盗贼：船体改造偷取——随机禁用一件本场海战内的船体改造效果
     if (state.monster.disableRandomRelic && runData.relics.length > 0) {
         const candidates = runData.relics.filter(r => r.effect);
         const stolen = candidates.length > 0 ? pickRandom(candidates) : null;
@@ -160,9 +160,9 @@ export function initBattleFromRun(runData) {
             state.monster.disabledRelicId = stolen.id;
             state.monster.disabledRelicKey = stolen.id || stolen.name;
             state.monster.disabledRelicEffect = { ...stolen.effect };
-            logCombat(state, `${state.monster.name} 的技能生效：${stolen.name} 的效果本场战斗失效！`);
+            logCombat(state, `${state.monster.name} 的技能生效：${stolen.name} 的效果本场海战失效！`);
         } else {
-            logCombat(state, `${state.monster.name} 的技能生效，但你的遗物似乎没什么可偷的...`);
+            logCombat(state, `${state.monster.name} 的技能生效，但你的船体改造似乎没什么可偷的...`);
         }
     }
     recordTimeline(state, 'battle_start', {
@@ -172,19 +172,19 @@ export function initBattleFromRun(runData) {
         playerHearts: state.player.hearts
     });
 
-    // 黄之心：每场战斗开始赋予牌组内随机一张卡牌奉献词条
+    // 黄之心：每场海战开始赋予矿舱内随机一块矿石预热词条
     const yellowHeartRelic = getActiveRelics(state).find(r => r.effect?.type === 'dedicate_permanent');
     if (yellowHeartRelic) {
         const candidates = deck.filter(c => !c.keywords.includes('dedicate'));
         if (candidates.length > 0) {
             const card = pickRandom(candidates);
             card.keywords.push('dedicate');
-            logCombat(state, `${yellowHeartRelic.name} 生效：${card.name} 获得奉献词条`);
-            addBattleLog(state, 'relic', { relicName: yellowHeartRelic.name, text: `${card.name} 获得奉献` });
+            logCombat(state, `${yellowHeartRelic.name} 生效：${card.name} 获得预热词条`);
+            addBattleLog(state, 'relic', { relicName: yellowHeartRelic.name, text: `${card.name} 获得预热` });
         }
     }
 
-    // 黄之肉：牌组内所有带奉献词条的卡牌获得连携词条
+    // 黄之肉：矿舱内所有带预热词条的矿石获得共生词条
     const yellowFleshRelic = getActiveRelics(state).find(r => r.effect?.type === 'dedicate_chain');
     if (yellowFleshRelic) {
         let count = 0;
@@ -195,8 +195,8 @@ export function initBattleFromRun(runData) {
             }
         }
         if (count > 0) {
-            logCombat(state, `${yellowFleshRelic.name} 生效：${count} 张奉献牌获得连携`);
-            addBattleLog(state, 'relic', { relicName: yellowFleshRelic.name, text: `${count}张奉献牌获得连携` });
+            logCombat(state, `${yellowFleshRelic.name} 生效：${count} 块预热矿获得共生`);
+            addBattleLog(state, 'relic', { relicName: yellowFleshRelic.name, text: `${count}块预热矿获得共生` });
         }
     }
 
@@ -204,13 +204,13 @@ export function initBattleFromRun(runData) {
     if (startGoldRelic) {
         const gold = startGoldRelic.effect.gold || 1;
         runData.gold = (runData.gold || 0) + gold;
-        logCombat(state, `${startGoldRelic.name} 生效：获得 ${gold} 金币`);
-        addBattleLog(state, 'relic', { relicName: startGoldRelic.name, text: `获得${gold}金币` });
+        logCombat(state, `${startGoldRelic.name} 生效：获得 ${gold} 银元`);
+        addBattleLog(state, 'relic', { relicName: startGoldRelic.name, text: `获得${gold}银元` });
     }
 
     shuffleDiscardToDeck(state);
 
-    // 处理少抽牌（怪物技能）
+    // 处理少抽牌（敌舰技能）
     let drawCount = DRAW_COUNT;
     if (state.monster.lessDraw > 0) {
         drawCount = Math.max(1, drawCount - state.monster.lessDraw);
@@ -229,7 +229,7 @@ export function initBattleFromRun(runData) {
         logCombat(state, `${firstTurnDrawRelic.name} 生效，首回合额外抽 ${extraDraw} 张牌`);
     }
 
-    // 印卡：每场战斗开始将一张作弊卡加入手牌
+    // 印卡：每场海战开始将一张作弊卡加入精炼盘
     const printCardRelic = getActiveRelics(state).find(r => r.effect?.type === 'print_cheat_card');
     if (printCardRelic) {
         const cheatCard = createCardInstance('cheat_card');
@@ -247,7 +247,7 @@ export function initBattleFromRun(runData) {
         GameAudio.playBGM(bgmType);
     }
 
-    // 触发第一回合开始效果（怪物恢复等）
+    // 触发第一回合开始效果（敌舰恢复等）
     FX.fire(Trigger.ON_TURN_START, EffectContext({
         state, trigger: Trigger.ON_TURN_START
     }));
@@ -298,10 +298,10 @@ export function endTurn(state) {
     if (typeof GameAudio !== 'undefined') GameAudio.playEndTurn();
     recordTimeline(state, 'turn_end_start', { turn: state.turn });
 
-    // 计策系统已废弃，叠牌加成自动生效
+    // 叠牌系统已废弃，叠牌加成自动生效
     state.currentStrategy = null;
 
-    // 计算伤害（含计策加成）
+    // 计算伤害（含叠牌加成）
     let totalDmg = calculateTotalBoardDamage(state);
 
     // 闪避：每回合受到的前2点伤害无效
@@ -321,17 +321,17 @@ export function endTurn(state) {
 
     state.turnDamage = totalDmg;
 
-    // 掠夺金币：每造成一次伤害减少玩家1金币
+    // 掠夺银元：每造成一次伤害减少玩家1银元
     if (state.monster.stealGold && totalDmg > 0) {
         const stolen = Math.min(1, state.runDataRef?.gold || 0);
         if (state.runDataRef && stolen > 0) {
             state.runDataRef.gold -= stolen;
-            logCombat(state, `${state.monster.name} 窃取了 ${stolen} 金币！`);
-            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 窃取${stolen}金币` });
+            logCombat(state, `${state.monster.name} 窃取了 ${stolen} 银元！`);
+            addBattleLog(state, 'monster_skill', { text: `${state.monster.name} 窃取${stolen}银元` });
         }
     }
 
-    // 怪物扣血
+    // 敌舰扣血
     const monsterHpBefore = state.monster.hp;
     state.monster.hp = Math.max(0, monsterHpBefore - totalDmg);
     recordTimeline(state, 'monster_damage', {
@@ -355,7 +355,7 @@ export function endTurn(state) {
         }
     }
 
-    logCombat(state, `第${state.turn}回合造成 ${totalDmg} 伤害，怪物剩余 ${state.monster.hp} HP`);
+    logCombat(state, `第${state.turn}回合造成 ${totalDmg} 伤害，敌舰剩余 ${state.monster.hp} HP`);
 
     // 对战记录：伤害事件
     if (totalDmg > 0) {
@@ -411,18 +411,18 @@ export function endTurn(state) {
         return;
     }
 
-    // 点金术：回合结束时按当前手牌数获得金币
+    // 点金术：回合结束时按当前精炼盘数获得银元
     const alchemy = getActiveRelics(state).find(r => r.effect?.type === 'hand_gold_per_turn');
     if (alchemy && state.runDataRef) {
         const gold = (alchemy.effect.gold || 1) * state.hand.length;
         if (gold > 0) {
             state.runDataRef.gold += gold;
-            logCombat(state, `${alchemy.name} 生效：按手牌数获得 ${gold} 金币`);
-            addBattleLog(state, 'relic', { relicName: alchemy.name, text: `按手牌数获得${gold}金币` });
+            logCombat(state, `${alchemy.name} 生效：按精炼盘数获得 ${gold} 银元`);
+            addBattleLog(state, 'relic', { relicName: alchemy.name, text: `按精炼盘数获得${gold}银元` });
         }
     }
 
-    // 清理牌桌（留场保留一回合，其余入弃牌堆）
+    // 清理铸造台（驻台余烬一回合，其余入矿渣堆）
     for (const slot of state.slots) {
         const remaining = [];
         for (const card of slot.cards) {
@@ -437,13 +437,13 @@ export function endTurn(state) {
         slot.cards = remaining;
         slot.nextCardBonus = 0;
         slot.roundMultiplierBonus = 0;
-        // 重置训练效果标记
+        // 重置淬火效果标记
         slot.intenseTrainingActive = false;
         slot.groupTrainingActive = false;
         slot.cogitoAppliedThisTurn = false;
     }
 
-    // 非保留手牌丢弃
+    // 非余烬精炼盘丢弃
     const retainedHand = [];
     for (const card of state.hand) {
         if (card.keywords.includes('retain')) {
@@ -454,7 +454,7 @@ export function endTurn(state) {
     }
     state.hand = retainedHand;
 
-    // 清空所有卡牌的临时加成
+    // 清空所有矿石的临时加成
     const boardCardIds = {};
     for (const slot of state.slots) {
         for (const card of slot.cards) {
@@ -477,7 +477,7 @@ export function endTurn(state) {
     state.monster.firstCardSlotIndex = -1;
     state.monster.cardsPlayedThisTurn = 0;
 
-    // 清除上回合被梦中的你禁用的卡牌标记（手牌、牌库、弃牌堆全部清理）
+    // 清除上回合被梦中的你禁用的矿石标记（精炼盘、矿舱、矿渣堆全部清理）
     const allRetainCards = [...state.hand, ...state.deck, ...state.discard];
     for (const card of allRetainCards) {
         if (card.retainDisabledThisTurn) {
@@ -487,7 +487,7 @@ export function endTurn(state) {
 
     recordTimeline(state, 'turn_start', { turn: state.turn });
 
-    // 弃牌堆洗回牌库，抽5张
+    // 矿渣堆洗回矿舱，抽5张
     shuffleDiscardToDeck(state);
     let nextDrawCount = DRAW_COUNT;
     if (state.monster.lessDraw > 0) {

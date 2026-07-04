@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 渲染核心工具（增强版）
+ * Heave! - 渲染核心工具（增强版）
  */
 
 import { darkenColor } from '../core/utils.js';
@@ -334,7 +334,7 @@ export function drawHealthBar(ctx, x, y, w, h, current, max, options = {}) {
 
 export function drawRarityGlow(ctx, x, y, w, h, rarity, animTime) {
     if (!rarity || rarity === 'white') {
-        // 白卡微光
+        // 粗矿微光
         ctx.shadowColor = 'rgba(255,255,255,0.15)';
         ctx.shadowBlur = 8;
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -489,14 +489,14 @@ export function drawHeartIcon(ctx, x, y, size, filled, pulseTime = 0) {
     ctx.restore();
 }
 
-// 绘制金币图标
+// 绘制银元图标
 export function drawSoulIcon(ctx, x, y, size) {
     ctx.save();
     ctx.translate(x, y);
     const s = size / 20;
     ctx.scale(s, s);
 
-    // 金币外发光
+    // 银元外发光
     const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
     grad.addColorStop(0, 'rgba(255,215,0,0.6)');
     grad.addColorStop(0.5, 'rgba(255,180,0,0.3)');
@@ -506,19 +506,19 @@ export function drawSoulIcon(ctx, x, y, size) {
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fill();
 
-    // 金币主体
+    // 银元主体
     ctx.fillStyle = '#ffd700';
     ctx.beginPath();
     ctx.arc(0, 0, 8, 0, Math.PI * 2);
     ctx.fill();
 
-    // 金币内圈
+    // 银元内圈
     ctx.fillStyle = '#ffec8b';
     ctx.beginPath();
     ctx.arc(0, 0, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 金币符号 ¤
+    // 银元符号 ¤
     ctx.fillStyle = '#b8860b';
     ctx.font = 'bold 8px serif';
     ctx.textAlign = 'center';

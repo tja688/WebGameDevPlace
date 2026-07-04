@@ -1,11 +1,11 @@
 /**
- * 生死烛局 - Playground 入口
+ * Heave! - Playground 入口
  *
  * 职责：
  * 1. 初始化 Playground 状态结构
  * 2. 提供 screen 切换函数（主菜单 ↔ Playground 菜单 ↔ 词条效果沙盒 ↔ 对战测试场）
  * 3. 协调 scenario-engine、ui-controller、renderer、ai-harness
- * 4. 对战测试场状态管理（人类友好的真实战斗测试）
+ * 4. 对战测试场状态管理（人类友好的真实海战测试）
  */
 
 import { switchScreen, createRunData, createBattleSlots } from '../core/state.js';
@@ -33,7 +33,7 @@ export const PlaygroundState = {
     // 沙盒中的 battle state（用于可视化交互）
     sandboxState: null,
 
-    // 对战测试场当前怪物 ID
+    // 对战测试场当前敌舰 ID
     pgMonsterId: null,
 
     // UI 状态
@@ -350,7 +350,7 @@ export function enterPlaygroundBattle(gameState, monsterDefId) {
 }
 
 export function resetPlaygroundBattle(gameState) {
-    // 收集所有非衍生卡回 deck
+    // 收集所有非衍生物回 deck
     const allCards = [
         ...gameState.deck,
         ...gameState.hand,
@@ -405,7 +405,7 @@ export function addCardToPlaygroundHand(gameState, defId) {
     const card = createCardInstance(defId);
     if (!card) return false;
     if (gameState.hand.length >= HAND_LIMIT) {
-        gameState.message = '手牌已满！';
+        gameState.message = '精炼盘已满！';
         gameState.messageTimer = 60;
         return false;
     }
@@ -415,7 +415,7 @@ export function addCardToPlaygroundHand(gameState, defId) {
 
 export function changePlaygroundMonster(gameState, monsterDefId) {
     const runData = gameState.runDataRef || createRunData('veteran');
-    // 保留当前 deck（包括用户添加的卡牌）
+    // 保留当前 deck（包括用户添加的矿石）
     const allCards = [
         ...gameState.deck, ...gameState.hand, ...gameState.discard,
         ...gameState.slots.flatMap(s => s.cards)

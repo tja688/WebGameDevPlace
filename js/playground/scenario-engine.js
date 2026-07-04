@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - Playground 场景执行引擎
+ * Heave! - Playground 场景执行引擎
  *
  * 核心设计原则：
  * 1. 纯逻辑，不依赖 DOM/Canvas/Audio
@@ -40,7 +40,7 @@ function valuesEqual(a, b) {
     return a === b;
 }
 
-// ===== 卡牌构建 =====
+// ===== 矿石构建 =====
 
 function buildCardFromSetup(cardSetup) {
     if (!cardSetup) return null;
@@ -50,7 +50,7 @@ function buildCardFromSetup(cardSetup) {
         const defId = cardSetup.template || cardSetup.defId;
         card = createCardInstance(defId);
         if (!card) {
-            console.warn(`[Playground] 未找到卡牌定义: ${defId}`);
+            console.warn(`[Playground] 未找到矿石定义: ${defId}`);
             card = createFallbackCard(cardSetup);
         }
     } else {
@@ -76,7 +76,7 @@ function createFallbackCard(setup) {
     return {
         uuid: generateUUID(),
         defId: setup.defId || 'custom',
-        name: setup.name || '自定义卡牌',
+        name: setup.name || '自定义矿石',
         baseValue: setup.baseValue || 0,
         permanentBonus: setup.permanentBonus || 0,
         battleBonus: setup.battleBonus || 0,
@@ -106,7 +106,7 @@ function buildStateFromSetup(setup) {
         Object.assign(state.player, setup.player);
     }
 
-    // 覆盖怪物状态
+    // 覆盖敌舰状态
     if (setup.monster) {
         Object.assign(state.monster, setup.monster);
     }
@@ -125,17 +125,17 @@ function buildStateFromSetup(setup) {
         }));
     }
 
-    // 覆盖手牌
+    // 覆盖精炼盘
     if (setup.hand) {
         state.hand = setup.hand.map(c => buildCardFromSetup(c));
     }
 
-    // 覆盖牌库
+    // 覆盖矿舱
     if (setup.deck) {
         state.deck = setup.deck.map(c => buildCardFromSetup(c));
     }
 
-    // 覆盖弃牌堆
+    // 覆盖矿渣堆
     if (setup.discard) {
         state.discard = setup.discard.map(c => buildCardFromSetup(c));
     }
@@ -164,7 +164,7 @@ function executeAction(state, action, logs) {
                 card = state.hand[handIndex];
             }
             if (!card) {
-                logs.push(`[ERROR] 动作 play 找不到卡牌: handIndex=${handIndex}, uuid=${cardUuid}`);
+                logs.push(`[ERROR] 动作 play 找不到矿石: handIndex=${handIndex}, uuid=${cardUuid}`);
                 return false;
             }
             const success = playCardToSlot(card, slotIndex, state);

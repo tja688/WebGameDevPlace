@@ -1,5 +1,5 @@
 /**
- * 生死烛局 - 战斗基础工具（无循环依赖）
+ * Heave! - 战斗基础工具（无循环依赖）
  * 
  * 此文件存放战斗相关的基础函数，不依赖 systems/board.js 或 effects/*
  * 可供效果系统和战斗系统共同引用
@@ -34,8 +34,8 @@ export function logCombat(state, msg) {
 
 /**
  * 记录对战日志（战斗内可视化记录面板用）
- * 只记录关键事件：出牌、伤害、扣血、遗物触发等
- * 离开战斗后自动清空，不跨战斗保留
+ * 只记录关键事件：投矿、伤害、扣血、船体改造触发等
+ * 离开海战后自动清空，不跨海战保留
  */
 export function addBattleLog(state, type, data = {}) {
     if (!state.battleLog) state.battleLog = [];
@@ -52,7 +52,7 @@ export function addBattleLog(state, type, data = {}) {
 }
 
 /**
- * 从牌库抽牌到手中
+ * 从矿舱抽取矿石到精炼盘
  */
 export function drawCards(state, count) {
     let drawn = 0;
@@ -81,7 +81,7 @@ export function drawCards(state, count) {
         drawn++;
     }
     if (drawn > 0) {
-        logCombat(state, `抽了 ${drawn} 张牌`);
+        logCombat(state, `抽取了 ${drawn} 块矿石`);
         if (typeof GameAudio !== 'undefined') GameAudio.playDrawCard();
     }
 }
@@ -91,7 +91,7 @@ export function drawCards(state, count) {
  */
 
 /**
- * 将弃牌堆洗牌回牌库（与剩余牌库合并后整体洗牌）
+ * 将矿渣堆洗牌回矿舱（与剩余矿舱合并后整体洗牌）
  */
 export function shuffleDiscardToDeck(state) {
     if (state.discard.length > 0) {
@@ -102,7 +102,7 @@ export function shuffleDiscardToDeck(state) {
         }
         state.deck = combined;
         state.discard = [];
-        logCombat(state, `弃牌堆洗牌回牌库，牌库共 ${state.deck.length} 张`);
+        logCombat(state, `矿渣堆洗牌回矿舱，矿舱共 ${state.deck.length} 块`);
     }
 }
 
