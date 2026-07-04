@@ -12,7 +12,7 @@ const path = require('path');
 
     try {
         // 1. 打开游戏主菜单
-        await page.goto('http://localhost:8080/', { waitUntil: 'domcontentloaded' });
+        await page.goto('http://localhost:9137/', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
         await page.screenshot({ path: path.join(screenshotsDir, '01_title.png') });
         console.log('Screenshot 01_title.png saved');

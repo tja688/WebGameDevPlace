@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     
-    await page.goto('http://localhost:8080/', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:9137/', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
     
     // 进入 Playground

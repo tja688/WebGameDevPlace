@@ -9,7 +9,7 @@ const path = require('path');
 
     try {
         // 1. 打开游戏并进入对战测试场
-        await page.goto('http://localhost:8080/', { waitUntil: 'domcontentloaded' });
+        await page.goto('http://localhost:9137/', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
         await page.click('#btn-playground');
         await page.waitForTimeout(800);

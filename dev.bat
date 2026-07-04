@@ -15,7 +15,7 @@ echo.
 echo   Card Dungeon - Local Dev Tool
 echo   =============================
 echo.
-echo   [1] Start local server (port 8080)
+echo   [1] Start local server (port 9137)
 echo   [2] Run tests
 echo   [3] Run win-rate simulation
 echo   [4] Exit
@@ -48,11 +48,11 @@ exit /b 0
 
 :server
 call :check_node
-powershell -NoProfile -ExecutionPolicy Bypass -Command "exit -not (Test-NetConnection -ComputerName localhost -Port 8080 -InformationLevel Quiet)" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "exit -not (Test-NetConnection -ComputerName localhost -Port 9137 -InformationLevel Quiet)" >nul 2>nul
 if not errorlevel 1 (
     echo.
-    echo   Port 8080 is already in use. Opening the existing local server...
-    start "" "http://localhost:8080"
+    echo   Port 9137 is already in use. Opening the existing local server...
+    start "" "http://localhost:9137"
     echo.
     pause
     goto menu
@@ -60,10 +60,10 @@ if not errorlevel 1 (
 
 echo.
 echo   Starting server...
-echo   URL: http://localhost:8080
+echo   URL: http://localhost:9137
 echo   Press Ctrl+C to stop the server.
 echo.
-start "" "http://localhost:8080"
+start "" "http://localhost:9137"
 node serve.js
 echo.
 pause
